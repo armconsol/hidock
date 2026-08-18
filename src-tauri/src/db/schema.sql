@@ -1,0 +1,140 @@
+-- HiNotes Desktop SQLite Schema
+
+-- User settings and configuration
+CREATE TABLE IF NOT EXISTS user_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Notes table
+CREATE TABLE IF NOT EXISTS notes (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT,
+    folder_id TEXT,
+    audio_url TEXT,
+    duration TEXT,
+    rating INTEGER CHECK(rating >= 1 AND rating <= 5),
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    synced_at DATETIME,
+    FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+);
+
+-- Whisper notes (quick voice notes)
+CREATE TABLE IF NOT EXISTS whisper_notes (
+    id TEXT PRIMARY KEY,
+    content TEXT NOT NULL,
+    audio_url TEXT,
+    created_at DATETIME NOT NULL,
+    synced_at DATETIME
+);
+
+-- Folders
+CREATE TABLE IF NOT EXISTS folders (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    synced_at DATETIME
+);
+
+-- To-do items
+CREATE TABLE IF NOT EXISTS todos (
+    id TEXT PRIMARY KEY,
+    description TEXT NOT NULL,
+    due_date DATETIME,
+    state TEXT CHECK(state IN ('open', 'closed')) NOT NULL DEFAULT 'open',
+    smart_label TEXT,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    synced_at DATETIME
+);
+
+-- Calendar events
+CREATE TABLE IF NOT EXISTS calendar_events (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME NOT NULL,
+    source TEXT CHECK(source IN ('google_calendar', 'hinotes')) NOT NULL,
+    meeting_url TEXT,
+    created_at DATETIME NOT NULL,
+    synced_at DATETIME
+);
+
+-- Devices (HiDoc P1)
+CREATE TABLE IF NOT EXISTS devices (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    status TEXT CHECK(status IN ('connected', 'disconnected')) NOT NULL,
+    last_sync DATETIME,
+    created_at DATETIME NOT NULL
+);
+
+-- Templates
+CREATE TABLE IF NOT EXISTS templates (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    is_favorite BOOLEAN NOT NULL DEFAULT 0,
+    is_default BOOLEAN NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    synced_at DATETIME
+);
+
+-- Smart labels
+CREATE TABLE IF NOT EXISTS smart_labels (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    color TEXT,
+    created_at DATETIME NOT NULL
+);
+
+-- Custom vocabulary
+CREATE TABLE IF NOT EXISTS vocabulary (
+    id TEXT PRIMARY KEY,
+    word TEXT NOT NULL UNIQUE,
+    pronunciation TEXT,
+    created_at DATETIME NOT NULL
+);
+
+-- Sync metadata
+CREATE TABLE IF NOT EXISTS sync_metadata (
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    last_synced DATETIME NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (entity_type, entity_id)
+);
+
+-- Pending operations queue (for offline mode)
+CREATE TABLE IF NOT EXISTS pending_operations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    operation_type TEXT CHECK(operation_type IN ('create', 'update', 'delete')) NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    retry_count INTEGER NOT NULL DEFAULT 0
+);
+
+-- Audio cache metadata
+CREATE TABLE IF NOT EXISTS audio_cache (
+    note_id TEXT PRIMARY KEY,
+    file_path TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    last_accessed DATETIME NOT NULL,
+    FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_notes_folder ON notes(folder_id);
+CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_todos_state ON todos(state);
+CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date);
+CREATE INDEX IF NOT EXISTS idx_calendar_start ON calendar_events(start_time);
+CREATE INDEX IF NOT EXISTS idx_pending_ops_created ON pending_operations(created_at);
+CREATE INDEX IF NOT EXISTS idx_audio_cache_accessed ON audio_cache(last_accessed);
