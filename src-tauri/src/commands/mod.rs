@@ -1,1 +1,1 @@
-/// Tauri IPC commands
+// Tauri IPC commands

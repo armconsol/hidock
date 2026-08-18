@@ -1,1 +1,1 @@
-/// Authentication module - OAuth2 and credentials
+// Authentication module - OAuth2 and credentials

@@ -22,8 +22,24 @@ impl HiNotesClient {
 
     /// Authenticate with email and password
     pub async fn authenticate(&self, email: &str, password: &str) -> Result<UserInfo> {
-        // This will fail initially - TDD RED phase
-        todo!("Implement authentication")
+        let request_body = LoginRequest {
+            email: email.to_string(),
+            password: password.to_string(),
+        };
+
+        let response = self
+            .http_client
+            .post(&format!("{}/user/signin", self.base_url))
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let auth_response: AuthResponse = response.json().await?;
+
+        // Store the token
+        *self.auth_token.write().await = Some(auth_response.token);
+
+        Ok(auth_response.user)
     }
 
     pub async fn get_token(&self) -> Option<String> {

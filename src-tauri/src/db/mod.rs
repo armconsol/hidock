@@ -1,1 +1,1 @@
-/// Database layer - SQLite
+// Database layer - SQLite
