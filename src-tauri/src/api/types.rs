@@ -76,6 +76,24 @@ pub struct TranslationResponse {
     pub confidence: Option<f64>,
 }
 
+impl TranslationResponse {
+    /// Create from cached translation
+    pub fn from_cache(
+        source_text: &str,
+        source_lang: &str,
+        target_lang: &str,
+        translated_text: &str,
+    ) -> Self {
+        Self {
+            translated_text: translated_text.to_string(),
+            source_lang: source_lang.to_string(),
+            target_lang: target_lang.to_string(),
+            detected_lang: None,
+            confidence: Some(1.0), // Cached translations are assumed correct
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Language {
     pub code: String,

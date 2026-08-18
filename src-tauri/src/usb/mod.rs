@@ -49,15 +49,26 @@ pub const USB_TIMEOUT_MS: u64 = 5000;
 /// Maximum audio chunk size for bulk transfers (bytes)
 pub const MAX_AUDIO_CHUNK_SIZE: usize = 16384; // 16KB chunks
 
+// Backward compatibility aliases (deprecated)
+#[deprecated(note = "Use HIDOC_P1_CONTROL_VID instead")]
+pub const HIDOC_P1_VID: u16 = HIDOC_P1_CONTROL_VID;
+
+#[deprecated(note = "Use HIDOC_P1_CONTROL_PID instead")]
+pub const HIDOC_P1_PID: u16 = HIDOC_P1_CONTROL_PID;
+
 /// Default audio sample rate (Hz)
-/// NOTE: Must be confirmed through protocol analysis
-pub const DEFAULT_SAMPLE_RATE: u32 = 16000; // 16kHz assumed
+/// Confirmed via macOS Audio MIDI Setup: 48kHz
+pub const DEFAULT_SAMPLE_RATE: u32 = 48000; // 48kHz (confirmed)
 
 /// Audio bit depth
-pub const AUDIO_BIT_DEPTH: u16 = 16; // 16-bit PCM assumed
+/// Standard USB Audio Class specification
+pub const AUDIO_BIT_DEPTH: u16 = 16; // 16-bit PCM
 
-/// Number of audio channels
-pub const AUDIO_CHANNELS: u16 = 1; // Mono assumed
+/// Number of input audio channels (recording)
+pub const AUDIO_INPUT_CHANNELS: u16 = 1; // Mono input (confirmed)
+
+/// Number of output audio channels (playback)
+pub const AUDIO_OUTPUT_CHANNELS: u16 = 2; // Stereo output (confirmed)
 
 // ============================================================================
 // Device State

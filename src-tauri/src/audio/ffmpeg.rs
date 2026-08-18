@@ -263,13 +263,16 @@ impl FFmpegWrapper {
             return Err(anyhow!("Invalid time parameters: start={}, duration={}", start_time, duration));
         }
 
+        let start_time_str = start_time.to_string();
+        let duration_str = duration.to_string();
+
         let args = vec![
             "-i",
             input.to_str().ok_or_else(|| anyhow!("Invalid input path"))?,
             "-ss",
-            &start_time.to_string(),
+            &start_time_str,
             "-t",
-            &duration.to_string(),
+            &duration_str,
             "-y",
             "-f",
             output_format,
@@ -350,7 +353,6 @@ pub struct AudioInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use tempfile::TempDir;
 
     #[test]
@@ -461,7 +463,8 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let output_path = temp_dir.path().join("output.mp3");
 
-        let result = wrapper.merge_audio_files::<PathBuf>(&[], &output_path, "mp3");
+        let empty_vec: Vec<PathBuf> = vec![];
+        let result = wrapper.merge_audio_files(&empty_vec, &output_path, "mp3");
         assert!(result.is_err());
     }
 

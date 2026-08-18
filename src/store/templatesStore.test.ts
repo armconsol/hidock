@@ -35,8 +35,10 @@ describe('templatesStore', () => {
 
       vi.mocked(invoke).mockResolvedValue(mockTemplates);
 
+      await useTemplatesStore.getState().loadTemplates();
+
+      // Get fresh state after async operation
       const store = useTemplatesStore.getState();
-      await store.loadTemplates();
 
       expect(invoke).toHaveBeenCalledWith('list_templates', {
         favoriteOnly: false,
@@ -51,8 +53,10 @@ describe('templatesStore', () => {
     it('should handle load error', async () => {
       vi.mocked(invoke).mockRejectedValue(new Error('Failed to load'));
 
+      await expect(useTemplatesStore.getState().loadTemplates()).rejects.toThrow();
+
+      // Get fresh state after async operation
       const store = useTemplatesStore.getState();
-      await expect(store.loadTemplates()).rejects.toThrow();
       expect(store.error).toBe('Failed to load');
     });
   });

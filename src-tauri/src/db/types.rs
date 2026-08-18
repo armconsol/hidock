@@ -308,3 +308,110 @@ pub struct InsertSpeakerSegment {
     pub end_time: f64,
     pub confidence: f64,
 }
+
+// Subscription Types
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DbSubscription {
+    pub id: i64,
+    pub product_id: String,
+    pub status: SubscriptionStatus,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub purchased_at: Option<DateTime<Utc>>,
+    pub canceled_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InsertSubscription {
+    pub product_id: String,
+    pub status: SubscriptionStatus,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub purchased_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateSubscription {
+    pub status: Option<SubscriptionStatus>,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub canceled_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SubscriptionStatus {
+    Active,
+    Expired,
+    Canceled,
+    Trial,
+}
+
+impl SubscriptionStatus {
+    pub fn as_str(&self) -> &str {
+        match self {
+            SubscriptionStatus::Active => "active",
+            SubscriptionStatus::Expired => "expired",
+            SubscriptionStatus::Canceled => "canceled",
+            SubscriptionStatus::Trial => "trial",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "active" => Ok(SubscriptionStatus::Active),
+            "expired" => Ok(SubscriptionStatus::Expired),
+            "canceled" => Ok(SubscriptionStatus::Canceled),
+            "trial" => Ok(SubscriptionStatus::Trial),
+            _ => Err(format!("Invalid subscription status: {}", s)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SubscriptionEvent {
+    pub id: i64,
+    pub subscription_id: Option<i64>,
+    pub event_type: SubscriptionEventType,
+    pub product_id: String,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub occurred_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InsertSubscriptionEvent {
+    pub subscription_id: Option<i64>,
+    pub event_type: SubscriptionEventType,
+    pub product_id: String,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub occurred_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SubscriptionEventType {
+    Activated,
+    Expired,
+    Renewed,
+    Canceled,
+}
+
+impl SubscriptionEventType {
+    pub fn as_str(&self) -> &str {
+        match self {
+            SubscriptionEventType::Activated => "activated",
+            SubscriptionEventType::Expired => "expired",
+            SubscriptionEventType::Renewed => "renewed",
+            SubscriptionEventType::Canceled => "canceled",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "activated" => Ok(SubscriptionEventType::Activated),
+            "expired" => Ok(SubscriptionEventType::Expired),
+            "renewed" => Ok(SubscriptionEventType::Renewed),
+            "canceled" => Ok(SubscriptionEventType::Canceled),
+            _ => Err(format!("Invalid subscription event type: {}", s)),
+        }
+    }
+}

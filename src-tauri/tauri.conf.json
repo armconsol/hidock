@@ -30,11 +30,6 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "externalBin": [
-      "binaries/macos/ffmpeg",
-      "binaries/linux/ffmpeg",
-      "binaries/windows/ffmpeg.exe"
     ]
   }
 }

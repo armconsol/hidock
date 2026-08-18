@@ -88,7 +88,7 @@ describe('CalendarWidget', () => {
     render(<CalendarWidget />);
 
     await waitFor(() => {
-      expect(screen.getByText(/error/i)).toBeInTheDocument();
+      expect(screen.getByText(/failed to load events/i)).toBeInTheDocument();
     });
   });
 });

@@ -4,7 +4,20 @@ use rusqlite::{params, Connection};
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
-use super::types::{CachedTranslation, TranslationResponse};
+use crate::api::types::TranslationResponse;
+
+/// Cached translation in database
+#[derive(Debug, Clone)]
+pub struct CachedTranslation {
+    pub id: String,
+    pub source_text: String,
+    pub source_lang: String,
+    pub target_lang: String,
+    pub translated_text: String,
+    pub created_at: DateTime<Utc>,
+    pub last_accessed: DateTime<Utc>,
+    pub access_count: i64,
+}
 
 /// Cache for storing translations in SQLite database
 pub struct TranslationCache {
@@ -70,14 +83,21 @@ impl TranslationCache {
         let result = stmt.query_row(
             params![source_text, source_lang, target_lang],
             |row| {
+                let created_at_str: String = row.get(5)?;
+                let last_accessed_str: String = row.get(6)?;
+
                 Ok(CachedTranslation {
                     id: row.get(0)?,
                     source_text: row.get(1)?,
                     source_lang: row.get(2)?,
                     target_lang: row.get(3)?,
                     translated_text: row.get(4)?,
-                    created_at: row.get(5)?,
-                    last_accessed: row.get(6)?,
+                    created_at: DateTime::parse_from_rfc3339(&created_at_str)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now()),
+                    last_accessed: DateTime::parse_from_rfc3339(&last_accessed_str)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now()),
                     access_count: row.get(7)?,
                 })
             },
@@ -88,7 +108,12 @@ impl TranslationCache {
                 // Update access count and last accessed time
                 drop(stmt);
                 self.update_access(&cached.id).await?;
-                Ok(Some(TranslationResponse::from_cache(&cached)))
+                Ok(Some(TranslationResponse::from_cache(
+                    &cached.source_text,
+                    &cached.source_lang,
+                    &cached.target_lang,
+                    &cached.translated_text,
+                )))
             }
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(e.into()),
@@ -117,8 +142,8 @@ impl TranslationCache {
                 source_lang,
                 target_lang,
                 translated_text,
-                now,
-                now
+                now.to_rfc3339(),
+                now.to_rfc3339()
             ],
         )?;
 
@@ -133,7 +158,7 @@ impl TranslationCache {
             "UPDATE translations
              SET access_count = access_count + 1, last_accessed = ?1
              WHERE id = ?2",
-            params![Utc::now(), id],
+            params![Utc::now().to_rfc3339(), id],
         )?;
 
         Ok(())
@@ -146,7 +171,7 @@ impl TranslationCache {
 
         let deleted = conn.execute(
             "DELETE FROM translations WHERE last_accessed < ?1",
-            params![cutoff],
+            params![cutoff.to_rfc3339()],
         )?;
 
         Ok(deleted as u64)
@@ -190,14 +215,21 @@ impl TranslationCache {
 
         let translations = stmt
             .query_map(params![limit], |row| {
+                let created_at_str: String = row.get(5)?;
+                let last_accessed_str: String = row.get(6)?;
+
                 Ok(CachedTranslation {
                     id: row.get(0)?,
                     source_text: row.get(1)?,
                     source_lang: row.get(2)?,
                     target_lang: row.get(3)?,
                     translated_text: row.get(4)?,
-                    created_at: row.get(5)?,
-                    last_accessed: row.get(6)?,
+                    created_at: DateTime::parse_from_rfc3339(&created_at_str)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now()),
+                    last_accessed: DateTime::parse_from_rfc3339(&last_accessed_str)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now()),
                     access_count: row.get(7)?,
                 })
             })?

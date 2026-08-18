@@ -7,9 +7,12 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::path::Path;
 use types::{
-    CalendarEvent, Device, DeviceStatus, EventSource, Folder, InsertNote, InsertShareLink,
-    InsertSmartLabel, InsertTodo, InsertVocabulary, Note, PaginationParams, ShareLink, SmartLabel,
-    Template, Todo, TodoState, UpdateNote, UpdateSmartLabel, UpdateTodo, Vocabulary,
+    CalendarEvent, DbSubscription, Device, DeviceStatus, EventSource, Folder, InsertNote,
+    InsertShareLink, InsertSmartLabel, InsertSpeaker, InsertSpeakerSegment, InsertSubscription,
+    InsertSubscriptionEvent, InsertTodo, InsertVocabulary, Note, PaginationParams, ShareLink,
+    SmartLabel, Speaker, SpeakerSegment, SubscriptionEvent, SubscriptionEventType,
+    SubscriptionStatus, Template, Todo, TodoState, UpdateNote, UpdateSmartLabel, UpdateSpeaker,
+    UpdateSubscription, UpdateTodo, Vocabulary,
 };
 
 /// Helper function to parse datetime from SQLite TEXT field (for use outside query_map)
@@ -1921,6 +1924,626 @@ impl Database {
 
         Ok(deleted)
     }
+
+    // ===== SPEAKER CRUD OPERATIONS =====
+
+    /// Insert a new speaker
+    pub fn insert_speaker(&self, speaker: &InsertSpeaker) -> Result<Speaker> {
+        let now = Utc::now();
+
+        self.conn.execute(
+            "INSERT INTO speakers (id, name, voice_signature, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                &speaker.id,
+                &speaker.name,
+                &speaker.voice_signature,
+                now.to_rfc3339(),
+                now.to_rfc3339(),
+            ],
+        )?;
+
+        self.get_speaker(&speaker.id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve inserted speaker"))
+    }
+
+    /// Get a speaker by ID
+    pub fn get_speaker(&self, id: &str) -> Result<Option<Speaker>> {
+        let speaker = self
+            .conn
+            .query_row(
+                "SELECT id, name, voice_signature, created_at, updated_at FROM speakers WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, Option<String>>(1)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match speaker {
+            Some((id, name, voice_signature, created_at, updated_at)) => Ok(Some(Speaker {
+                id,
+                name,
+                voice_signature,
+                created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
+            })),
+            None => Ok(None),
+        }
+    }
+
+    /// List all speakers
+    pub fn list_speakers(&self) -> Result<Vec<Speaker>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, voice_signature, created_at, updated_at FROM speakers ORDER BY created_at DESC",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, Option<String>>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+            ))
+        })?;
+
+        let mut speakers = Vec::new();
+        for row in rows {
+            let (id, name, voice_signature, created_at, updated_at) = row?;
+            speakers.push(Speaker {
+                id,
+                name,
+                voice_signature,
+                created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
+            });
+        }
+
+        Ok(speakers)
+    }
+
+    /// Update a speaker
+    pub fn update_speaker(&self, id: &str, update: &UpdateSpeaker) -> Result<Speaker> {
+        let now = Utc::now();
+        let mut update_parts = Vec::new();
+        let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        if update.name.is_some() {
+            update_parts.push("name = ?");
+            params_vec.push(Box::new(update.name.clone()));
+        }
+        if update.voice_signature.is_some() {
+            update_parts.push("voice_signature = ?");
+            params_vec.push(Box::new(update.voice_signature.clone()));
+        }
+
+        if update_parts.is_empty() {
+            return self
+                .get_speaker(id)?
+                .ok_or_else(|| anyhow::anyhow!("Speaker not found"));
+        }
+
+        update_parts.push("updated_at = ?");
+        params_vec.push(Box::new(now.to_rfc3339()));
+        params_vec.push(Box::new(id.to_string()));
+
+        let sql = format!("UPDATE speakers SET {} WHERE id = ?", update_parts.join(", "));
+
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            params_vec.iter().map(|b| b.as_ref()).collect();
+        let updated = self.conn.execute(&sql, params_refs.as_slice())?;
+
+        if updated == 0 {
+            anyhow::bail!("Speaker not found: {}", id);
+        }
+
+        self.get_speaker(id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve updated speaker"))
+    }
+
+    /// Delete a speaker
+    pub fn delete_speaker(&self, id: &str) -> Result<()> {
+        let deleted = self
+            .conn
+            .execute("DELETE FROM speakers WHERE id = ?1", params![id])?;
+
+        if deleted == 0 {
+            anyhow::bail!("Speaker not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    /// Count total speakers
+    pub fn count_speakers(&self) -> Result<i64> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM speakers", [], |row| row.get(0))?;
+        Ok(count)
+    }
+
+    // ===== SPEAKER SEGMENT CRUD OPERATIONS =====
+
+    /// Insert a new speaker segment
+    pub fn insert_speaker_segment(&self, segment: &InsertSpeakerSegment) -> Result<SpeakerSegment> {
+        let now = Utc::now();
+
+        self.conn.execute(
+            "INSERT INTO speaker_segments (id, note_id, speaker_id, start_time, end_time, confidence, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                &segment.id,
+                &segment.note_id,
+                &segment.speaker_id,
+                segment.start_time,
+                segment.end_time,
+                segment.confidence,
+                now.to_rfc3339(),
+            ],
+        )?;
+
+        self.get_speaker_segment(&segment.id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve inserted speaker segment"))
+    }
+
+    /// Get a speaker segment by ID
+    pub fn get_speaker_segment(&self, id: &str) -> Result<Option<SpeakerSegment>> {
+        let segment = self
+            .conn
+            .query_row(
+                "SELECT id, note_id, speaker_id, start_time, end_time, confidence, created_at
+                 FROM speaker_segments WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, f64>(3)?,
+                        row.get::<_, f64>(4)?,
+                        row.get::<_, f64>(5)?,
+                        row.get::<_, String>(6)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match segment {
+            Some((id, note_id, speaker_id, start_time, end_time, confidence, created_at)) => {
+                Ok(Some(SpeakerSegment {
+                    id,
+                    note_id,
+                    speaker_id,
+                    start_time,
+                    end_time,
+                    confidence,
+                    created_at: parse_datetime(created_at)?,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// List all speaker segments for a note
+    pub fn list_speaker_segments_by_note(&self, note_id: &str) -> Result<Vec<SpeakerSegment>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, note_id, speaker_id, start_time, end_time, confidence, created_at
+             FROM speaker_segments
+             WHERE note_id = ?1
+             ORDER BY start_time ASC",
+        )?;
+
+        let rows = stmt.query_map(params![note_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, f64>(3)?,
+                row.get::<_, f64>(4)?,
+                row.get::<_, f64>(5)?,
+                row.get::<_, String>(6)?,
+            ))
+        })?;
+
+        let mut segments = Vec::new();
+        for row in rows {
+            let (id, note_id, speaker_id, start_time, end_time, confidence, created_at) = row?;
+            segments.push(SpeakerSegment {
+                id,
+                note_id,
+                speaker_id,
+                start_time,
+                end_time,
+                confidence,
+                created_at: parse_datetime(created_at)?,
+            });
+        }
+
+        Ok(segments)
+    }
+
+    /// List all speaker segments for a specific speaker
+    pub fn list_speaker_segments_by_speaker(&self, speaker_id: &str) -> Result<Vec<SpeakerSegment>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, note_id, speaker_id, start_time, end_time, confidence, created_at
+             FROM speaker_segments
+             WHERE speaker_id = ?1
+             ORDER BY created_at DESC",
+        )?;
+
+        let rows = stmt.query_map(params![speaker_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, f64>(3)?,
+                row.get::<_, f64>(4)?,
+                row.get::<_, f64>(5)?,
+                row.get::<_, String>(6)?,
+            ))
+        })?;
+
+        let mut segments = Vec::new();
+        for row in rows {
+            let (id, note_id, speaker_id, start_time, end_time, confidence, created_at) = row?;
+            segments.push(SpeakerSegment {
+                id,
+                note_id,
+                speaker_id,
+                start_time,
+                end_time,
+                confidence,
+                created_at: parse_datetime(created_at)?,
+            });
+        }
+
+        Ok(segments)
+    }
+
+    /// Delete a speaker segment
+    pub fn delete_speaker_segment(&self, id: &str) -> Result<()> {
+        let deleted = self
+            .conn
+            .execute("DELETE FROM speaker_segments WHERE id = ?1", params![id])?;
+
+        if deleted == 0 {
+            anyhow::bail!("Speaker segment not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    /// Delete all speaker segments for a note
+    pub fn delete_speaker_segments_by_note(&self, note_id: &str) -> Result<usize> {
+        let deleted = self.conn.execute(
+            "DELETE FROM speaker_segments WHERE note_id = ?1",
+            params![note_id],
+        )?;
+
+        Ok(deleted)
+    }
+
+    /// Count total speaker segments
+    pub fn count_speaker_segments(&self) -> Result<i64> {
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM speaker_segments",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok(count)
+    }
+
+    /// Count speaker segments for a specific note
+    pub fn count_speaker_segments_by_note(&self, note_id: &str) -> Result<i64> {
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM speaker_segments WHERE note_id = ?1",
+            params![note_id],
+            |row| row.get(0),
+        )?;
+        Ok(count)
+    }
+
+    /// Get speaker statistics for a note
+    pub fn get_speaker_statistics(&self, note_id: &str) -> Result<Vec<(String, f64, i64)>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT speaker_id, SUM(end_time - start_time) as talk_time, COUNT(*) as turn_count
+             FROM speaker_segments
+             WHERE note_id = ?1
+             GROUP BY speaker_id
+             ORDER BY talk_time DESC",
+        )?;
+
+        let rows = stmt.query_map(params![note_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, f64>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        })?;
+
+        let mut stats = Vec::new();
+        for row in rows {
+            stats.push(row?);
+        }
+
+        Ok(stats)
+    }
+
+    // ===== SUBSCRIPTION CRUD OPERATIONS =====
+
+    /// Insert a new subscription
+    pub fn insert_subscription(&self, sub: &InsertSubscription) -> Result<DbSubscription> {
+        let now = Utc::now();
+
+        self.conn.execute(
+            "INSERT INTO subscriptions (product_id, status, expires_at, purchased_at, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                &sub.product_id,
+                sub.status.as_str(),
+                sub.expires_at.as_ref().map(|dt| dt.to_rfc3339()),
+                sub.purchased_at.as_ref().map(|dt| dt.to_rfc3339()),
+                now.to_rfc3339(),
+                now.to_rfc3339(),
+            ],
+        )?;
+
+        let id = self.conn.last_insert_rowid();
+        self.get_subscription(id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve inserted subscription"))
+    }
+
+    /// Get a subscription by ID
+    pub fn get_subscription(&self, id: i64) -> Result<Option<DbSubscription>> {
+        let sub = self
+            .conn
+            .query_row(
+                "SELECT id, product_id, status, expires_at, purchased_at, canceled_at, created_at, updated_at
+                 FROM subscriptions WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, Option<String>>(3)?,
+                        row.get::<_, Option<String>>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                        row.get::<_, String>(6)?,
+                        row.get::<_, String>(7)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match sub {
+            Some((
+                id,
+                product_id,
+                status,
+                expires_at,
+                purchased_at,
+                canceled_at,
+                created_at,
+                updated_at,
+            )) => Ok(Some(DbSubscription {
+                id,
+                product_id,
+                status: SubscriptionStatus::from_str(&status)
+                    .map_err(|e| anyhow::anyhow!("Invalid status: {}", e))?,
+                expires_at: parse_datetime_opt(expires_at)?,
+                purchased_at: parse_datetime_opt(purchased_at)?,
+                canceled_at: parse_datetime_opt(canceled_at)?,
+                created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
+            })),
+            None => Ok(None),
+        }
+    }
+
+    /// Get the current (most recent) subscription
+    pub fn get_current_subscription(&self) -> Result<Option<DbSubscription>> {
+        let sub = self
+            .conn
+            .query_row(
+                "SELECT id, product_id, status, expires_at, purchased_at, canceled_at, created_at, updated_at
+                 FROM subscriptions ORDER BY created_at DESC LIMIT 1",
+                [],
+                |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, Option<String>>(3)?,
+                        row.get::<_, Option<String>>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                        row.get::<_, String>(6)?,
+                        row.get::<_, String>(7)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match sub {
+            Some((
+                id,
+                product_id,
+                status,
+                expires_at,
+                purchased_at,
+                canceled_at,
+                created_at,
+                updated_at,
+            )) => Ok(Some(DbSubscription {
+                id,
+                product_id,
+                status: SubscriptionStatus::from_str(&status)
+                    .map_err(|e| anyhow::anyhow!("Invalid status: {}", e))?,
+                expires_at: parse_datetime_opt(expires_at)?,
+                purchased_at: parse_datetime_opt(purchased_at)?,
+                canceled_at: parse_datetime_opt(canceled_at)?,
+                created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
+            })),
+            None => Ok(None),
+        }
+    }
+
+    /// Update a subscription
+    pub fn update_subscription(
+        &self,
+        id: i64,
+        update: &UpdateSubscription,
+    ) -> Result<DbSubscription> {
+        let now = Utc::now();
+        let mut update_parts = Vec::new();
+        let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        if let Some(ref status) = update.status {
+            update_parts.push("status = ?");
+            params_vec.push(Box::new(status.as_str().to_string()));
+        }
+        if update.expires_at.is_some() {
+            update_parts.push("expires_at = ?");
+            params_vec.push(Box::new(update.expires_at.map(|dt| dt.to_rfc3339())));
+        }
+        if update.canceled_at.is_some() {
+            update_parts.push("canceled_at = ?");
+            params_vec.push(Box::new(update.canceled_at.map(|dt| dt.to_rfc3339())));
+        }
+
+        // Always update updated_at
+        update_parts.push("updated_at = ?");
+        params_vec.push(Box::new(now.to_rfc3339()));
+
+        // Add id as last param
+        params_vec.push(Box::new(id));
+
+        let sql = format!(
+            "UPDATE subscriptions SET {} WHERE id = ?",
+            update_parts.join(", ")
+        );
+
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            params_vec.iter().map(|b| b.as_ref()).collect();
+        let updated = self.conn.execute(&sql, params_refs.as_slice())?;
+
+        if updated == 0 {
+            anyhow::bail!("Subscription not found: {}", id);
+        }
+
+        self.get_subscription(id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve updated subscription"))
+    }
+
+    /// List all subscriptions
+    pub fn list_subscriptions(&self, limit: i64) -> Result<Vec<DbSubscription>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, product_id, status, expires_at, purchased_at, canceled_at, created_at, updated_at
+             FROM subscriptions ORDER BY created_at DESC LIMIT ?1",
+        )?;
+
+        let rows = stmt.query_map(params![limit], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, Option<String>>(4)?,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, String>(6)?,
+                row.get::<_, String>(7)?,
+            ))
+        })?;
+
+        let mut subscriptions = Vec::new();
+        for row in rows {
+            let (
+                id,
+                product_id,
+                status,
+                expires_at,
+                purchased_at,
+                canceled_at,
+                created_at,
+                updated_at,
+            ) = row?;
+            subscriptions.push(DbSubscription {
+                id,
+                product_id,
+                status: SubscriptionStatus::from_str(&status)
+                    .map_err(|e| anyhow::anyhow!("Invalid status: {}", e))?,
+                expires_at: parse_datetime_opt(expires_at)?,
+                purchased_at: parse_datetime_opt(purchased_at)?,
+                canceled_at: parse_datetime_opt(canceled_at)?,
+                created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
+            });
+        }
+
+        Ok(subscriptions)
+    }
+
+    // ===== SUBSCRIPTION EVENTS CRUD OPERATIONS =====
+
+    /// Insert a new subscription event
+    pub fn insert_subscription_event(&self, event: &InsertSubscriptionEvent) -> Result<i64> {
+        self.conn.execute(
+            "INSERT INTO subscription_events (subscription_id, event_type, product_id, expires_at, occurred_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                event.subscription_id,
+                event.event_type.as_str(),
+                &event.product_id,
+                event.expires_at.as_ref().map(|dt| dt.to_rfc3339()),
+                event.occurred_at.to_rfc3339(),
+            ],
+        )?;
+
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// List subscription events
+    pub fn list_subscription_events(&self, limit: i64) -> Result<Vec<SubscriptionEvent>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, subscription_id, event_type, product_id, expires_at, occurred_at
+             FROM subscription_events ORDER BY occurred_at DESC LIMIT ?1",
+        )?;
+
+        let rows = stmt.query_map(params![limit], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, Option<i64>>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, Option<String>>(4)?,
+                row.get::<_, String>(5)?,
+            ))
+        })?;
+
+        let mut events = Vec::new();
+        for row in rows {
+            let (id, subscription_id, event_type, product_id, expires_at, occurred_at) = row?;
+            events.push(SubscriptionEvent {
+                id,
+                subscription_id,
+                event_type: SubscriptionEventType::from_str(&event_type)
+                    .map_err(|e| anyhow::anyhow!("Invalid event type: {}", e))?,
+                product_id,
+                expires_at: parse_datetime_opt(expires_at)?,
+                occurred_at: parse_datetime(occurred_at)?,
+            });
+        }
+
+        Ok(events)
+    }
 }
 
 /// Row data for pending operations
@@ -3761,5 +4384,410 @@ mod tests {
 
         let retrieved = db.get_device("device-1").unwrap().unwrap();
         assert!(retrieved.last_sync.is_some());
+    }
+
+    // ===== SPEAKER TESTS =====
+
+    fn create_test_speaker(id: &str, name: Option<&str>) -> InsertSpeaker {
+        InsertSpeaker {
+            id: id.to_string(),
+            name: name.map(|s| s.to_string()),
+            voice_signature: None,
+        }
+    }
+
+    #[test]
+    fn test_insert_and_get_speaker() {
+        let db = setup();
+
+        let speaker_data = create_test_speaker("speaker-1", Some("John Doe"));
+        let inserted = db.insert_speaker(&speaker_data).unwrap();
+
+        assert_eq!(inserted.id, "speaker-1");
+        assert_eq!(inserted.name, Some("John Doe".to_string()));
+        assert!(inserted.voice_signature.is_none());
+
+        let retrieved = db.get_speaker("speaker-1").unwrap().unwrap();
+        assert_eq!(retrieved.id, inserted.id);
+        assert_eq!(retrieved.name, inserted.name);
+    }
+
+    #[test]
+    fn test_get_nonexistent_speaker() {
+        let db = setup();
+
+        let result = db.get_speaker("nonexistent").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_list_speakers() {
+        let db = setup();
+
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("Alice")))
+            .unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-2", Some("Bob")))
+            .unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-3", None))
+            .unwrap();
+
+        let speakers = db.list_speakers().unwrap();
+        assert_eq!(speakers.len(), 3);
+    }
+
+    #[test]
+    fn test_update_speaker_name() {
+        let db = setup();
+
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("Original Name")))
+            .unwrap();
+
+        let update = UpdateSpeaker {
+            name: Some("Updated Name".to_string()),
+            voice_signature: None,
+        };
+
+        let updated = db.update_speaker("speaker-1", &update).unwrap();
+        assert_eq!(updated.name, Some("Updated Name".to_string()));
+    }
+
+    #[test]
+    fn test_update_speaker_voice_signature() {
+        let db = setup();
+
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("John")))
+            .unwrap();
+
+        let update = UpdateSpeaker {
+            name: None,
+            voice_signature: Some("voice_data_123".to_string()),
+        };
+
+        let updated = db.update_speaker("speaker-1", &update).unwrap();
+        assert_eq!(updated.voice_signature, Some("voice_data_123".to_string()));
+        assert_eq!(updated.name, Some("John".to_string()));
+    }
+
+    #[test]
+    fn test_delete_speaker() {
+        let db = setup();
+
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("John")))
+            .unwrap();
+        assert!(db.get_speaker("speaker-1").unwrap().is_some());
+
+        db.delete_speaker("speaker-1").unwrap();
+        assert!(db.get_speaker("speaker-1").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_delete_nonexistent_speaker() {
+        let db = setup();
+
+        let result = db.delete_speaker("nonexistent");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Speaker not found"));
+    }
+
+    #[test]
+    fn test_count_speakers() {
+        let db = setup();
+
+        assert_eq!(db.count_speakers().unwrap(), 0);
+
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("Alice")))
+            .unwrap();
+        assert_eq!(db.count_speakers().unwrap(), 1);
+
+        db.insert_speaker(&create_test_speaker("speaker-2", Some("Bob")))
+            .unwrap();
+        assert_eq!(db.count_speakers().unwrap(), 2);
+    }
+
+    // ===== SPEAKER SEGMENT TESTS =====
+
+    fn create_test_segment(
+        note_id: &str,
+        speaker_id: &str,
+        start: f64,
+        end: f64,
+    ) -> InsertSpeakerSegment {
+        InsertSpeakerSegment {
+            id: uuid::Uuid::new_v4().to_string(),
+            note_id: note_id.to_string(),
+            speaker_id: speaker_id.to_string(),
+            start_time: start,
+            end_time: end,
+            confidence: 0.95,
+        }
+    }
+
+    #[test]
+    fn test_insert_and_get_speaker_segment() {
+        let db = setup();
+
+        // Create prerequisites
+        let note = InsertNote {
+            id: "note-1".to_string(),
+            title: "Test Note".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        db.insert_note(&note).unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("John")))
+            .unwrap();
+
+        let segment_data = create_test_segment("note-1", "speaker-1", 0.0, 10.5);
+        let segment_id = segment_data.id.clone();
+        let inserted = db.insert_speaker_segment(&segment_data).unwrap();
+
+        assert_eq!(inserted.id, segment_id);
+        assert_eq!(inserted.note_id, "note-1");
+        assert_eq!(inserted.speaker_id, "speaker-1");
+        assert_eq!(inserted.start_time, 0.0);
+        assert_eq!(inserted.end_time, 10.5);
+        assert_eq!(inserted.confidence, 0.95);
+
+        let retrieved = db.get_speaker_segment(&segment_id).unwrap().unwrap();
+        assert_eq!(retrieved.id, inserted.id);
+    }
+
+    #[test]
+    fn test_list_speaker_segments_by_note() {
+        let db = setup();
+
+        // Create prerequisites
+        let note = InsertNote {
+            id: "note-1".to_string(),
+            title: "Test Note".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        db.insert_note(&note).unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("Alice")))
+            .unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-2", Some("Bob")))
+            .unwrap();
+
+        db.insert_speaker_segment(&create_test_segment("note-1", "speaker-1", 0.0, 10.0))
+            .unwrap();
+        db.insert_speaker_segment(&create_test_segment("note-1", "speaker-2", 10.0, 20.0))
+            .unwrap();
+        db.insert_speaker_segment(&create_test_segment("note-1", "speaker-1", 20.0, 30.0))
+            .unwrap();
+
+        let segments = db.list_speaker_segments_by_note("note-1").unwrap();
+        assert_eq!(segments.len(), 3);
+
+        // Verify ordering by start_time
+        assert_eq!(segments[0].start_time, 0.0);
+        assert_eq!(segments[1].start_time, 10.0);
+        assert_eq!(segments[2].start_time, 20.0);
+    }
+
+    #[test]
+    fn test_list_speaker_segments_by_speaker() {
+        let db = setup();
+
+        // Create prerequisites
+        let note1 = InsertNote {
+            id: "note-1".to_string(),
+            title: "Test Note 1".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        let note2 = InsertNote {
+            id: "note-2".to_string(),
+            title: "Test Note 2".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        db.insert_note(&note1).unwrap();
+        db.insert_note(&note2).unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("Alice")))
+            .unwrap();
+
+        db.insert_speaker_segment(&create_test_segment("note-1", "speaker-1", 0.0, 10.0))
+            .unwrap();
+        db.insert_speaker_segment(&create_test_segment("note-2", "speaker-1", 0.0, 5.0))
+            .unwrap();
+
+        let segments = db.list_speaker_segments_by_speaker("speaker-1").unwrap();
+        assert_eq!(segments.len(), 2);
+    }
+
+    #[test]
+    fn test_delete_speaker_segment() {
+        let db = setup();
+
+        // Create prerequisites
+        let note = InsertNote {
+            id: "note-1".to_string(),
+            title: "Test Note".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        db.insert_note(&note).unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("John")))
+            .unwrap();
+
+        let segment_data = create_test_segment("note-1", "speaker-1", 0.0, 10.0);
+        let segment_id = segment_data.id.clone();
+        db.insert_speaker_segment(&segment_data).unwrap();
+
+        assert!(db.get_speaker_segment(&segment_id).unwrap().is_some());
+
+        db.delete_speaker_segment(&segment_id).unwrap();
+        assert!(db.get_speaker_segment(&segment_id).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_delete_speaker_segments_by_note() {
+        let db = setup();
+
+        // Create prerequisites
+        let note = InsertNote {
+            id: "note-1".to_string(),
+            title: "Test Note".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        db.insert_note(&note).unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("Alice")))
+            .unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-2", Some("Bob")))
+            .unwrap();
+
+        db.insert_speaker_segment(&create_test_segment("note-1", "speaker-1", 0.0, 10.0))
+            .unwrap();
+        db.insert_speaker_segment(&create_test_segment("note-1", "speaker-2", 10.0, 20.0))
+            .unwrap();
+
+        assert_eq!(db.count_speaker_segments_by_note("note-1").unwrap(), 2);
+
+        let deleted = db.delete_speaker_segments_by_note("note-1").unwrap();
+        assert_eq!(deleted, 2);
+        assert_eq!(db.count_speaker_segments_by_note("note-1").unwrap(), 0);
+    }
+
+    #[test]
+    fn test_count_speaker_segments() {
+        let db = setup();
+
+        // Create prerequisites
+        let note = InsertNote {
+            id: "note-1".to_string(),
+            title: "Test Note".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        db.insert_note(&note).unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("Alice")))
+            .unwrap();
+
+        assert_eq!(db.count_speaker_segments().unwrap(), 0);
+
+        db.insert_speaker_segment(&create_test_segment("note-1", "speaker-1", 0.0, 10.0))
+            .unwrap();
+        assert_eq!(db.count_speaker_segments().unwrap(), 1);
+
+        db.insert_speaker_segment(&create_test_segment("note-1", "speaker-1", 10.0, 20.0))
+            .unwrap();
+        assert_eq!(db.count_speaker_segments().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_get_speaker_statistics() {
+        let db = setup();
+
+        // Create prerequisites
+        let note = InsertNote {
+            id: "note-1".to_string(),
+            title: "Test Note".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        db.insert_note(&note).unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("Alice")))
+            .unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-2", Some("Bob")))
+            .unwrap();
+
+        // Speaker 1: 0-10 (10s) + 20-25 (5s) = 15s total, 2 turns
+        db.insert_speaker_segment(&create_test_segment("note-1", "speaker-1", 0.0, 10.0))
+            .unwrap();
+        db.insert_speaker_segment(&create_test_segment("note-1", "speaker-1", 20.0, 25.0))
+            .unwrap();
+
+        // Speaker 2: 10-20 (10s) = 10s total, 1 turn
+        db.insert_speaker_segment(&create_test_segment("note-1", "speaker-2", 10.0, 20.0))
+            .unwrap();
+
+        let stats = db.get_speaker_statistics("note-1").unwrap();
+        assert_eq!(stats.len(), 2);
+
+        // First entry should be speaker-1 (most talk time)
+        assert_eq!(stats[0].0, "speaker-1");
+        assert_eq!(stats[0].1, 15.0); // 10 + 5
+        assert_eq!(stats[0].2, 2); // 2 turns
+
+        // Second entry should be speaker-2
+        assert_eq!(stats[1].0, "speaker-2");
+        assert_eq!(stats[1].1, 10.0);
+        assert_eq!(stats[1].2, 1);
+    }
+
+    #[test]
+    fn test_speaker_cascade_delete() {
+        let db = setup();
+
+        // Create prerequisites
+        let note = InsertNote {
+            id: "note-1".to_string(),
+            title: "Test Note".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        db.insert_note(&note).unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("Alice")))
+            .unwrap();
+
+        db.insert_speaker_segment(&create_test_segment("note-1", "speaker-1", 0.0, 10.0))
+            .unwrap();
+        assert_eq!(db.count_speaker_segments_by_note("note-1").unwrap(), 1);
+
+        // Delete note should cascade delete segments
+        db.delete_note("note-1").unwrap();
+        assert_eq!(db.count_speaker_segments().unwrap(), 0);
     }
 }

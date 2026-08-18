@@ -2,12 +2,13 @@ pub mod cache;
 pub mod types;
 
 use anyhow::Result;
-use chrono::Utc;
 use std::sync::Arc;
 
 use crate::api::client::HiNotesClient;
+use crate::api::types::{Language, TranslationRequest, TranslationResponse};
 use cache::TranslationCache;
-use types::{Language, TranslationRequest, TranslationResponse};
+
+pub use types::{CachedTranslation, LiveTranslationSession, RateTranslationRequest};
 
 /// Translation service that handles language detection, translation, and caching
 pub struct TranslationService {

@@ -187,6 +187,19 @@ CREATE TABLE IF NOT EXISTS speaker_segments (
     FOREIGN KEY (speaker_id) REFERENCES speakers(id) ON DELETE CASCADE
 );
 
+-- Translations cache for storing translated text
+CREATE TABLE IF NOT EXISTS translations (
+    id TEXT PRIMARY KEY,
+    source_text TEXT NOT NULL,
+    source_lang TEXT NOT NULL,
+    target_lang TEXT NOT NULL,
+    translated_text TEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    last_accessed DATETIME NOT NULL,
+    access_count INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(source_text, source_lang, target_lang)
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_notes_folder ON notes(folder_id);
 CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at DESC);
@@ -197,6 +210,13 @@ CREATE INDEX IF NOT EXISTS idx_pending_ops_created ON pending_operations(created
 CREATE INDEX IF NOT EXISTS idx_audio_cache_accessed ON audio_cache(last_accessed);
 CREATE INDEX IF NOT EXISTS idx_share_links_note ON share_links(note_id);
 CREATE INDEX IF NOT EXISTS idx_share_links_token ON share_links(token);
+CREATE INDEX IF NOT EXISTS idx_translations_lookup ON translations(source_text, source_lang, target_lang);
+CREATE INDEX IF NOT EXISTS idx_translations_last_accessed ON translations(last_accessed);
+CREATE INDEX IF NOT EXISTS idx_translations_access_count ON translations(access_count DESC);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_expires ON subscriptions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_subscription_events_type ON subscription_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_subscription_events_occurred ON subscription_events(occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_speaker_segments_note ON speaker_segments(note_id);
 CREATE INDEX IF NOT EXISTS idx_speaker_segments_speaker ON speaker_segments(speaker_id);
 CREATE INDEX IF NOT EXISTS idx_speaker_segments_time ON speaker_segments(start_time, end_time);

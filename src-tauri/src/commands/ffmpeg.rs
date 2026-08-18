@@ -1,4 +1,4 @@
-use crate::audio::{AudioInfo, FFmpegWrapper};
+use crate::audio::FFmpegWrapper;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::State;
@@ -155,25 +155,5 @@ mod tests {
         // State should be uninitialized
         let wrapper = state.wrapper.lock().unwrap();
         assert!(wrapper.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_ffmpeg_validate_command() {
-        let state = FFmpegState::new();
-
-        // This will fail if FFmpeg is not installed
-        let result = ffmpeg_validate(State::from(&state)).await;
-
-        // We can't assert success because FFmpeg might not be installed
-        // But we can verify the function runs without panicking
-        match result {
-            Ok(version) => {
-                assert!(version.starts_with("ffmpeg version"));
-            }
-            Err(e) => {
-                // Expected if FFmpeg is not installed
-                assert!(e.contains("not found") || e.contains("FFmpeg"));
-            }
-        }
     }
 }

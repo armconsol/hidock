@@ -217,6 +217,86 @@ impl HiNotesClient {
             referrals_count: referral_response.total_referrals,
         })
     }
+
+    /// Translate text from source language to target language
+    pub async fn translate_text(&self, request: TranslationRequest) -> Result<TranslationResponse> {
+        let token = self
+            .get_token()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("Not authenticated"))?;
+
+        if request.text.is_empty() {
+            anyhow::bail!("Translation text cannot be empty");
+        }
+
+        let response = self
+            .http_client
+            .post(&format!("{}/translate", self.base_url))
+            .bearer_auth(&token)
+            .json(&request)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to translate text: {}", response.status());
+        }
+
+        let translation_response: TranslationResponse = response.json().await?;
+        Ok(translation_response)
+    }
+
+    /// Detect the language of the given text
+    pub async fn detect_language(&self, text: &str) -> Result<String> {
+        let token = self
+            .get_token()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("Not authenticated"))?;
+
+        if text.is_empty() {
+            anyhow::bail!("Text for language detection cannot be empty");
+        }
+
+        let request = DetectLanguageRequest {
+            text: text.to_string(),
+        };
+
+        let response = self
+            .http_client
+            .post(&format!("{}/detect-language", self.base_url))
+            .bearer_auth(&token)
+            .json(&request)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to detect language: {}", response.status());
+        }
+
+        let detect_response: DetectLanguageResponse = response.json().await?;
+        Ok(detect_response.detected_lang)
+    }
+
+    /// Get list of supported languages for translation
+    pub async fn get_language_list(&self) -> Result<Vec<Language>> {
+        let token = self
+            .get_token()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("Not authenticated"))?;
+
+        let response = self
+            .http_client
+            .get(&format!("{}/live/language/list", self.base_url))
+            .bearer_auth(&token)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to get language list: {}", response.status());
+        }
+
+        let lang_response: LanguageListResponse = response.json().await?;
+        Ok(lang_response.languages)
+    }
 }
 
 #[cfg(test)]
@@ -364,5 +444,72 @@ mod tests {
             subscription.status,
             SubscriptionStatus::Active | SubscriptionStatus::Trial | SubscriptionStatus::Expired
         ));
+    }
+
+    // ===== TRANSLATION TESTS =====
+
+    #[tokio::test]
+    async fn test_translate_text_requires_auth() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+
+        let request = TranslationRequest {
+            text: "Hello".to_string(),
+            source_lang: "en".to_string(),
+            target_lang: "es".to_string(),
+        };
+
+        let result = client.translate_text(request).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+    }
+
+    #[tokio::test]
+    async fn test_translate_text_empty_text() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        *client.auth_token.write().await = Some("mock_token".to_string());
+
+        let request = TranslationRequest {
+            text: "".to_string(),
+            source_lang: "en".to_string(),
+            target_lang: "es".to_string(),
+        };
+
+        let result = client.translate_text(request).await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Translation text cannot be empty"));
+    }
+
+    #[tokio::test]
+    async fn test_detect_language_requires_auth() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+
+        let result = client.detect_language("Hello world").await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+    }
+
+    #[tokio::test]
+    async fn test_detect_language_empty_text() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        *client.auth_token.write().await = Some("mock_token".to_string());
+
+        let result = client.detect_language("").await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Text for language detection cannot be empty"));
+    }
+
+    #[tokio::test]
+    async fn test_get_language_list_requires_auth() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+
+        let result = client.get_language_list().await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
     }
 }

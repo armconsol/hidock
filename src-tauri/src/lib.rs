@@ -1,10 +1,12 @@
 // Modules
 pub mod api;
-// pub mod audio; // TODO: Fix audio module compilation errors
+pub mod audio;
 pub mod auth;
 pub mod commands;
 pub mod db;
+pub mod subscription;
 pub mod sync;
+pub mod translation;
 pub mod usb;
 
 use commands::{AppState, FFmpegState};
@@ -33,12 +35,21 @@ pub fn run() {
     let db = Database::new(&db_path).expect("Failed to initialize database");
 
     let app_state = AppState { db: Mutex::new(db) };
+    let ffmpeg_state = FFmpegState::new();
 
     tauri::Builder::default()
         .manage(app_state)
+        .manage(ffmpeg_state)
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,
+            // FFmpeg commands
+            commands::ffmpeg_validate,
+            commands::ffmpeg_binary_path,
+            commands::ffmpeg_convert_audio,
+            commands::ffmpeg_merge_audio,
+            commands::ffmpeg_extract_segment,
+            commands::ffmpeg_get_audio_info,
             // Calendar commands
             commands::get_calendar_events,
             commands::get_today_events,
