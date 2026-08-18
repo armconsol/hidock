@@ -109,10 +109,7 @@ pub async fn get_shared_note(
 
 /// Delete a share link
 #[tauri::command]
-pub async fn delete_share_link(
-    share_id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn delete_share_link(share_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let db = state
         .db
         .lock()

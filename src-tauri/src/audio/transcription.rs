@@ -51,11 +51,7 @@ pub struct SpeakerColor {
 
 impl Transcription {
     /// Create a new transcription from diarization result and text
-    pub fn new(
-        note_id: String,
-        diarization: DiarizationResult,
-        text: String,
-    ) -> Result<Self> {
+    pub fn new(note_id: String, diarization: DiarizationResult, text: String) -> Result<Self> {
         // Build speaker map
         let mut speakers = HashMap::new();
         for speaker in diarization.speakers {
@@ -236,13 +232,15 @@ impl Transcription {
         let mut stats: HashMap<String, SpeakerStats> = HashMap::new();
 
         for segment in &self.segments {
-            let stat = stats.entry(segment.speaker_id.clone()).or_insert(SpeakerStats {
-                speaker_id: segment.speaker_id.clone(),
-                speaker_label: segment.speaker_label.clone(),
-                total_talk_time: 0.0,
-                turn_count: 0,
-                word_count: 0,
-            });
+            let stat = stats
+                .entry(segment.speaker_id.clone())
+                .or_insert(SpeakerStats {
+                    speaker_id: segment.speaker_id.clone(),
+                    speaker_label: segment.speaker_label.clone(),
+                    total_talk_time: 0.0,
+                    turn_count: 0,
+                    word_count: 0,
+                });
 
             stat.total_talk_time += segment.end_time - segment.start_time;
             stat.turn_count += 1;
@@ -278,7 +276,10 @@ fn format_srt_timestamp(seconds: f64) -> String {
     let secs = seconds % 60.0;
     let whole_secs = secs as u32;
     let millis = ((secs - whole_secs as f64) * 1000.0) as u32;
-    format!("{:02}:{:02}:{:02},{:03}", hours, minutes, whole_secs, millis)
+    format!(
+        "{:02}:{:02}:{:02},{:03}",
+        hours, minutes, whole_secs, millis
+    )
 }
 
 #[cfg(test)]
@@ -339,11 +340,7 @@ mod tests {
         let diarization = create_test_diarization();
         let text = "Hello world this is a test transcription from multiple speakers";
 
-        let transcription = Transcription::new(
-            "note-1".to_string(),
-            diarization,
-            text.to_string(),
-        );
+        let transcription = Transcription::new("note-1".to_string(), diarization, text.to_string());
 
         assert!(transcription.is_ok());
         let trans = transcription.unwrap();
@@ -357,11 +354,8 @@ mod tests {
         let diarization = create_test_diarization();
         let text = "Hello world this is a test";
 
-        let transcription = Transcription::new(
-            "note-1".to_string(),
-            diarization,
-            text.to_string(),
-        ).unwrap();
+        let transcription =
+            Transcription::new("note-1".to_string(), diarization, text.to_string()).unwrap();
 
         assert_eq!(transcription.segments[0].speaker_label, "Alice");
         assert_eq!(transcription.segments[1].speaker_label, "Bob");
@@ -372,11 +366,8 @@ mod tests {
         let diarization = create_test_diarization();
         let text = "Hello world this is a test";
 
-        let transcription = Transcription::new(
-            "note-1".to_string(),
-            diarization,
-            text.to_string(),
-        ).unwrap();
+        let transcription =
+            Transcription::new("note-1".to_string(), diarization, text.to_string()).unwrap();
 
         let output = transcription.export(ExportFormat::PlainText).unwrap();
 
@@ -390,11 +381,8 @@ mod tests {
         let diarization = create_test_diarization();
         let text = "Hello world this is a test";
 
-        let transcription = Transcription::new(
-            "note-1".to_string(),
-            diarization,
-            text.to_string(),
-        ).unwrap();
+        let transcription =
+            Transcription::new("note-1".to_string(), diarization, text.to_string()).unwrap();
 
         let output = transcription.export(ExportFormat::Srt).unwrap();
 
@@ -409,11 +397,8 @@ mod tests {
         let diarization = create_test_diarization();
         let text = "Hello world";
 
-        let transcription = Transcription::new(
-            "note-1".to_string(),
-            diarization,
-            text.to_string(),
-        ).unwrap();
+        let transcription =
+            Transcription::new("note-1".to_string(), diarization, text.to_string()).unwrap();
 
         let output = transcription.export(ExportFormat::Json).unwrap();
 
@@ -427,11 +412,8 @@ mod tests {
         let diarization = create_test_diarization();
         let text = "Hello world this is a test";
 
-        let mut transcription = Transcription::new(
-            "note-1".to_string(),
-            diarization,
-            text.to_string(),
-        ).unwrap();
+        let mut transcription =
+            Transcription::new("note-1".to_string(), diarization, text.to_string()).unwrap();
 
         let result = transcription.rename_speaker("speaker-1", "John".to_string());
 
@@ -448,16 +430,16 @@ mod tests {
         let diarization = create_test_diarization();
         let text = "Hello world";
 
-        let mut transcription = Transcription::new(
-            "note-1".to_string(),
-            diarization,
-            text.to_string(),
-        ).unwrap();
+        let mut transcription =
+            Transcription::new("note-1".to_string(), diarization, text.to_string()).unwrap();
 
         let result = transcription.rename_speaker("speaker-999", "Nobody".to_string());
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Speaker not found"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Speaker not found"));
     }
 
     #[test]
@@ -465,11 +447,8 @@ mod tests {
         let diarization = create_test_diarization();
         let text = "Hello world";
 
-        let transcription = Transcription::new(
-            "note-1".to_string(),
-            diarization,
-            text.to_string(),
-        ).unwrap();
+        let transcription =
+            Transcription::new("note-1".to_string(), diarization, text.to_string()).unwrap();
 
         let mut color_map = HashMap::new();
         color_map.insert("speaker-1".to_string(), "#FF5733".to_string());
@@ -489,11 +468,8 @@ mod tests {
         let diarization = create_test_diarization();
         let text = "Hello world";
 
-        let transcription = Transcription::new(
-            "note-1".to_string(),
-            diarization,
-            text.to_string(),
-        ).unwrap();
+        let transcription =
+            Transcription::new("note-1".to_string(), diarization, text.to_string()).unwrap();
 
         let ids = transcription.get_speaker_ids();
 
@@ -507,11 +483,8 @@ mod tests {
         let diarization = create_test_diarization();
         let text = "Hello world this is test";
 
-        let transcription = Transcription::new(
-            "note-1".to_string(),
-            diarization,
-            text.to_string(),
-        ).unwrap();
+        let transcription =
+            Transcription::new("note-1".to_string(), diarization, text.to_string()).unwrap();
 
         let stats = transcription.get_speaker_stats();
 
@@ -543,11 +516,8 @@ mod tests {
         let diarization = create_test_diarization();
         let text = "";
 
-        let transcription = Transcription::new(
-            "note-1".to_string(),
-            diarization,
-            text.to_string(),
-        ).unwrap();
+        let transcription =
+            Transcription::new("note-1".to_string(), diarization, text.to_string()).unwrap();
 
         assert_eq!(transcription.segments.len(), 0);
     }
@@ -557,11 +527,8 @@ mod tests {
         let diarization = create_test_diarization();
         let text = "Hello world";
 
-        let transcription = Transcription::new(
-            "note-1".to_string(),
-            diarization,
-            text.to_string(),
-        ).unwrap();
+        let transcription =
+            Transcription::new("note-1".to_string(), diarization, text.to_string()).unwrap();
 
         // Check first segment has word-level timestamps
         assert!(!transcription.segments[0].words.is_empty());
@@ -578,13 +545,12 @@ mod tests {
 
         let text = "Hello world";
 
-        let transcription = Transcription::new(
-            "note-1".to_string(),
-            diarization,
-            text.to_string(),
-        ).unwrap();
+        let transcription =
+            Transcription::new("note-1".to_string(), diarization, text.to_string()).unwrap();
 
         // Should use default "Speaker {id}" format
-        assert!(transcription.segments[0].speaker_label.starts_with("Speaker "));
+        assert!(transcription.segments[0]
+            .speaker_label
+            .starts_with("Speaker "));
     }
 }

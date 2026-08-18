@@ -74,13 +74,14 @@ impl AudioProcessor {
     fn find_ffmpeg() -> Result<PathBuf> {
         // Check for bundled FFmpeg first
         if let Ok(resource_dir) = std::env::var("TAURI_RESOURCE_DIR") {
-            let bundled_path = Path::new(&resource_dir)
-                .join("bin")
-                .join(if cfg!(target_os = "windows") {
-                    "ffmpeg.exe"
-                } else {
-                    "ffmpeg"
-                });
+            let bundled_path =
+                Path::new(&resource_dir)
+                    .join("bin")
+                    .join(if cfg!(target_os = "windows") {
+                        "ffmpeg.exe"
+                    } else {
+                        "ffmpeg"
+                    });
 
             if bundled_path.exists() {
                 return Ok(bundled_path);
@@ -142,7 +143,11 @@ impl AudioProcessor {
     ///
     /// # Returns
     /// Path to the merged audio file in temp directory
-    pub async fn merge_audio_with_progress<F>(&self, files: &[PathBuf], progress_callback: F) -> Result<PathBuf>
+    pub async fn merge_audio_with_progress<F>(
+        &self,
+        files: &[PathBuf],
+        progress_callback: F,
+    ) -> Result<PathBuf>
     where
         F: Fn(f32) + Send + 'static,
     {
@@ -212,10 +217,7 @@ impl AudioProcessor {
             ]);
         } else {
             // Copy codec (faster, no quality loss)
-            args.extend([
-                "-c".to_string(),
-                "copy".to_string(),
-            ]);
+            args.extend(["-c".to_string(), "copy".to_string()]);
         }
 
         args.extend([
@@ -271,11 +273,7 @@ impl AudioProcessor {
     /// Detect audio format of a file
     async fn detect_audio_format(&self, file: &Path) -> Result<String> {
         let output = Command::new(&self.ffmpeg_path)
-            .args([
-                "-i",
-                file.to_str().unwrap(),
-                "-hide_banner",
-            ])
+            .args(["-i", file.to_str().unwrap(), "-hide_banner"])
             .output()
             .context("Failed to probe audio format")?;
 
@@ -365,10 +363,7 @@ impl AudioProcessor {
                 ]);
             }
 
-            before_args.extend([
-                "-y".to_string(),
-                before_file.to_str().unwrap().to_string(),
-            ]);
+            before_args.extend(["-y".to_string(), before_file.to_str().unwrap().to_string()]);
 
             let before_output = Command::new(&self.ffmpeg_path)
                 .args(&before_args)
@@ -436,16 +431,10 @@ impl AudioProcessor {
 
             // Add fade in filter if fade is enabled
             if fade_duration_ms > 0 {
-                after_args.extend([
-                    "-af".to_string(),
-                    format!("afade=t=in:st=0:d={}", fade_sec),
-                ]);
+                after_args.extend(["-af".to_string(), format!("afade=t=in:st=0:d={}", fade_sec)]);
             }
 
-            after_args.extend([
-                "-y".to_string(),
-                after_file.to_str().unwrap().to_string(),
-            ]);
+            after_args.extend(["-y".to_string(), after_file.to_str().unwrap().to_string()]);
 
             let after_output = Command::new(&self.ffmpeg_path)
                 .args(&after_args)
@@ -512,12 +501,8 @@ impl AudioProcessor {
                 return Err(anyhow!("Invalid timestamp format. Expected HH:MM:SS"));
             }
 
-            let hours: u64 = parts[0]
-                .parse()
-                .context("Invalid hours in timestamp")?;
-            let minutes: u64 = parts[1]
-                .parse()
-                .context("Invalid minutes in timestamp")?;
+            let hours: u64 = parts[0].parse().context("Invalid hours in timestamp")?;
+            let minutes: u64 = parts[1].parse().context("Invalid minutes in timestamp")?;
 
             // Handle seconds with optional milliseconds
             let seconds_part = parts[2];
@@ -546,31 +531,23 @@ impl AudioProcessor {
         // Milliseconds format (number or "123ms")
         if timestamp.ends_with("ms") {
             let num_str = timestamp.trim_end_matches("ms");
-            return num_str
-                .parse()
-                .context("Invalid milliseconds value");
+            return num_str.parse().context("Invalid milliseconds value");
         }
 
         // Seconds format (number with 's' or just decimal)
         if timestamp.ends_with('s') {
             let num_str = timestamp.trim_end_matches('s');
-            let seconds: f64 = num_str
-                .parse()
-                .context("Invalid seconds value")?;
+            let seconds: f64 = num_str.parse().context("Invalid seconds value")?;
             return Ok((seconds * 1000.0) as u64);
         }
 
         // Plain number - try as milliseconds first, if very large
         // Otherwise treat as seconds if it contains decimal point
         if timestamp.contains('.') {
-            let seconds: f64 = timestamp
-                .parse()
-                .context("Invalid numeric timestamp")?;
+            let seconds: f64 = timestamp.parse().context("Invalid numeric timestamp")?;
             Ok((seconds * 1000.0) as u64)
         } else {
-            timestamp
-                .parse()
-                .context("Invalid numeric timestamp")
+            timestamp.parse().context("Invalid numeric timestamp")
         }
     }
 
@@ -588,7 +565,9 @@ impl AudioProcessor {
         }
 
         let timestamp = chrono::Utc::now().timestamp_millis();
-        let output_file = self.temp_dir.join(format!("audio_{}.{}", timestamp, format));
+        let output_file = self
+            .temp_dir
+            .join(format!("audio_{}.{}", timestamp, format));
 
         fs::write(&output_file, audio_data)
             .await
@@ -647,9 +626,7 @@ impl AudioProcessor {
         }
 
         // Convert format or apply quality settings
-        let bitrate = quality_settings
-            .as_ref()
-            .map(|s| s.bitrate.as_str());
+        let bitrate = quality_settings.as_ref().map(|s| s.bitrate.as_str());
 
         self.convert_format(source_path, output_format, bitrate)
             .await
@@ -679,10 +656,7 @@ impl AudioProcessor {
             .temp_dir
             .join(format!("converted_{}.{}", timestamp, output_format));
 
-        let mut args = vec![
-            "-i",
-            input.to_str().unwrap(),
-        ];
+        let mut args = vec!["-i", input.to_str().unwrap()];
 
         if let Some(br) = bitrate {
             args.push("-b:a");
@@ -712,13 +686,7 @@ impl AudioProcessor {
         }
 
         let output = Command::new(&self.ffmpeg_path)
-            .args([
-                "-i",
-                file.to_str().unwrap(),
-                "-f",
-                "null",
-                "-",
-            ])
+            .args(["-i", file.to_str().unwrap(), "-f", "null", "-"])
             .output()
             .context("Failed to probe audio file")?;
 
@@ -736,7 +704,8 @@ impl AudioProcessor {
                         let minutes: f64 = parts[1].parse().unwrap_or(0.0);
                         let seconds: f64 = parts[2].parse().unwrap_or(0.0);
 
-                        let total_ms = ((hours * 3600.0 + minutes * 60.0 + seconds) * 1000.0) as u64;
+                        let total_ms =
+                            ((hours * 3600.0 + minutes * 60.0 + seconds) * 1000.0) as u64;
                         return Ok(total_ms);
                     }
                 }
@@ -770,12 +739,7 @@ impl AudioProcessor {
         let timestamp = chrono::Utc::now().timestamp_millis();
         let output_file = self.temp_dir.join(format!("trimmed_{}.m4a", timestamp));
 
-        let mut args = vec![
-            "-i",
-            input.to_str().unwrap(),
-            "-ss",
-            &start_sec_str,
-        ];
+        let mut args = vec!["-i", input.to_str().unwrap(), "-ss", &start_sec_str];
 
         let duration_sec_str: String;
         if let Some(end) = end_ms {
@@ -832,8 +796,8 @@ impl AudioProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
     use hound::{WavSpec, WavWriter};
+    use std::io::Write;
 
     fn create_test_audio_file(path: &Path) -> Result<()> {
         // Create a minimal valid M4A file header for testing
@@ -841,9 +805,8 @@ mod tests {
         // This is a minimal ftyp atom for M4A
         let m4a_header: &[u8] = &[
             0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, // ftyp atom
-            0x4d, 0x34, 0x41, 0x20, 0x00, 0x00, 0x00, 0x00,
-            0x69, 0x73, 0x6f, 0x6d, 0x69, 0x73, 0x6f, 0x32,
-            0x00, 0x00, 0x00, 0x08, 0x66, 0x72, 0x65, 0x65,
+            0x4d, 0x34, 0x41, 0x20, 0x00, 0x00, 0x00, 0x00, 0x69, 0x73, 0x6f, 0x6d, 0x69, 0x73,
+            0x6f, 0x32, 0x00, 0x00, 0x00, 0x08, 0x66, 0x72, 0x65, 0x65,
         ];
         file.write_all(m4a_header)?;
         Ok(())
@@ -978,7 +941,10 @@ mod tests {
 
         if let Ok(output) = result {
             assert!(output.exists(), "Output file should exist");
-            assert!(output.metadata().unwrap().len() > 0, "Output file should not be empty");
+            assert!(
+                output.metadata().unwrap().len() > 0,
+                "Output file should not be empty"
+            );
 
             // Cleanup
             let _ = fs::remove_file(output).await;
@@ -1004,7 +970,9 @@ mod tests {
         create_test_wav_file(&file2).unwrap();
         create_test_wav_file(&file3).unwrap();
 
-        let result = processor.merge_audio(&[file1.clone(), file2.clone(), file3.clone()]).await;
+        let result = processor
+            .merge_audio(&[file1.clone(), file2.clone(), file3.clone()])
+            .await;
 
         assert!(result.is_ok(), "Merge should succeed with 3 files");
 
@@ -1044,7 +1012,10 @@ mod tests {
         let result = processor.merge_audio(&[]).await;
 
         assert!(result.is_err(), "Should fail with empty array");
-        assert!(result.unwrap_err().to_string().contains("No files provided"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("No files provided"));
     }
 
     #[tokio::test]
@@ -1080,7 +1051,9 @@ mod tests {
         create_test_wav_file(&wav_file).unwrap();
         create_test_mp3_file(&mp3_file).unwrap();
 
-        let result = processor.merge_audio(&[wav_file.clone(), mp3_file.clone()]).await;
+        let result = processor
+            .merge_audio(&[wav_file.clone(), mp3_file.clone()])
+            .await;
 
         // FFmpeg should handle format conversion automatically
         if result.is_ok() {
@@ -1114,7 +1087,9 @@ mod tests {
             progress_called_clone.store(true, std::sync::atomic::Ordering::SeqCst);
         };
 
-        let result = processor.merge_audio_with_progress(&[file1.clone(), file2.clone()], callback).await;
+        let result = processor
+            .merge_audio_with_progress(&[file1.clone(), file2.clone()], callback)
+            .await;
 
         if result.is_ok() {
             let output = result.unwrap();
@@ -1142,7 +1117,9 @@ mod tests {
         std::fs::write(&corrupted_file1, b"invalid audio data").unwrap();
         std::fs::write(&corrupted_file2, b"also invalid").unwrap();
 
-        let result = processor.merge_audio(&[corrupted_file1.clone(), corrupted_file2.clone()]).await;
+        let result = processor
+            .merge_audio(&[corrupted_file1.clone(), corrupted_file2.clone()])
+            .await;
 
         // Should fail due to invalid format
         assert!(result.is_err(), "Should fail with corrupted files");
@@ -1158,9 +1135,7 @@ mod tests {
         let processor = AudioProcessor::new().unwrap();
         let nonexistent = PathBuf::from("/tmp/nonexistent_audio.m4a");
 
-        let result = processor
-            .save_audio_as_new(&nonexistent, "m4a", None)
-            .await;
+        let result = processor.save_audio_as_new(&nonexistent, "m4a", None).await;
 
         assert!(result.is_err());
         assert!(result
@@ -1182,7 +1157,10 @@ mod tests {
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Unsupported output format"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Unsupported output format"));
 
         // Cleanup
         let _ = fs::remove_file(test_file).await;
@@ -1196,15 +1174,18 @@ mod tests {
         let test_file = processor.temp_dir.join("test_same_format.m4a");
         create_test_audio_file(&test_file).unwrap();
 
-        let result = processor
-            .save_audio_as_new(&test_file, "m4a", None)
-            .await;
+        let result = processor.save_audio_as_new(&test_file, "m4a", None).await;
 
         assert!(result.is_ok());
         let output_path = result.unwrap();
         assert!(output_path.exists());
         assert_eq!(output_path.extension().unwrap(), "m4a");
-        assert!(output_path.file_name().unwrap().to_str().unwrap().starts_with("save_as_new_"));
+        assert!(output_path
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .starts_with("save_as_new_"));
 
         // Verify file was copied
         let output_size = fs::metadata(&output_path).await.unwrap().len();
@@ -1232,9 +1213,7 @@ mod tests {
         let test_file = processor.temp_dir.join("test_convert_format.m4a");
         create_test_audio_file(&test_file).unwrap();
 
-        let result = processor
-            .save_audio_as_new(&test_file, "mp3", None)
-            .await;
+        let result = processor.save_audio_as_new(&test_file, "mp3", None).await;
 
         // Cleanup regardless of result
         let _ = fs::remove_file(&test_file).await;
@@ -1369,9 +1348,7 @@ mod tests {
         let formats = ["m4a", "mp3", "wav", "ogg"];
 
         for format in &formats {
-            let result = processor
-                .save_audio_as_new(&test_file, format, None)
-                .await;
+            let result = processor.save_audio_as_new(&test_file, format, None).await;
 
             // m4a should always work (copy), others need FFmpeg
             if *format == "m4a" {

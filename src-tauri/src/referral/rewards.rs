@@ -17,9 +17,9 @@ pub struct Reward {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum RewardType {
-    Minutes,   // Transcription minutes
-    Cash,      // PayPal cash payout
-    Credit,    // Account credit
+    Minutes, // Transcription minutes
+    Cash,    // PayPal cash payout
+    Credit,  // Account credit
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -332,17 +332,13 @@ impl RewardsManager {
                 "SELECT id, reward_id, action, points_used, occurred_at, details
                  FROM reward_history WHERE reward_id = '{}' ORDER BY occurred_at DESC {}",
                 rid,
-                limit
-                    .map(|l| format!("LIMIT {}", l))
-                    .unwrap_or_default()
+                limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default()
             )
         } else {
             format!(
                 "SELECT id, reward_id, action, points_used, occurred_at, details
                  FROM reward_history ORDER BY occurred_at DESC {}",
-                limit
-                    .map(|l| format!("LIMIT {}", l))
-                    .unwrap_or_default()
+                limit.map(|l| format!("LIMIT {}", l)).unwrap_or_default()
             )
         };
 
@@ -458,11 +454,15 @@ mod tests {
             id: id.to_string(),
             reward_type,
             amount,
-            description: format!("Test reward: {} {}", amount, match reward_type {
-                RewardType::Minutes => "minutes",
-                RewardType::Cash => "USD",
-                RewardType::Credit => "credits",
-            }),
+            description: format!(
+                "Test reward: {} {}",
+                amount,
+                match reward_type {
+                    RewardType::Minutes => "minutes",
+                    RewardType::Cash => "USD",
+                    RewardType::Credit => "credits",
+                }
+            ),
             expires_at: None,
             status: RewardStatus::Available,
             created_at: Utc::now(),
@@ -531,15 +531,11 @@ mod tests {
         manager.add_reward(&reward1).unwrap();
         manager.add_reward(&reward2).unwrap();
 
-        let available = manager
-            .list_rewards(Some(RewardStatus::Available))
-            .unwrap();
+        let available = manager.list_rewards(Some(RewardStatus::Available)).unwrap();
         assert_eq!(available.len(), 1);
         assert_eq!(available[0].id, "reward-1");
 
-        let redeemed = manager
-            .list_rewards(Some(RewardStatus::Redeemed))
-            .unwrap();
+        let redeemed = manager.list_rewards(Some(RewardStatus::Redeemed)).unwrap();
         assert_eq!(redeemed.len(), 1);
         assert_eq!(redeemed[0].id, "reward-2");
     }
@@ -626,9 +622,7 @@ mod tests {
         assert!(!reward_id.is_empty());
 
         // Verify reward was created
-        let rewards = manager
-            .list_rewards(Some(RewardStatus::Pending))
-            .unwrap();
+        let rewards = manager.list_rewards(Some(RewardStatus::Pending)).unwrap();
         assert_eq!(rewards.len(), 1);
         assert_eq!(rewards[0].id, reward_id);
         assert_eq!(rewards[0].reward_type, RewardType::Cash);
@@ -726,9 +720,7 @@ mod tests {
         assert_eq!(expired.len(), 1);
         assert_eq!(expired[0].id, "reward-1");
 
-        let available = manager
-            .list_rewards(Some(RewardStatus::Available))
-            .unwrap();
+        let available = manager.list_rewards(Some(RewardStatus::Available)).unwrap();
         assert_eq!(available.len(), 1);
         assert_eq!(available[0].id, "reward-2");
     }

@@ -513,7 +513,7 @@ impl Database {
             title: None,
             content: None,
             folder_id: None,
-            audio_url: Some(Some(audio_url.to_string())),
+            audio_url: Some(audio_url.to_string()),
             duration,
             rating: None,
         };
@@ -2701,6 +2701,258 @@ impl Database {
         }
 
         Ok(events)
+    }
+
+    // ===== REFERRAL CODE CRUD OPERATIONS =====
+
+    /// Generate a new referral code for a user
+    pub fn generate_referral_code(&self, user_id: &str) -> Result<crate::referral::ReferralCode> {
+        self.generate_referral_code_with_expiry(user_id, None)
+    }
+
+    /// Generate a new referral code with optional expiry date
+    pub fn generate_referral_code_with_expiry(
+        &self,
+        user_id: &str,
+        expires_at: Option<DateTime<Utc>>,
+    ) -> Result<crate::referral::ReferralCode> {
+        use uuid::Uuid;
+
+        let id = Uuid::new_v4().to_string();
+        let code = crate::referral::generator::generate_code();
+        let now = Utc::now();
+
+        self.conn.execute(
+            "INSERT INTO referral_codes (id, user_id, code, created_at, expires_at, is_active)
+             VALUES (?1, ?2, ?3, ?4, ?5, 1)",
+            params![
+                &id,
+                user_id,
+                &code,
+                now.to_rfc3339(),
+                expires_at.as_ref().map(|dt| dt.to_rfc3339()),
+            ],
+        )?;
+
+        Ok(crate::referral::ReferralCode {
+            id,
+            user_id: user_id.to_string(),
+            code,
+            created_at: now,
+            expires_at,
+        })
+    }
+
+    /// Validate if a referral code exists and is active
+    pub fn validate_referral_code(&self, code: &str) -> Result<bool> {
+        let now = Utc::now();
+
+        let result: Option<i32> = self
+            .conn
+            .query_row(
+                "SELECT 1 FROM referral_codes
+                 WHERE code = ?1
+                   AND is_active = 1
+                   AND (expires_at IS NULL OR expires_at > ?2)",
+                params![code, now.to_rfc3339()],
+                |row| row.get(0),
+            )
+            .optional()?;
+
+        Ok(result.is_some())
+    }
+
+    /// Get referral code details by code string
+    fn get_referral_code_by_code(&self, code: &str) -> Result<Option<crate::referral::ReferralCode>> {
+        let result = self
+            .conn
+            .query_row(
+                "SELECT id, user_id, code, created_at, expires_at
+                 FROM referral_codes
+                 WHERE code = ?1 AND is_active = 1",
+                params![code],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, Option<String>>(4)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match result {
+            Some((id, user_id, code, created_at, expires_at)) => Ok(Some(crate::referral::ReferralCode {
+                id,
+                user_id,
+                code,
+                created_at: parse_datetime(created_at)?,
+                expires_at: parse_datetime_opt(expires_at)?,
+            })),
+            None => Ok(None),
+        }
+    }
+
+    /// Apply a referral code for a new user
+    pub fn apply_referral_code(
+        &self,
+        referred_user_id: &str,
+        code: &str,
+        reward_config: &crate::referral::RewardConfig,
+    ) -> Result<crate::referral::ReferralUsage> {
+        let now = Utc::now();
+
+        // Validate the code
+        if !self.validate_referral_code(code)? {
+            anyhow::bail!("Invalid or expired referral code");
+        }
+
+        // Get the referral code details
+        let referral_code = self
+            .get_referral_code_by_code(code)?
+            .ok_or_else(|| anyhow::anyhow!("Referral code not found"))?;
+
+        // Check for self-referral
+        if referral_code.user_id == referred_user_id {
+            anyhow::bail!("User cannot refer yourself");
+        }
+
+        // Check if user has already used a referral code
+        let already_used: Option<i32> = self
+            .conn
+            .query_row(
+                "SELECT 1 FROM referral_usage WHERE referred_user_id = ?1",
+                params![referred_user_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+
+        if already_used.is_some() {
+            anyhow::bail!("User has already used a referral code");
+        }
+
+        // Create the referral usage record
+        self.conn.execute(
+            "INSERT INTO referral_usage (code_id, referred_user_id, referrer_user_id, applied_at, reward_points, reward_credits, reward_subscription_days)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                &referral_code.id,
+                referred_user_id,
+                &referral_code.user_id,
+                now.to_rfc3339(),
+                reward_config.points,
+                reward_config.credits,
+                reward_config.subscription_days,
+            ],
+        )?;
+
+        let id = self.conn.last_insert_rowid();
+
+        Ok(crate::referral::ReferralUsage {
+            id,
+            code_id: referral_code.id,
+            referred_user_id: referred_user_id.to_string(),
+            referrer_user_id: referral_code.user_id,
+            applied_at: now,
+            reward_points: reward_config.points,
+            reward_credits: reward_config.credits,
+            reward_subscription_days: reward_config.subscription_days,
+        })
+    }
+
+    /// Get referral statistics for a user
+    pub fn get_referral_stats(&self, user_id: &str) -> Result<crate::referral::ReferralStats> {
+        // Count total referrals
+        let total_referrals: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM referral_usage WHERE referrer_user_id = ?1",
+            params![user_id],
+            |row| row.get(0),
+        )?;
+
+        // Get aggregated rewards
+        let (total_points, total_credits, total_days): (Option<i64>, Option<i64>, Option<i64>) = self
+            .conn
+            .query_row(
+                "SELECT
+                    COALESCE(SUM(reward_points), 0),
+                    COALESCE(SUM(reward_credits), 0),
+                    COALESCE(SUM(reward_subscription_days), 0)
+                 FROM referral_usage
+                 WHERE referrer_user_id = ?1",
+                params![user_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )?;
+
+        // Get referral chain (list of referred users)
+        let mut stmt = self.conn.prepare(
+            "SELECT referred_user_id FROM referral_usage WHERE referrer_user_id = ?1 ORDER BY applied_at DESC",
+        )?;
+
+        let rows = stmt.query_map(params![user_id], |row| row.get::<_, String>(0))?;
+
+        let mut referral_chain = Vec::new();
+        for row in rows {
+            referral_chain.push(row?);
+        }
+
+        Ok(crate::referral::ReferralStats {
+            total_referrals,
+            active_referrals: total_referrals, // All referrals are active (not tracking deactivations yet)
+            total_reward_points: total_points.unwrap_or(0) as i32,
+            total_reward_credits: total_credits.unwrap_or(0) as i32,
+            total_subscription_days: total_days.unwrap_or(0) as i32,
+            referral_chain,
+        })
+    }
+
+    /// List all referral codes for a user
+    pub fn list_user_referral_codes(&self, user_id: &str) -> Result<Vec<crate::referral::ReferralCode>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, user_id, code, created_at, expires_at
+             FROM referral_codes
+             WHERE user_id = ?1 AND is_active = 1
+             ORDER BY created_at DESC",
+        )?;
+
+        let rows = stmt.query_map(params![user_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, Option<String>>(4)?,
+            ))
+        })?;
+
+        let mut codes = Vec::new();
+        for row in rows {
+            let (id, user_id, code, created_at, expires_at) = row?;
+            codes.push(crate::referral::ReferralCode {
+                id,
+                user_id,
+                code,
+                created_at: parse_datetime(created_at)?,
+                expires_at: parse_datetime_opt(expires_at)?,
+            });
+        }
+
+        Ok(codes)
+    }
+
+    /// Delete a referral code (deactivate)
+    pub fn delete_referral_code(&self, code_id: &str) -> Result<()> {
+        let updated = self.conn.execute(
+            "UPDATE referral_codes SET is_active = 0 WHERE id = ?1",
+            params![code_id],
+        )?;
+
+        if updated == 0 {
+            anyhow::bail!("Referral code not found: {}", code_id);
+        }
+
+        Ok(())
     }
 }
 

@@ -19,7 +19,10 @@ fn download_ffmpeg_binaries() {
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
 
-    println!("cargo:warning=Target platform: {} {}", target_os, target_arch);
+    println!(
+        "cargo:warning=Target platform: {} {}",
+        target_os, target_arch
+    );
 
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let binaries_dir = manifest_dir.join("binaries").join(&target_os);
@@ -40,7 +43,10 @@ fn download_ffmpeg_binaries() {
 
     // Skip download if binary already exists
     if binary_path.exists() {
-        println!("cargo:warning=FFmpeg binary already exists at: {}", binary_path.display());
+        println!(
+            "cargo:warning=FFmpeg binary already exists at: {}",
+            binary_path.display()
+        );
         return;
     }
 

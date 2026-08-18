@@ -80,28 +80,25 @@ impl TranslationCache {
              WHERE source_text = ?1 AND source_lang = ?2 AND target_lang = ?3",
         )?;
 
-        let result = stmt.query_row(
-            params![source_text, source_lang, target_lang],
-            |row| {
-                let created_at_str: String = row.get(5)?;
-                let last_accessed_str: String = row.get(6)?;
+        let result = stmt.query_row(params![source_text, source_lang, target_lang], |row| {
+            let created_at_str: String = row.get(5)?;
+            let last_accessed_str: String = row.get(6)?;
 
-                Ok(CachedTranslation {
-                    id: row.get(0)?,
-                    source_text: row.get(1)?,
-                    source_lang: row.get(2)?,
-                    target_lang: row.get(3)?,
-                    translated_text: row.get(4)?,
-                    created_at: DateTime::parse_from_rfc3339(&created_at_str)
-                        .map(|dt| dt.with_timezone(&Utc))
-                        .unwrap_or_else(|_| Utc::now()),
-                    last_accessed: DateTime::parse_from_rfc3339(&last_accessed_str)
-                        .map(|dt| dt.with_timezone(&Utc))
-                        .unwrap_or_else(|_| Utc::now()),
-                    access_count: row.get(7)?,
-                })
-            },
-        );
+            Ok(CachedTranslation {
+                id: row.get(0)?,
+                source_text: row.get(1)?,
+                source_lang: row.get(2)?,
+                target_lang: row.get(3)?,
+                translated_text: row.get(4)?,
+                created_at: DateTime::parse_from_rfc3339(&created_at_str)
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .unwrap_or_else(|_| Utc::now()),
+                last_accessed: DateTime::parse_from_rfc3339(&last_accessed_str)
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .unwrap_or_else(|_| Utc::now()),
+                access_count: row.get(7)?,
+            })
+        });
 
         match result {
             Ok(cached) => {
@@ -181,9 +178,8 @@ impl TranslationCache {
     pub async fn get_cache_stats(&self) -> Result<(u64, u64)> {
         let conn = self.conn.lock().unwrap();
 
-        let count: i64 = conn.query_row("SELECT COUNT(*) FROM translations", [], |row| {
-            row.get(0)
-        })?;
+        let count: i64 =
+            conn.query_row("SELECT COUNT(*) FROM translations", [], |row| row.get(0))?;
 
         let size: i64 = conn.query_row(
             "SELECT SUM(LENGTH(source_text) + LENGTH(translated_text)) FROM translations",
@@ -439,10 +435,7 @@ mod tests {
     async fn test_empty_text() {
         let (cache, _temp) = setup_test_cache();
 
-        cache
-            .save_translation("", "en", "es", "")
-            .await
-            .unwrap();
+        cache.save_translation("", "en", "es", "").await.unwrap();
 
         let result = cache.get_translation("", "en", "es").await.unwrap();
         assert!(result.is_some());

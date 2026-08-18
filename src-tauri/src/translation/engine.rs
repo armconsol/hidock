@@ -82,10 +82,10 @@ impl SupportedLanguage {
 /// Translation quality score
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QualityScore {
-    pub score: f64,           // 0.0 - 1.0
-    pub confidence: f64,      // 0.0 - 1.0
-    pub fluency: f64,         // 0.0 - 1.0
-    pub accuracy: f64,        // 0.0 - 1.0
+    pub score: f64,      // 0.0 - 1.0
+    pub confidence: f64, // 0.0 - 1.0
+    pub fluency: f64,    // 0.0 - 1.0
+    pub accuracy: f64,   // 0.0 - 1.0
 }
 
 impl QualityScore {
@@ -150,8 +150,14 @@ impl TranslationEngine {
         map.insert("en:es:Good morning".to_string(), "Buenos días".to_string());
 
         // English to French
-        map.insert("en:fr:Hello world".to_string(), "Bonjour le monde".to_string());
-        map.insert("en:fr:How are you?".to_string(), "Comment allez-vous?".to_string());
+        map.insert(
+            "en:fr:Hello world".to_string(),
+            "Bonjour le monde".to_string(),
+        );
+        map.insert(
+            "en:fr:How are you?".to_string(),
+            "Comment allez-vous?".to_string(),
+        );
 
         // English to German
         map.insert("en:de:Hello world".to_string(), "Hallo Welt".to_string());
@@ -160,7 +166,10 @@ impl TranslationEngine {
         map.insert("en:zh:Hello world".to_string(), "你好世界".to_string());
 
         // English to Japanese
-        map.insert("en:ja:Hello world".to_string(), "こんにちは世界".to_string());
+        map.insert(
+            "en:ja:Hello world".to_string(),
+            "こんにちは世界".to_string(),
+        );
 
         map
     }
@@ -188,11 +197,24 @@ impl TranslationEngine {
         }
 
         // Simulate translation
-        let key = format!("{}:{}:{}", source_lang.to_code(), target_lang.to_code(), text);
-        let translated = self.mock_translations
+        let key = format!(
+            "{}:{}:{}",
+            source_lang.to_code(),
+            target_lang.to_code(),
+            text
+        );
+        let translated = self
+            .mock_translations
             .get(&key)
             .cloned()
-            .unwrap_or_else(|| format!("[{}->{}] {}", source_lang.to_code(), target_lang.to_code(), text));
+            .unwrap_or_else(|| {
+                format!(
+                    "[{}->{}] {}",
+                    source_lang.to_code(),
+                    target_lang.to_code(),
+                    text
+                )
+            });
 
         // Calculate quality score based on translation length and complexity
         let quality = self.calculate_quality_score(text, &translated);
@@ -231,10 +253,9 @@ impl TranslationEngine {
 
                 // Translate each sentence
                 let key = format!("{}:{}:{}", source.to_code(), target.to_code(), sentence);
-                let translated = mock_translations
-                    .get(&key)
-                    .cloned()
-                    .unwrap_or_else(|| format!("[{}->{}] {}", source.to_code(), target.to_code(), sentence));
+                let translated = mock_translations.get(&key).cloned().unwrap_or_else(|| {
+                    format!("[{}->{}] {}", source.to_code(), target.to_code(), sentence)
+                });
 
                 let chunk = StreamingChunk {
                     text: translated,
@@ -265,7 +286,10 @@ impl TranslationEngine {
             return Ok(SupportedLanguage::Chinese);
         }
 
-        if text.chars().any(|c| '\u{3040}' <= c && c <= '\u{309F}' || '\u{30A0}' <= c && c <= '\u{30FF}') {
+        if text
+            .chars()
+            .any(|c| '\u{3040}' <= c && c <= '\u{309F}' || '\u{30A0}' <= c && c <= '\u{30FF}')
+        {
             return Ok(SupportedLanguage::Japanese);
         }
 
@@ -381,7 +405,11 @@ mod tests {
         let engine = TranslationEngine::new();
 
         let result = engine
-            .translate_batch("Hello world", SupportedLanguage::English, SupportedLanguage::Spanish)
+            .translate_batch(
+                "Hello world",
+                SupportedLanguage::English,
+                SupportedLanguage::Spanish,
+            )
             .await
             .unwrap();
 
@@ -397,7 +425,11 @@ mod tests {
         let engine = TranslationEngine::new();
 
         let result = engine
-            .translate_batch("Hello world", SupportedLanguage::English, SupportedLanguage::French)
+            .translate_batch(
+                "Hello world",
+                SupportedLanguage::English,
+                SupportedLanguage::French,
+            )
             .await
             .unwrap();
 
@@ -496,7 +528,11 @@ mod tests {
         let engine = TranslationEngine::new();
 
         let result = engine
-            .translate_batch("Hello world", SupportedLanguage::English, SupportedLanguage::Spanish)
+            .translate_batch(
+                "Hello world",
+                SupportedLanguage::English,
+                SupportedLanguage::Spanish,
+            )
             .await
             .unwrap();
 
@@ -512,7 +548,11 @@ mod tests {
         let engine = TranslationEngine::new();
 
         let translation = engine
-            .translate_batch("Hello world", SupportedLanguage::English, SupportedLanguage::Spanish)
+            .translate_batch(
+                "Hello world",
+                SupportedLanguage::English,
+                SupportedLanguage::Spanish,
+            )
             .await
             .unwrap();
 
@@ -563,7 +603,11 @@ mod tests {
         let engine = TranslationEngine::new();
 
         let result = engine
-            .translate_batch("Hello world", SupportedLanguage::English, SupportedLanguage::English)
+            .translate_batch(
+                "Hello world",
+                SupportedLanguage::English,
+                SupportedLanguage::English,
+            )
             .await
             .unwrap();
 

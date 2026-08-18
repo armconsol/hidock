@@ -253,10 +253,7 @@ mod tests {
         // Verify subscription is now expired
         let subscription = manager.get_current_subscription().await.unwrap();
         assert!(subscription.is_some());
-        assert_eq!(
-            subscription.unwrap().status,
-            DbSubscriptionStatus::Expired
-        );
+        assert_eq!(subscription.unwrap().status, DbSubscriptionStatus::Expired);
     }
 
     #[tokio::test]

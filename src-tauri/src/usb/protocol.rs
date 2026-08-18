@@ -161,9 +161,7 @@ impl ResponsePacket {
     /// Parse response from bytes
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, UsbError> {
         if bytes.is_empty() {
-            return Err(UsbError::ProtocolError(
-                "Empty response packet".to_string(),
-            ));
+            return Err(UsbError::ProtocolError("Empty response packet".to_string()));
         }
 
         Ok(Self {
@@ -237,7 +235,11 @@ impl ProtocolHandler {
         command: Command,
         payload: Vec<u8>,
     ) -> Result<ResponsePacket, UsbError> {
-        debug!("Sending command: {:?} with {} bytes payload", command, payload.len());
+        debug!(
+            "Sending command: {:?} with {} bytes payload",
+            command,
+            payload.len()
+        );
 
         let packet = CommandPacket::new(command, payload);
         let bytes = packet.to_bytes();
@@ -382,10 +384,7 @@ mod tests {
     #[test]
     fn test_command_conversion() {
         assert_eq!(Command::Initialize.to_byte(), 0x01);
-        assert_eq!(
-            Command::from_byte(0x02),
-            Some(Command::StartRecording)
-        );
+        assert_eq!(Command::from_byte(0x02), Some(Command::StartRecording));
         assert_eq!(Command::from_byte(0xFF), None);
     }
 
@@ -402,7 +401,7 @@ mod tests {
         assert_eq!(bytes[5], 0x01); // Payload[0]
         assert_eq!(bytes[6], 0x02); // Payload[1]
         assert_eq!(bytes[7], 0x03); // Payload[2]
-        // Last byte is checksum
+                                    // Last byte is checksum
     }
 
     #[test]

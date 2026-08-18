@@ -95,8 +95,8 @@ pub async fn update_device_status(
         .lock()
         .map_err(|e| format!("Database lock error: {}", e))?;
 
-    let device_status = DeviceStatus::from_str(&status)
-        .map_err(|e| format!("Invalid device status: {}", e))?;
+    let device_status =
+        DeviceStatus::from_str(&status).map_err(|e| format!("Invalid device status: {}", e))?;
 
     db.update_device_status(&device_id, device_status)
         .map_err(|e| format!("Failed to update device status: {}", e))

@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 pub mod detector;
-pub mod protocol;
 pub mod mass_storage;
+pub mod protocol;
 
 // ============================================================================
 // Device Constants
@@ -145,13 +145,19 @@ impl DeviceInfo {
         // Also check manufacturer/product strings if available
         if let Some(ref mfg) = self.manufacturer {
             if !mfg.contains(HIDOC_MANUFACTURER) {
-                warn!("Device VID/PID matches but manufacturer string does not: {}", mfg);
+                warn!(
+                    "Device VID/PID matches but manufacturer string does not: {}",
+                    mfg
+                );
             }
         }
 
         if let Some(ref prod) = self.product {
             if !prod.contains(HIDOC_PRODUCT) {
-                warn!("Device VID/PID matches but product string does not: {}", prod);
+                warn!(
+                    "Device VID/PID matches but product string does not: {}",
+                    prod
+                );
             }
         }
 

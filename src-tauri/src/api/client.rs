@@ -139,10 +139,7 @@ impl HiNotesClient {
             .await?;
 
         if !response.status().is_success() {
-            anyhow::bail!(
-                "Failed to get subscription status: {}",
-                response.status()
-            );
+            anyhow::bail!("Failed to get subscription status: {}", response.status());
         }
 
         let sub_response: SubscriptionResponse = response.json().await?;
@@ -301,7 +298,10 @@ impl HiNotesClient {
     }
 
     /// Analyze speakers in a note's audio recording
-    pub async fn analyze_speakers(&self, request: FindSpeakersRequest) -> Result<FindSpeakersResponse> {
+    pub async fn analyze_speakers(
+        &self,
+        request: FindSpeakersRequest,
+    ) -> Result<FindSpeakersResponse> {
         let token = self
             .get_token()
             .await
@@ -350,7 +350,11 @@ impl HiNotesClient {
     }
 
     /// Redeem a reward by ID
-    pub async fn redeem_reward(&self, reward_id: &str, points: f64) -> Result<RedeemRewardResponse> {
+    pub async fn redeem_reward(
+        &self,
+        reward_id: &str,
+        points: f64,
+    ) -> Result<RedeemRewardResponse> {
         let token = self
             .get_token()
             .await
@@ -517,9 +521,7 @@ mod tests {
     async fn test_check_subscription_returns_false_for_expired() {
         // Arrange
         let client = HiNotesClient::new("http://localhost:3001/v1");
-        let _ = client
-            .authenticate("expired@example.com", "password")
-            .await;
+        let _ = client.authenticate("expired@example.com", "password").await;
 
         // Act
         let result = client.check_subscription().await;
@@ -592,7 +594,10 @@ mod tests {
 
         let result = client.translate_text(request).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Not authenticated"));
     }
 
     #[tokio::test]
@@ -620,7 +625,10 @@ mod tests {
 
         let result = client.detect_language("Hello world").await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Not authenticated"));
     }
 
     #[tokio::test]
@@ -642,7 +650,10 @@ mod tests {
 
         let result = client.get_language_list().await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Not authenticated"));
     }
 
     #[tokio::test]
@@ -656,7 +667,10 @@ mod tests {
 
         let result = client.analyze_speakers(request).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Not authenticated"));
     }
 
     #[tokio::test]
@@ -685,7 +699,10 @@ mod tests {
 
         let result = client.list_rewards().await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Not authenticated"));
     }
 
     #[tokio::test]
@@ -694,7 +711,10 @@ mod tests {
 
         let result = client.redeem_reward("reward-123", 100.0).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Not authenticated"));
     }
 
     #[tokio::test]
@@ -742,7 +762,10 @@ mod tests {
 
         let result = client.request_payout(25.0, "user@example.com").await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Not authenticated"));
     }
 
     #[tokio::test]

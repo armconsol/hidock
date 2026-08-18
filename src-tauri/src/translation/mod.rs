@@ -101,9 +101,7 @@ mod tests {
     async fn test_translate_text_not_cached() {
         let (service, _temp) = setup_test_service();
 
-        let result = service
-            .translate_text("Hello world", "en", "es")
-            .await;
+        let result = service.translate_text("Hello world", "en", "es").await;
 
         // Should fail without mock server, but tests structure
         assert!(result.is_err() || result.is_ok());

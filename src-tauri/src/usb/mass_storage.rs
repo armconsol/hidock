@@ -6,8 +6,8 @@
 use anyhow::{Context, Result};
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 // ============================================================================
 // Constants
@@ -174,8 +174,8 @@ impl MassStorageImporter {
 
     /// Get mount information
     pub fn get_mount_info(&self) -> Result<MountInfo> {
-        let metadata = fs::metadata(&self.mount_point)
-            .context("Failed to read mount point metadata")?;
+        let metadata =
+            fs::metadata(&self.mount_point).context("Failed to read mount point metadata")?;
 
         // Get filesystem stats (platform-specific)
         let (available, total) = self.get_filesystem_stats()?;
@@ -233,8 +233,8 @@ impl MassStorageImporter {
             return Ok(());
         }
 
-        let entries = fs::read_dir(dir)
-            .with_context(|| format!("Failed to read directory: {:?}", dir))?;
+        let entries =
+            fs::read_dir(dir).with_context(|| format!("Failed to read directory: {:?}", dir))?;
 
         for entry in entries.flatten() {
             let path = entry.path();
@@ -275,8 +275,7 @@ impl MassStorageImporter {
         info!("Importing audio file: {}", file.name);
 
         // Ensure destination directory exists
-        fs::create_dir_all(dest_dir)
-            .context("Failed to create destination directory")?;
+        fs::create_dir_all(dest_dir).context("Failed to create destination directory")?;
 
         let dest_path = dest_dir.join(&file.name);
 
@@ -292,8 +291,7 @@ impl MassStorageImporter {
     pub fn delete_audio_file(&self, file: &AudioFileInfo) -> Result<()> {
         info!("Deleting audio file: {}", file.name);
 
-        fs::remove_file(&file.path)
-            .with_context(|| format!("Failed to delete {}", file.name))?;
+        fs::remove_file(&file.path).with_context(|| format!("Failed to delete {}", file.name))?;
 
         Ok(())
     }
@@ -422,10 +420,7 @@ mod tests {
         let imported_path = importer.import_audio_file(&files[0], &dest_dir)?;
 
         assert!(imported_path.exists());
-        assert_eq!(
-            fs::read(&imported_path)?,
-            b"fake wav data"
-        );
+        assert_eq!(fs::read(&imported_path)?, b"fake wav data");
 
         Ok(())
     }

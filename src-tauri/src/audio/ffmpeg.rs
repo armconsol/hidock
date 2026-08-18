@@ -93,7 +93,10 @@ impl FFmpegWrapper {
             }
         }
 
-        Err(FFmpegError::BinaryNotFound("FFmpeg not found in any standard location".to_string()).into())
+        Err(
+            FFmpegError::BinaryNotFound("FFmpeg not found in any standard location".to_string())
+                .into(),
+        )
     }
 
     /// Get path to bundled FFmpeg binary in Tauri resources
@@ -132,9 +135,11 @@ impl FFmpegWrapper {
             .to_string();
 
         if !version.starts_with("ffmpeg version") {
-            return Err(FFmpegError::VersionValidationFailed(
-                format!("Unexpected version format: {}", version)
-            ).into());
+            return Err(FFmpegError::VersionValidationFailed(format!(
+                "Unexpected version format: {}",
+                version
+            ))
+            .into());
         }
 
         Ok(version)
@@ -166,20 +171,26 @@ impl FFmpegWrapper {
 
         let args = vec![
             "-i",
-            input.to_str().ok_or_else(|| anyhow!("Invalid input path"))?,
+            input
+                .to_str()
+                .ok_or_else(|| anyhow!("Invalid input path"))?,
             "-y", // Overwrite output file if exists
             "-f",
             output_format,
-            output.to_str().ok_or_else(|| anyhow!("Invalid output path"))?,
+            output
+                .to_str()
+                .ok_or_else(|| anyhow!("Invalid output path"))?,
         ];
 
         let output = self.execute_command(&args)?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(FFmpegError::ExecutionFailed(
-                format!("FFmpeg conversion failed: {}", stderr)
-            ).into());
+            return Err(FFmpegError::ExecutionFailed(format!(
+                "FFmpeg conversion failed: {}",
+                stderr
+            ))
+            .into());
         }
 
         Ok(())
@@ -201,7 +212,10 @@ impl FFmpegWrapper {
         // Verify all input files exist
         for input in input_paths {
             if !input.as_ref().exists() {
-                return Err(anyhow!("Input file does not exist: {}", input.as_ref().display()));
+                return Err(anyhow!(
+                    "Input file does not exist: {}",
+                    input.as_ref().display()
+                ));
             }
         }
 
@@ -211,7 +225,12 @@ impl FFmpegWrapper {
         // Add all input files
         for input in input_paths {
             args.push("-i");
-            args.push(input.as_ref().to_str().ok_or_else(|| anyhow!("Invalid input path"))?);
+            args.push(
+                input
+                    .as_ref()
+                    .to_str()
+                    .ok_or_else(|| anyhow!("Invalid input path"))?,
+            );
         }
 
         // Create filter complex for concatenation
@@ -219,7 +238,11 @@ impl FFmpegWrapper {
             .map(|i| format!("[{}:a]", i))
             .collect::<Vec<_>>()
             .join("");
-        let filter_complex = format!("{}concat=n={}:v=0:a=1[out]", filter_inputs, input_paths.len());
+        let filter_complex = format!(
+            "{}concat=n={}:v=0:a=1[out]",
+            filter_inputs,
+            input_paths.len()
+        );
 
         args.extend_from_slice(&[
             "-filter_complex",
@@ -228,16 +251,18 @@ impl FFmpegWrapper {
             "[out]",
             "-f",
             output_format,
-            output.to_str().ok_or_else(|| anyhow!("Invalid output path"))?,
+            output
+                .to_str()
+                .ok_or_else(|| anyhow!("Invalid output path"))?,
         ]);
 
         let output = self.execute_command(&args)?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(FFmpegError::ExecutionFailed(
-                format!("FFmpeg merge failed: {}", stderr)
-            ).into());
+            return Err(
+                FFmpegError::ExecutionFailed(format!("FFmpeg merge failed: {}", stderr)).into(),
+            );
         }
 
         Ok(())
@@ -260,7 +285,11 @@ impl FFmpegWrapper {
         }
 
         if start_time < 0.0 || duration <= 0.0 {
-            return Err(anyhow!("Invalid time parameters: start={}, duration={}", start_time, duration));
+            return Err(anyhow!(
+                "Invalid time parameters: start={}, duration={}",
+                start_time,
+                duration
+            ));
         }
 
         let start_time_str = start_time.to_string();
@@ -268,7 +297,9 @@ impl FFmpegWrapper {
 
         let args = vec![
             "-i",
-            input.to_str().ok_or_else(|| anyhow!("Invalid input path"))?,
+            input
+                .to_str()
+                .ok_or_else(|| anyhow!("Invalid input path"))?,
             "-ss",
             &start_time_str,
             "-t",
@@ -276,16 +307,18 @@ impl FFmpegWrapper {
             "-y",
             "-f",
             output_format,
-            output.to_str().ok_or_else(|| anyhow!("Invalid output path"))?,
+            output
+                .to_str()
+                .ok_or_else(|| anyhow!("Invalid output path"))?,
         ];
 
         let output = self.execute_command(&args)?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(FFmpegError::ExecutionFailed(
-                format!("FFmpeg extract failed: {}", stderr)
-            ).into());
+            return Err(
+                FFmpegError::ExecutionFailed(format!("FFmpeg extract failed: {}", stderr)).into(),
+            );
         }
 
         Ok(())
@@ -301,7 +334,9 @@ impl FFmpegWrapper {
 
         let args = vec![
             "-i",
-            input.to_str().ok_or_else(|| anyhow!("Invalid input path"))?,
+            input
+                .to_str()
+                .ok_or_else(|| anyhow!("Invalid input path"))?,
             "-hide_banner",
         ];
 

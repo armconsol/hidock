@@ -1,16 +1,20 @@
 // Playwright script to launch Chrome with WebUSB monitor pre-loaded
 // Usage: node scripts/capture_webusb_playwright.js
 
-const { chromium } = require('playwright');
-const fs = require('fs');
-const path = require('path');
+import { chromium } from 'playwright';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 async function captureWebUSB() {
   console.log('🚀 Launching Chrome with WebUSB monitor...\n');
 
   // Read the WebUSB monitor script
-  const monitorScript = fs.readFileSync(
-    path.join(__dirname, 'webusb_monitor.js'),
+  const monitorScript = readFileSync(
+    join(__dirname, 'webusb_monitor.js'),
     'utf8'
   );
 
