@@ -450,19 +450,21 @@ mod tests {
     }
 
     fn create_test_reward(id: &str, reward_type: RewardType, amount: f64) -> Reward {
+        let description = format!(
+            "Test reward: {} {}",
+            amount,
+            match &reward_type {
+                RewardType::Minutes => "minutes",
+                RewardType::Cash => "USD",
+                RewardType::Credit => "credits",
+            }
+        );
+
         Reward {
             id: id.to_string(),
             reward_type,
             amount,
-            description: format!(
-                "Test reward: {} {}",
-                amount,
-                match reward_type {
-                    RewardType::Minutes => "minutes",
-                    RewardType::Cash => "USD",
-                    RewardType::Credit => "credits",
-                }
-            ),
+            description,
             expires_at: None,
             status: RewardStatus::Available,
             created_at: Utc::now(),

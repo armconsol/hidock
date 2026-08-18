@@ -1,0 +1,102 @@
+.audio-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  background-color: #1a1a1a;
+  border-radius: 8px;
+  color: #ffffff;
+}
+
+.audio-editor-timeline {
+  position: relative;
+  width: 100%;
+  height: 40px;
+  background-color: #2a2a2a;
+  border-radius: 4px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.audio-editor-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.audio-editor canvas {
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  background-color: #1a1a1a;
+}
+
+/* Dark mode adjustments for Arco Design components */
+.audio-editor .arco-btn {
+  border-radius: 4px;
+}
+
+.audio-editor .arco-typography {
+  color: inherit;
+}
+
+/* Timeline marker styles */
+.timeline-marker {
+  position: absolute;
+  width: 2px;
+  height: 100%;
+  cursor: pointer;
+  transition: width 0.2s;
+}
+
+.timeline-marker:hover {
+  width: 4px;
+}
+
+/* Selection highlight */
+.timeline-selection {
+  position: absolute;
+  height: 100%;
+  background-color: rgba(52, 145, 250, 0.3);
+  border-left: 2px solid #3491fa;
+  border-right: 2px solid #3491fa;
+  pointer-events: none;
+}
+
+/* Playback indicator */
+.playback-indicator {
+  position: absolute;
+  width: 2px;
+  height: 100%;
+  background-color: #3491fa;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 0 5px rgba(52, 145, 250, 0.5);
+}
+
+/* Waveform canvas hover effect */
+.audio-editor canvas:hover {
+  border-color: #3491fa;
+  cursor: crosshair;
+}
+
+/* Loading and error states */
+.audio-editor .arco-spin {
+  color: #3491fa;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .audio-editor {
+    padding: 10px;
+  }
+
+  .audio-editor-controls {
+    flex-wrap: wrap;
+  }
+
+  .audio-editor canvas {
+    width: 100%;
+    height: auto;
+  }
+}

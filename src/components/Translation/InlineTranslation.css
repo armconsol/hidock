@@ -1,0 +1,44 @@
+.inline-translation {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.inline-translation:hover {
+  background-color: var(--color-fill-2);
+}
+
+.inline-translation-content {
+  display: flex;
+  align-items: center;
+}
+
+.original-text {
+  color: var(--color-text-1);
+}
+
+.translated-text {
+  color: var(--color-primary-6);
+  font-style: italic;
+}
+
+.inline-translation-error {
+  font-size: 12px;
+  color: var(--color-danger-6);
+  margin-left: 8px;
+}
+
+.inline-translation-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.inline-translation-actions.visible {
+  opacity: 1;
+}

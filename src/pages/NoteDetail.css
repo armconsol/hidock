@@ -1,0 +1,39 @@
+.note-detail-page {
+  padding: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.note-header h2 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.note-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-3);
+}
+
+.note-content {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.note-paragraphs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.note-paragraph {
+  padding: 8px;
+  border-left: 3px solid var(--color-border-2);
+}
+
+@media (max-width: 768px) {
+  .note-detail-page {
+    padding: 16px;
+  }
+}

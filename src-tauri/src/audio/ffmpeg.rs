@@ -499,7 +499,7 @@ mod tests {
         let output_path = temp_dir.path().join("output.mp3");
 
         let empty_vec: Vec<PathBuf> = vec![];
-        let result = wrapper.merge_audio_files(&empty_vec, &output_path, "mp3");
+        let result = wrapper.merge_audio_files(&empty_vec, output_path, "mp3");
         assert!(result.is_err());
     }
 

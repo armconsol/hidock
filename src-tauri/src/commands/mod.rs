@@ -6,6 +6,7 @@ pub mod device_commands; // Device commands module
 pub mod ffmpeg; // FFmpeg commands module
 pub mod notes_commands; // Notes commands module
 pub mod sharing_commands; // Sharing commands module
+pub mod translation_commands; // Translation commands module
 
 use crate::db::{
     types::{
@@ -25,6 +26,7 @@ pub use device_commands::*; // Re-export device commands
 pub use ffmpeg::*; // Re-export FFmpeg commands
 pub use notes_commands::*; // Re-export notes commands
 pub use sharing_commands::*; // Re-export sharing commands
+pub use translation_commands::*; // Re-export translation commands
 
 pub struct AppState {
     pub db: Mutex<Database>,
