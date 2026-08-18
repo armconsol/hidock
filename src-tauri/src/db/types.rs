@@ -212,3 +212,55 @@ pub struct InsertVocabulary {
     pub word: String,
     pub pronunciation: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Device {
+    pub id: String,
+    pub name: String,
+    pub status: DeviceStatus,
+    pub last_sync: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum DeviceStatus {
+    Connected,
+    Disconnected,
+}
+
+impl DeviceStatus {
+    pub fn as_str(&self) -> &str {
+        match self {
+            DeviceStatus::Connected => "connected",
+            DeviceStatus::Disconnected => "disconnected",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "connected" => Ok(DeviceStatus::Connected),
+            "disconnected" => Ok(DeviceStatus::Disconnected),
+            _ => Err(format!("Invalid device status: {}", s)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ShareLink {
+    pub id: String,
+    pub note_id: String,
+    pub token: String,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub last_accessed_at: Option<DateTime<Utc>>,
+    pub access_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InsertShareLink {
+    pub id: String,
+    pub note_id: String,
+    pub token: String,
+    pub expires_at: Option<DateTime<Utc>>,
+}

@@ -7,9 +7,9 @@ use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::path::Path;
 use types::{
-    CalendarEvent, EventSource, Folder, InsertNote, InsertSmartLabel, InsertTodo, InsertVocabulary,
-    Note, PaginationParams, SmartLabel, Template, Todo, TodoState, UpdateNote, UpdateSmartLabel,
-    UpdateTodo, Vocabulary,
+    CalendarEvent, Device, DeviceStatus, EventSource, Folder, InsertNote, InsertShareLink,
+    InsertSmartLabel, InsertTodo, InsertVocabulary, Note, PaginationParams, ShareLink, SmartLabel,
+    Template, Todo, TodoState, UpdateNote, UpdateSmartLabel, UpdateTodo, Vocabulary,
 };
 
 /// Helper function to parse datetime from SQLite TEXT field (for use outside query_map)
@@ -1602,6 +1602,324 @@ impl Database {
         }
 
         Ok(imported_count)
+    }
+
+    // ===== DEVICE CRUD OPERATIONS =====
+
+    /// Insert a new device
+    pub fn insert_device(&self, device: &Device) -> Result<Device> {
+        self.conn.execute(
+            "INSERT INTO devices (id, name, status, last_sync, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                &device.id,
+                &device.name,
+                device.status.as_str(),
+                device.last_sync.as_ref().map(|dt| dt.to_rfc3339()),
+                device.created_at.to_rfc3339(),
+            ],
+        )?;
+
+        self.get_device(&device.id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve inserted device"))
+    }
+
+    /// Get a device by ID
+    pub fn get_device(&self, device_id: &str) -> Result<Option<Device>> {
+        let device = self
+            .conn
+            .query_row(
+                "SELECT id, name, status, last_sync, created_at FROM devices WHERE id = ?1",
+                params![device_id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, Option<String>>(3)?,
+                        row.get::<_, String>(4)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match device {
+            Some((id, name, status, last_sync, created_at)) => Ok(Some(Device {
+                id,
+                name,
+                status: DeviceStatus::from_str(&status)
+                    .map_err(|e| anyhow::anyhow!("Invalid device status: {}", e))?,
+                last_sync: parse_datetime_opt(last_sync)?,
+                created_at: parse_datetime(created_at)?,
+            })),
+            None => Ok(None),
+        }
+    }
+
+    /// List all devices
+    pub fn list_devices(&self) -> Result<Vec<Device>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, status, last_sync, created_at FROM devices ORDER BY created_at DESC",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, String>(4)?,
+            ))
+        })?;
+
+        let mut devices = Vec::new();
+        for row in rows {
+            let (id, name, status, last_sync, created_at) = row?;
+            devices.push(Device {
+                id,
+                name,
+                status: DeviceStatus::from_str(&status)
+                    .map_err(|e| anyhow::anyhow!("Invalid device status: {}", e))?,
+                last_sync: parse_datetime_opt(last_sync)?,
+                created_at: parse_datetime(created_at)?,
+            });
+        }
+
+        Ok(devices)
+    }
+
+    /// Update device status
+    pub fn update_device_status(
+        &self,
+        device_id: &str,
+        status: DeviceStatus,
+    ) -> Result<Device> {
+        let updated = self.conn.execute(
+            "UPDATE devices SET status = ?1 WHERE id = ?2",
+            params![status.as_str(), device_id],
+        )?;
+
+        if updated == 0 {
+            anyhow::bail!("Device not found: {}", device_id);
+        }
+
+        self.get_device(device_id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve updated device"))
+    }
+
+    /// Delete a device
+    pub fn delete_device(&self, device_id: &str) -> Result<()> {
+        let deleted = self
+            .conn
+            .execute("DELETE FROM devices WHERE id = ?1", params![device_id])?;
+
+        if deleted == 0 {
+            anyhow::bail!("Device not found: {}", device_id);
+        }
+
+        Ok(())
+    }
+
+    /// Update device last sync time
+    pub fn update_device_last_sync(&self, device_id: &str) -> Result<Device> {
+        let now = Utc::now();
+
+        let updated = self.conn.execute(
+            "UPDATE devices SET last_sync = ?1 WHERE id = ?2",
+            params![now.to_rfc3339(), device_id],
+        )?;
+
+        if updated == 0 {
+            anyhow::bail!("Device not found: {}", device_id);
+        }
+
+        self.get_device(device_id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve updated device"))
+    }
+
+    /// Count total devices
+    pub fn count_devices(&self) -> Result<i64> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM devices", [], |row| row.get(0))?;
+        Ok(count)
+    }
+
+    // ===== SHARE LINKS CRUD OPERATIONS =====
+
+    /// Insert a new share link
+    pub fn insert_share_link(&self, share: &InsertShareLink) -> Result<ShareLink> {
+        let now = Utc::now();
+
+        self.conn.execute(
+            "INSERT INTO share_links (id, note_id, token, expires_at, created_at, last_accessed_at, access_count)
+             VALUES (?1, ?2, ?3, ?4, ?5, NULL, 0)",
+            params![
+                &share.id,
+                &share.note_id,
+                &share.token,
+                share.expires_at.as_ref().map(|dt| dt.to_rfc3339()),
+                now.to_rfc3339(),
+            ],
+        )?;
+
+        self.get_share_link(&share.id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve inserted share link"))
+    }
+
+    /// Get a share link by ID
+    pub fn get_share_link(&self, id: &str) -> Result<Option<ShareLink>> {
+        let share = self
+            .conn
+            .query_row(
+                "SELECT id, note_id, token, expires_at, created_at, last_accessed_at, access_count
+                 FROM share_links WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, Option<String>>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                        row.get::<_, i64>(6)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match share {
+            Some((id, note_id, token, expires_at, created_at, last_accessed_at, access_count)) => {
+                Ok(Some(ShareLink {
+                    id,
+                    note_id,
+                    token,
+                    expires_at: parse_datetime_opt(expires_at)?,
+                    created_at: parse_datetime(created_at)?,
+                    last_accessed_at: parse_datetime_opt(last_accessed_at)?,
+                    access_count,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Get a share link by token
+    pub fn get_share_link_by_token(&self, token: &str) -> Result<Option<ShareLink>> {
+        let share = self
+            .conn
+            .query_row(
+                "SELECT id, note_id, token, expires_at, created_at, last_accessed_at, access_count
+                 FROM share_links WHERE token = ?1",
+                params![token],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, Option<String>>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                        row.get::<_, i64>(6)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match share {
+            Some((id, note_id, token, expires_at, created_at, last_accessed_at, access_count)) => {
+                Ok(Some(ShareLink {
+                    id,
+                    note_id,
+                    token,
+                    expires_at: parse_datetime_opt(expires_at)?,
+                    created_at: parse_datetime(created_at)?,
+                    last_accessed_at: parse_datetime_opt(last_accessed_at)?,
+                    access_count,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// List share links for a note
+    pub fn list_share_links_by_note(&self, note_id: &str) -> Result<Vec<ShareLink>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, note_id, token, expires_at, created_at, last_accessed_at, access_count
+             FROM share_links
+             WHERE note_id = ?1
+             ORDER BY created_at DESC",
+        )?;
+
+        let rows = stmt.query_map(params![note_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, i64>(6)?,
+            ))
+        })?;
+
+        let mut shares = Vec::new();
+        for row in rows {
+            let (id, note_id, token, expires_at, created_at, last_accessed_at, access_count) =
+                row?;
+            shares.push(ShareLink {
+                id,
+                note_id,
+                token,
+                expires_at: parse_datetime_opt(expires_at)?,
+                created_at: parse_datetime(created_at)?,
+                last_accessed_at: parse_datetime_opt(last_accessed_at)?,
+                access_count,
+            });
+        }
+
+        Ok(shares)
+    }
+
+    /// Delete a share link
+    pub fn delete_share_link(&self, id: &str) -> Result<()> {
+        let deleted = self
+            .conn
+            .execute("DELETE FROM share_links WHERE id = ?1", params![id])?;
+
+        if deleted == 0 {
+            anyhow::bail!("Share link not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    /// Increment share link access count and update last accessed time
+    pub fn increment_share_access(&self, id: &str) -> Result<()> {
+        let now = Utc::now();
+
+        let updated = self.conn.execute(
+            "UPDATE share_links SET access_count = access_count + 1, last_accessed_at = ?1 WHERE id = ?2",
+            params![now.to_rfc3339(), id],
+        )?;
+
+        if updated == 0 {
+            anyhow::bail!("Share link not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    /// Delete expired share links
+    pub fn delete_expired_share_links(&self) -> Result<usize> {
+        let now = Utc::now();
+
+        let deleted = self.conn.execute(
+            "DELETE FROM share_links WHERE expires_at IS NOT NULL AND expires_at < ?1",
+            params![now.to_rfc3339()],
+        )?;
+
+        Ok(deleted)
     }
 }
 
@@ -3243,5 +3561,205 @@ mod tests {
 
         let words = db.list_vocabulary().unwrap();
         assert_eq!(words.len(), 2);
+    }
+
+    // ===== DEVICE TESTS =====
+
+    fn create_test_device(id: &str, name: &str, status: DeviceStatus) -> Device {
+        let now = Utc::now();
+        Device {
+            id: id.to_string(),
+            name: name.to_string(),
+            status,
+            last_sync: None,
+            created_at: now,
+        }
+    }
+
+    #[test]
+    fn test_insert_and_get_device() {
+        let db = setup();
+
+        let device = create_test_device("device-1", "HiDoc P1", DeviceStatus::Connected);
+        let inserted = db.insert_device(&device).unwrap();
+
+        assert_eq!(inserted.id, "device-1");
+        assert_eq!(inserted.name, "HiDoc P1");
+        assert_eq!(inserted.status, DeviceStatus::Connected);
+        assert!(inserted.last_sync.is_none());
+
+        let retrieved = db.get_device("device-1").unwrap().unwrap();
+        assert_eq!(retrieved.id, inserted.id);
+        assert_eq!(retrieved.name, inserted.name);
+        assert_eq!(retrieved.status, inserted.status);
+    }
+
+    #[test]
+    fn test_get_nonexistent_device() {
+        let db = setup();
+
+        let result = db.get_device("nonexistent").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_list_devices() {
+        let db = setup();
+
+        // Insert multiple devices with delays to ensure different timestamps
+        let device1 = create_test_device("device-1", "HiDoc P1", DeviceStatus::Connected);
+        db.insert_device(&device1).unwrap();
+
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        let device2 = create_test_device("device-2", "HiDoc P2", DeviceStatus::Disconnected);
+        db.insert_device(&device2).unwrap();
+
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        let device3 = create_test_device("device-3", "HiDoc P3", DeviceStatus::Connected);
+        db.insert_device(&device3).unwrap();
+
+        let devices = db.list_devices().unwrap();
+        assert_eq!(devices.len(), 3);
+
+        // Should be ordered by created_at DESC
+        assert_eq!(devices[0].id, "device-3");
+        assert_eq!(devices[1].id, "device-2");
+        assert_eq!(devices[2].id, "device-1");
+    }
+
+    #[test]
+    fn test_list_devices_empty() {
+        let db = setup();
+
+        let devices = db.list_devices().unwrap();
+        assert_eq!(devices.len(), 0);
+    }
+
+    #[test]
+    fn test_update_device_status() {
+        let db = setup();
+
+        let device = create_test_device("device-1", "HiDoc P1", DeviceStatus::Connected);
+        db.insert_device(&device).unwrap();
+
+        let updated = db
+            .update_device_status("device-1", DeviceStatus::Disconnected)
+            .unwrap();
+
+        assert_eq!(updated.status, DeviceStatus::Disconnected);
+        assert_eq!(updated.name, "HiDoc P1");
+        assert_eq!(updated.id, "device-1");
+    }
+
+    #[test]
+    fn test_update_device_status_nonexistent() {
+        let db = setup();
+
+        let result = db.update_device_status("nonexistent", DeviceStatus::Connected);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Device not found"));
+    }
+
+    #[test]
+    fn test_delete_device() {
+        let db = setup();
+
+        let device = create_test_device("device-1", "HiDoc P1", DeviceStatus::Connected);
+        db.insert_device(&device).unwrap();
+        assert!(db.get_device("device-1").unwrap().is_some());
+
+        db.delete_device("device-1").unwrap();
+        assert!(db.get_device("device-1").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_delete_nonexistent_device() {
+        let db = setup();
+
+        let result = db.delete_device("nonexistent");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Device not found"));
+    }
+
+    #[test]
+    fn test_update_device_last_sync() {
+        let db = setup();
+
+        let device = create_test_device("device-1", "HiDoc P1", DeviceStatus::Connected);
+        let inserted = db.insert_device(&device).unwrap();
+        assert!(inserted.last_sync.is_none());
+
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        let updated = db.update_device_last_sync("device-1").unwrap();
+        assert!(updated.last_sync.is_some());
+        assert!(updated.last_sync.unwrap() > inserted.created_at);
+    }
+
+    #[test]
+    fn test_update_device_last_sync_nonexistent() {
+        let db = setup();
+
+        let result = db.update_device_last_sync("nonexistent");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Device not found"));
+    }
+
+    #[test]
+    fn test_count_devices() {
+        let db = setup();
+        assert_eq!(db.count_devices().unwrap(), 0);
+
+        let device1 = create_test_device("device-1", "HiDoc P1", DeviceStatus::Connected);
+        db.insert_device(&device1).unwrap();
+        assert_eq!(db.count_devices().unwrap(), 1);
+
+        let device2 = create_test_device("device-2", "HiDoc P2", DeviceStatus::Disconnected);
+        db.insert_device(&device2).unwrap();
+        assert_eq!(db.count_devices().unwrap(), 2);
+
+        db.delete_device("device-1").unwrap();
+        assert_eq!(db.count_devices().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_device_status_persistence() {
+        let db = setup();
+
+        // Test connected status
+        let device1 = create_test_device("device-1", "HiDoc P1", DeviceStatus::Connected);
+        db.insert_device(&device1).unwrap();
+        let retrieved1 = db.get_device("device-1").unwrap().unwrap();
+        assert_eq!(retrieved1.status, DeviceStatus::Connected);
+
+        // Test disconnected status
+        let device2 = create_test_device("device-2", "HiDoc P2", DeviceStatus::Disconnected);
+        db.insert_device(&device2).unwrap();
+        let retrieved2 = db.get_device("device-2").unwrap().unwrap();
+        assert_eq!(retrieved2.status, DeviceStatus::Disconnected);
+    }
+
+    #[test]
+    fn test_device_with_last_sync() {
+        let db = setup();
+
+        let now = Utc::now();
+        let mut device = create_test_device("device-1", "HiDoc P1", DeviceStatus::Connected);
+        device.last_sync = Some(now);
+
+        let inserted = db.insert_device(&device).unwrap();
+        assert!(inserted.last_sync.is_some());
+
+        let retrieved = db.get_device("device-1").unwrap().unwrap();
+        assert!(retrieved.last_sync.is_some());
     }
 }

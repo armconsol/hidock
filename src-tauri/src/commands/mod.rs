@@ -2,7 +2,9 @@
 
 // pub mod audio; // TODO: Fix audio module compilation errors
 pub mod auth_commands;
+pub mod device_commands; // Device commands module
 pub mod notes_commands; // Notes commands module
+pub mod sharing_commands; // Sharing commands module
 
 use crate::db::{
     types::{
@@ -18,7 +20,9 @@ use tauri::State;
 // Re-export audio command functions and their generated helpers
 // pub use audio::*; // TODO: Fix audio module compilation errors
 pub use auth_commands::*;
+pub use device_commands::*; // Re-export device commands
 pub use notes_commands::*; // Re-export notes commands
+pub use sharing_commands::*; // Re-export sharing commands
 
 pub struct AppState {
     pub db: Mutex<Database>,

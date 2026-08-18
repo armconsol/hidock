@@ -1,0 +1,123 @@
+.device-list-container {
+  width: 100%;
+  padding: 16px;
+}
+
+.device-list {
+  width: 100%;
+}
+
+.device-list-loading,
+.device-list-error,
+.device-list-empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  padding: 40px;
+}
+
+.device-card {
+  transition: all 0.3s ease;
+}
+
+.device-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.device-card-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px;
+}
+
+.device-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: var(--color-fill-2);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.device-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.device-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.device-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-1);
+}
+
+.device-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--color-text-3);
+}
+
+.device-id {
+  font-family: 'Courier New', monospace;
+  color: var(--color-text-2);
+}
+
+.device-sync {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sync-icon {
+  font-size: 14px;
+}
+
+.device-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.unbind-button {
+  color: var(--color-danger-6);
+}
+
+.unbind-button:hover {
+  background: var(--color-danger-light-1);
+  color: var(--color-danger-6);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .device-card-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .device-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .device-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .device-header {
+    flex-wrap: wrap;
+  }
+}

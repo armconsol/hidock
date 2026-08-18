@@ -5,6 +5,7 @@ pub mod auth;
 pub mod commands;
 pub mod db;
 pub mod sync;
+pub mod usb;
 
 use commands::AppState;
 use db::Database;
@@ -73,7 +74,20 @@ pub fn run() {
             commands::create_note,
             commands::update_note,
             commands::delete_note,
-            commands::count_notes
+            commands::count_notes,
+            // Sharing commands
+            commands::create_share_link,
+            commands::list_share_links,
+            commands::get_shared_note,
+            commands::delete_share_link,
+            commands::cleanup_expired_shares,
+            // Device commands
+            commands::list_devices,
+            commands::get_device,
+            commands::bind_device,
+            commands::unbind_device,
+            commands::update_device_status,
+            commands::update_device_last_sync
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

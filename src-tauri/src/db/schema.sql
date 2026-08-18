@@ -130,6 +130,18 @@ CREATE TABLE IF NOT EXISTS audio_cache (
     FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
 );
 
+-- Share links for public note sharing
+CREATE TABLE IF NOT EXISTS share_links (
+    id TEXT PRIMARY KEY,
+    note_id TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    expires_at DATETIME,
+    created_at DATETIME NOT NULL,
+    last_accessed_at DATETIME,
+    access_count INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_notes_folder ON notes(folder_id);
 CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at DESC);
@@ -138,3 +150,5 @@ CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_start ON calendar_events(start_time);
 CREATE INDEX IF NOT EXISTS idx_pending_ops_created ON pending_operations(created_at);
 CREATE INDEX IF NOT EXISTS idx_audio_cache_accessed ON audio_cache(last_accessed);
+CREATE INDEX IF NOT EXISTS idx_share_links_note ON share_links(note_id);
+CREATE INDEX IF NOT EXISTS idx_share_links_token ON share_links(token);
