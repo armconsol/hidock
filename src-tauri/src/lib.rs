@@ -4,6 +4,7 @@ pub mod audio;
 pub mod auth;
 pub mod commands;
 pub mod db;
+pub mod referral;
 pub mod subscription;
 pub mod sync;
 pub mod translation;

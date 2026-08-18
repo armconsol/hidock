@@ -1,4 +1,5 @@
 pub mod cache;
+pub mod engine;
 pub mod types;
 
 use anyhow::Result;
@@ -8,6 +9,10 @@ use crate::api::client::HiNotesClient;
 use crate::api::types::{Language, TranslationRequest, TranslationResponse};
 use cache::TranslationCache;
 
+pub use engine::{
+    BatchTranslationResult, QualityScore, StreamingChunk, SupportedLanguage, TranslationEngine,
+    TranslationWithMetadata,
+};
 pub use types::{CachedTranslation, LiveTranslationSession, RateTranslationRequest};
 
 /// Translation service that handles language detection, translation, and caching

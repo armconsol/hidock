@@ -200,6 +200,30 @@ CREATE TABLE IF NOT EXISTS translations (
     UNIQUE(source_text, source_lang, target_lang)
 );
 
+-- Referral codes table
+CREATE TABLE IF NOT EXISTS referral_codes (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    code TEXT NOT NULL UNIQUE,
+    created_at DATETIME NOT NULL,
+    expires_at DATETIME,
+    is_active BOOLEAN NOT NULL DEFAULT 1
+);
+
+-- Referral usage tracking
+CREATE TABLE IF NOT EXISTS referral_usage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code_id TEXT NOT NULL,
+    referred_user_id TEXT NOT NULL,
+    referrer_user_id TEXT NOT NULL,
+    applied_at DATETIME NOT NULL,
+    reward_points INTEGER NOT NULL DEFAULT 0,
+    reward_credits INTEGER,
+    reward_subscription_days INTEGER,
+    FOREIGN KEY (code_id) REFERENCES referral_codes(id) ON DELETE CASCADE,
+    UNIQUE(referred_user_id)
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_notes_folder ON notes(folder_id);
 CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at DESC);
@@ -220,3 +244,8 @@ CREATE INDEX IF NOT EXISTS idx_subscription_events_occurred ON subscription_even
 CREATE INDEX IF NOT EXISTS idx_speaker_segments_note ON speaker_segments(note_id);
 CREATE INDEX IF NOT EXISTS idx_speaker_segments_speaker ON speaker_segments(speaker_id);
 CREATE INDEX IF NOT EXISTS idx_speaker_segments_time ON speaker_segments(start_time, end_time);
+CREATE INDEX IF NOT EXISTS idx_referral_codes_user ON referral_codes(user_id);
+CREATE INDEX IF NOT EXISTS idx_referral_codes_code ON referral_codes(code);
+CREATE INDEX IF NOT EXISTS idx_referral_usage_referred ON referral_usage(referred_user_id);
+CREATE INDEX IF NOT EXISTS idx_referral_usage_referrer ON referral_usage(referrer_user_id);
+CREATE INDEX IF NOT EXISTS idx_referral_usage_code ON referral_usage(code_id);

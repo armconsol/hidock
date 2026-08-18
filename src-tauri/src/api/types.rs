@@ -249,3 +249,51 @@ pub enum SubscriptionEventType {
     Renewed,
     Canceled,
 }
+
+// Reward Types
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AvailableReward {
+    pub id: String,
+    pub reward_type: String,
+    pub amount: f64,
+    pub description: String,
+    pub points_required: f64,
+    pub expires_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RewardsListResponse {
+    pub rewards: Vec<AvailableReward>,
+    pub total_points: f64,
+    pub available_points: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RedeemRewardRequest {
+    pub reward_id: String,
+    pub points: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RedeemRewardResponse {
+    pub success: bool,
+    pub reward_id: String,
+    pub points_used: f64,
+    pub remaining_points: f64,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayoutRequest {
+    pub amount: f64,
+    pub paypal_email: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayoutResponse {
+    pub payout_id: String,
+    pub status: String,
+    pub amount: f64,
+    pub paypal_email: String,
+    pub estimated_completion: Option<String>,
+}

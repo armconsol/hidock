@@ -5,11 +5,12 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use super::types::{
-    AuthResponse, CalendarEventsResponse, CreateEventRequest, DetectLanguageRequest,
-    DetectLanguageResponse, FindSpeakersRequest, FindSpeakersResponse, GoogleCalendarEvent,
-    Language, LanguageListResponse, LoginRequest, ReferralInfo, ReferralOverviewResponse,
-    Subscription, SubscriptionResponse, SubscriptionStatus, TranslationRequest,
-    TranslationResponse, UserInfo,
+    AuthResponse, AvailableReward, CalendarEventsResponse, CreateEventRequest,
+    DetectLanguageRequest, DetectLanguageResponse, FindSpeakersRequest, FindSpeakersResponse,
+    GoogleCalendarEvent, Language, LanguageListResponse, LoginRequest, PayoutRequest,
+    PayoutResponse, RedeemRewardRequest, RedeemRewardResponse, ReferralInfo,
+    ReferralOverviewResponse, RewardsListResponse, Subscription, SubscriptionResponse,
+    SubscriptionStatus, TranslationRequest, TranslationResponse, UserInfo,
 };
 
 pub struct HiNotesClient {
@@ -325,6 +326,109 @@ impl HiNotesClient {
         let speaker_response: FindSpeakersResponse = response.json().await?;
         Ok(speaker_response)
     }
+
+    /// List available rewards
+    pub async fn list_rewards(&self) -> Result<Vec<AvailableReward>> {
+        let token = self
+            .get_token()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("Not authenticated"))?;
+
+        let response = self
+            .http_client
+            .get(&format!("{}/redemption/info", self.base_url))
+            .bearer_auth(&token)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to get rewards list: {}", response.status());
+        }
+
+        let rewards_response: RewardsListResponse = response.json().await?;
+        Ok(rewards_response.rewards)
+    }
+
+    /// Redeem a reward by ID
+    pub async fn redeem_reward(&self, reward_id: &str, points: f64) -> Result<RedeemRewardResponse> {
+        let token = self
+            .get_token()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("Not authenticated"))?;
+
+        if reward_id.is_empty() {
+            anyhow::bail!("Reward ID cannot be empty");
+        }
+
+        if points <= 0.0 {
+            anyhow::bail!("Points must be greater than zero");
+        }
+
+        let request = RedeemRewardRequest {
+            reward_id: reward_id.to_string(),
+            points,
+        };
+
+        let response = self
+            .http_client
+            .post(&format!("{}/redemption/fulfill", self.base_url))
+            .bearer_auth(&token)
+            .json(&request)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to redeem reward: {}", response.status());
+        }
+
+        let redeem_response: RedeemRewardResponse = response.json().await?;
+
+        if !redeem_response.success {
+            anyhow::bail!("Reward redemption failed: {}", redeem_response.message);
+        }
+
+        Ok(redeem_response)
+    }
+
+    /// Request a PayPal payout
+    pub async fn request_payout(&self, amount: f64, paypal_email: &str) -> Result<PayoutResponse> {
+        let token = self
+            .get_token()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("Not authenticated"))?;
+
+        if amount <= 0.0 {
+            anyhow::bail!("Payout amount must be greater than zero");
+        }
+
+        if paypal_email.is_empty() {
+            anyhow::bail!("PayPal email is required");
+        }
+
+        if !paypal_email.contains('@') {
+            anyhow::bail!("Invalid PayPal email format");
+        }
+
+        let request = PayoutRequest {
+            amount,
+            paypal_email: paypal_email.to_string(),
+        };
+
+        let response = self
+            .http_client
+            .post(&format!("{}/referral/paypal/payout", self.base_url))
+            .bearer_auth(&token)
+            .json(&request)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to request payout: {}", response.status());
+        }
+
+        let payout_response: PayoutResponse = response.json().await?;
+        Ok(payout_response)
+    }
 }
 
 #[cfg(test)]
@@ -571,5 +675,112 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("Note ID cannot be empty"));
+    }
+
+    // ===== REWARD REDEMPTION TESTS =====
+
+    #[tokio::test]
+    async fn test_list_rewards_requires_auth() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+
+        let result = client.list_rewards().await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+    }
+
+    #[tokio::test]
+    async fn test_redeem_reward_requires_auth() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+
+        let result = client.redeem_reward("reward-123", 100.0).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+    }
+
+    #[tokio::test]
+    async fn test_redeem_reward_empty_id() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        *client.auth_token.write().await = Some("mock_token".to_string());
+
+        let result = client.redeem_reward("", 100.0).await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Reward ID cannot be empty"));
+    }
+
+    #[tokio::test]
+    async fn test_redeem_reward_invalid_points() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        *client.auth_token.write().await = Some("mock_token".to_string());
+
+        let result = client.redeem_reward("reward-123", 0.0).await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Points must be greater than zero"));
+    }
+
+    #[tokio::test]
+    async fn test_redeem_reward_negative_points() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        *client.auth_token.write().await = Some("mock_token".to_string());
+
+        let result = client.redeem_reward("reward-123", -10.0).await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Points must be greater than zero"));
+    }
+
+    #[tokio::test]
+    async fn test_request_payout_requires_auth() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+
+        let result = client.request_payout(25.0, "user@example.com").await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+    }
+
+    #[tokio::test]
+    async fn test_request_payout_invalid_amount() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        *client.auth_token.write().await = Some("mock_token".to_string());
+
+        let result = client.request_payout(0.0, "user@example.com").await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Payout amount must be greater than zero"));
+    }
+
+    #[tokio::test]
+    async fn test_request_payout_empty_email() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        *client.auth_token.write().await = Some("mock_token".to_string());
+
+        let result = client.request_payout(25.0, "").await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("PayPal email is required"));
+    }
+
+    #[tokio::test]
+    async fn test_request_payout_invalid_email() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        *client.auth_token.write().await = Some("mock_token".to_string());
+
+        let result = client.request_payout(25.0, "invalid-email").await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid PayPal email format"));
     }
 }

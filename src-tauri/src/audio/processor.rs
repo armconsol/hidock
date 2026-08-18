@@ -3,6 +3,54 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use tokio::fs;
 
+/// Audio quality settings for save-as-new operations
+#[derive(Debug, Clone)]
+pub struct AudioQualitySettings {
+    pub bitrate: String, // e.g., "128k", "192k", "320k"
+}
+
+impl AudioQualitySettings {
+    /// Create new quality settings with the specified bitrate
+    pub fn new(bitrate: &str) -> Self {
+        Self {
+            bitrate: bitrate.to_string(),
+        }
+    }
+
+    /// High quality preset (320k for MP3, 256k for AAC)
+    pub fn high(format: &str) -> Self {
+        let bitrate = match format {
+            "mp3" => "320k",
+            "m4a" => "256k",
+            "ogg" => "320k",
+            _ => "256k",
+        };
+        Self::new(bitrate)
+    }
+
+    /// Medium quality preset (192k for MP3, 192k for AAC)
+    pub fn medium(format: &str) -> Self {
+        let bitrate = match format {
+            "mp3" => "192k",
+            "m4a" => "192k",
+            "ogg" => "192k",
+            _ => "192k",
+        };
+        Self::new(bitrate)
+    }
+
+    /// Low quality preset (128k for MP3, 128k for AAC)
+    pub fn low(format: &str) -> Self {
+        let bitrate = match format {
+            "mp3" => "128k",
+            "m4a" => "128k",
+            "ogg" => "128k",
+            _ => "128k",
+        };
+        Self::new(bitrate)
+    }
+}
+
 /// Audio processor using FFmpeg for audio editing operations
 pub struct AudioProcessor {
     ffmpeg_path: PathBuf,
@@ -415,12 +463,18 @@ impl AudioProcessor {
 
         // Merge: before + replacement + after
         let mut parts = Vec::new();
-        if start_ms > 0 && before_file.metadata().await?.len() > 0 {
-            parts.push(before_file.clone());
+        if start_ms > 0 {
+            let metadata = tokio::fs::metadata(&before_file).await?;
+            if metadata.len() > 0 {
+                parts.push(before_file.clone());
+            }
         }
         parts.push(processed_replacement.clone());
-        if end_ms < original_duration && after_file.metadata().await?.len() > 0 {
-            parts.push(after_file.clone());
+        if end_ms < original_duration {
+            let metadata = tokio::fs::metadata(&after_file).await?;
+            if metadata.len() > 0 {
+                parts.push(after_file.clone());
+            }
         }
 
         let result = self.merge_audio(&parts).await?;
@@ -599,54 +653,6 @@ impl AudioProcessor {
 
         self.convert_format(source_path, output_format, bitrate)
             .await
-    }
-}
-
-/// Audio quality settings for save-as-new operations
-#[derive(Debug, Clone)]
-pub struct AudioQualitySettings {
-    pub bitrate: String, // e.g., "128k", "192k", "320k"
-}
-
-impl AudioQualitySettings {
-    /// Create new quality settings with the specified bitrate
-    pub fn new(bitrate: &str) -> Self {
-        Self {
-            bitrate: bitrate.to_string(),
-        }
-    }
-
-    /// High quality preset (320k for MP3, 256k for AAC)
-    pub fn high(format: &str) -> Self {
-        let bitrate = match format {
-            "mp3" => "320k",
-            "m4a" => "256k",
-            "ogg" => "320k",
-            _ => "256k",
-        };
-        Self::new(bitrate)
-    }
-
-    /// Medium quality preset (192k for MP3, 192k for AAC)
-    pub fn medium(format: &str) -> Self {
-        let bitrate = match format {
-            "mp3" => "192k",
-            "m4a" => "192k",
-            "ogg" => "192k",
-            _ => "192k",
-        };
-        Self::new(bitrate)
-    }
-
-    /// Low quality preset (128k for MP3, 128k for AAC)
-    pub fn low(format: &str) -> Self {
-        let bitrate = match format {
-            "mp3" => "128k",
-            "m4a" => "128k",
-            "ogg" => "128k",
-            _ => "128k",
-        };
-        Self::new(bitrate)
     }
 
     /// Convert audio to a specific format
@@ -1384,5 +1390,345 @@ mod tests {
 
         // Cleanup
         let _ = fs::remove_file(test_file).await;
+    }
+
+    // ===== PARSE TIMESTAMP TESTS (TDD) =====
+
+    #[test]
+    fn test_parse_timestamp_hh_mm_ss() {
+        // Test HH:MM:SS format
+        let result = AudioProcessor::parse_timestamp("00:01:23");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 83000); // 1 min 23 sec = 83000 ms
+    }
+
+    #[test]
+    fn test_parse_timestamp_hh_mm_ss_with_millis() {
+        // Test HH:MM:SS.mmm format
+        let result = AudioProcessor::parse_timestamp("00:01:23.456");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 83456); // 1 min 23.456 sec
+    }
+
+    #[test]
+    fn test_parse_timestamp_milliseconds() {
+        // Test plain milliseconds
+        let result = AudioProcessor::parse_timestamp("5000");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 5000);
+
+        // Test with 'ms' suffix
+        let result = AudioProcessor::parse_timestamp("5000ms");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 5000);
+    }
+
+    #[test]
+    fn test_parse_timestamp_seconds() {
+        // Test seconds with 's' suffix
+        let result = AudioProcessor::parse_timestamp("12.5s");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 12500);
+
+        // Test decimal seconds without suffix
+        let result = AudioProcessor::parse_timestamp("12.5");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 12500);
+    }
+
+    #[test]
+    fn test_parse_timestamp_invalid_formats() {
+        // Invalid HH:MM:SS format
+        let result = AudioProcessor::parse_timestamp("99:99");
+        assert!(result.is_err());
+
+        // Invalid characters
+        let result = AudioProcessor::parse_timestamp("abc");
+        assert!(result.is_err());
+
+        // Empty string
+        let result = AudioProcessor::parse_timestamp("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_timestamp_edge_cases() {
+        // Zero time
+        let result = AudioProcessor::parse_timestamp("00:00:00");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 0);
+
+        // Large timestamp
+        let result = AudioProcessor::parse_timestamp("01:30:45.789");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 5445789); // 1h 30m 45.789s
+    }
+
+    #[test]
+    fn test_parse_timestamp_whitespace_handling() {
+        // Test trimming of whitespace
+        let result = AudioProcessor::parse_timestamp("  00:01:23  ");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 83000);
+
+        let result = AudioProcessor::parse_timestamp("  5000ms  ");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 5000);
+    }
+
+    // ===== REPLACE AUDIO SEGMENT TESTS (TDD) =====
+
+    #[tokio::test]
+    async fn test_replace_audio_segment_validation_missing_files() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return, // Skip if FFmpeg not available
+        };
+        let nonexistent = PathBuf::from("/tmp/nonexistent_audio_original_xyz.m4a");
+        let nonexistent2 = PathBuf::from("/tmp/nonexistent_audio_replacement_xyz.m4a");
+
+        // Test with missing original file
+        let result = processor
+            .replace_audio_segment(&nonexistent, &nonexistent2, 1000, 2000, 0)
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Original file does not exist"));
+    }
+
+    #[tokio::test]
+    async fn test_replace_audio_segment_validation_time_range() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+        let temp_dir = std::env::temp_dir();
+        let original = temp_dir.join("replace_test_original_range.wav");
+        let replacement = temp_dir.join("replace_test_replacement_range.wav");
+
+        // Create test files
+        create_test_wav_file(&original).unwrap();
+        create_test_wav_file(&replacement).unwrap();
+
+        // Test with start >= end
+        let result = processor
+            .replace_audio_segment(&original, &replacement, 5000, 3000, 0)
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Start time must be before end time"));
+
+        // Test with equal start and end
+        let result = processor
+            .replace_audio_segment(&original, &replacement, 5000, 5000, 0)
+            .await;
+        assert!(result.is_err());
+
+        let _ = std::fs::remove_file(original);
+        let _ = std::fs::remove_file(replacement);
+    }
+
+    #[tokio::test]
+    async fn test_replace_audio_segment_validation_exceeds_duration() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+        let temp_dir = std::env::temp_dir();
+        let original = temp_dir.join("replace_test_orig_duration_check.wav");
+        let replacement = temp_dir.join("replace_test_repl_duration_check.wav");
+
+        // Create test files
+        create_test_wav_file(&original).unwrap();
+        create_test_wav_file(&replacement).unwrap();
+
+        // Try to replace beyond file duration
+        let result = processor
+            .replace_audio_segment(&original, &replacement, 100, 999999999, 0)
+            .await;
+
+        // Should fail on duration check
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("exceeds original file duration") || err_msg.contains("Failed to"),
+            "Error message: {}",
+            err_msg
+        );
+
+        let _ = std::fs::remove_file(original);
+        let _ = std::fs::remove_file(replacement);
+    }
+
+    #[tokio::test]
+    async fn test_replace_audio_segment_with_fade_parameters() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if processor.verify_ffmpeg().is_err() {
+            return;
+        }
+
+        let temp_dir = std::env::temp_dir();
+        let original = temp_dir.join("replace_test_fade_orig_params.wav");
+        let replacement = temp_dir.join("replace_test_fade_repl_params.wav");
+
+        create_test_wav_file(&original).unwrap();
+        create_test_wav_file(&replacement).unwrap();
+
+        // Test replace with fade (on 1-second audio, replace middle 200ms with 50ms fade)
+        let result = processor
+            .replace_audio_segment(&original, &replacement, 400, 600, 50)
+            .await;
+
+        // Should succeed with valid parameters
+        if result.is_ok() {
+            let output = result.unwrap();
+            assert!(output.exists());
+            assert!(output.metadata().unwrap().len() > 0);
+            let _ = fs::remove_file(output).await;
+        }
+
+        let _ = std::fs::remove_file(original);
+        let _ = std::fs::remove_file(replacement);
+    }
+
+    #[tokio::test]
+    async fn test_replace_audio_segment_no_fade() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if processor.verify_ffmpeg().is_err() {
+            return;
+        }
+
+        let temp_dir = std::env::temp_dir();
+        let original = temp_dir.join("replace_test_nofade_orig_clean.wav");
+        let replacement = temp_dir.join("replace_test_nofade_repl_clean.wav");
+
+        create_test_wav_file(&original).unwrap();
+        create_test_wav_file(&replacement).unwrap();
+
+        // Test replace without fade
+        let result = processor
+            .replace_audio_segment(&original, &replacement, 400, 600, 0)
+            .await;
+
+        // Should succeed
+        if result.is_ok() {
+            let output = result.unwrap();
+            assert!(output.exists());
+            let _ = fs::remove_file(output).await;
+        }
+
+        let _ = std::fs::remove_file(original);
+        let _ = std::fs::remove_file(replacement);
+    }
+
+    #[tokio::test]
+    async fn test_replace_audio_segment_at_start() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if processor.verify_ffmpeg().is_err() {
+            return;
+        }
+
+        let temp_dir = std::env::temp_dir();
+        let original = temp_dir.join("replace_test_start_orig_pos.wav");
+        let replacement = temp_dir.join("replace_test_start_repl_pos.wav");
+
+        create_test_wav_file(&original).unwrap();
+        create_test_wav_file(&replacement).unwrap();
+
+        // Replace at the very start (0ms to 200ms)
+        let result = processor
+            .replace_audio_segment(&original, &replacement, 0, 200, 0)
+            .await;
+
+        if result.is_ok() {
+            let output = result.unwrap();
+            assert!(output.exists());
+            let _ = fs::remove_file(output).await;
+        }
+
+        let _ = std::fs::remove_file(original);
+        let _ = std::fs::remove_file(replacement);
+    }
+
+    #[tokio::test]
+    async fn test_replace_audio_segment_at_end() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if processor.verify_ffmpeg().is_err() {
+            return;
+        }
+
+        let temp_dir = std::env::temp_dir();
+        let original = temp_dir.join("replace_test_end_orig_pos.wav");
+        let replacement = temp_dir.join("replace_test_end_repl_pos.wav");
+
+        create_test_wav_file(&original).unwrap();
+        create_test_wav_file(&replacement).unwrap();
+
+        // Replace near the end (800ms to 1000ms, assuming 1 second file)
+        let result = processor
+            .replace_audio_segment(&original, &replacement, 800, 1000, 0)
+            .await;
+
+        if result.is_ok() {
+            let output = result.unwrap();
+            assert!(output.exists());
+            let _ = fs::remove_file(output).await;
+        }
+
+        let _ = std::fs::remove_file(original);
+        let _ = std::fs::remove_file(replacement);
+    }
+
+    #[tokio::test]
+    async fn test_replace_audio_segment_entire_file() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if processor.verify_ffmpeg().is_err() {
+            return;
+        }
+
+        let temp_dir = std::env::temp_dir();
+        let original = temp_dir.join("replace_test_entire_orig_full.wav");
+        let replacement = temp_dir.join("replace_test_entire_repl_full.wav");
+
+        create_test_wav_file(&original).unwrap();
+        create_test_wav_file(&replacement).unwrap();
+
+        // Replace the entire file (0ms to 1000ms)
+        let result = processor
+            .replace_audio_segment(&original, &replacement, 0, 1000, 0)
+            .await;
+
+        if result.is_ok() {
+            let output = result.unwrap();
+            assert!(output.exists());
+            let _ = fs::remove_file(output).await;
+        }
+
+        let _ = std::fs::remove_file(original);
+        let _ = std::fs::remove_file(replacement);
     }
 }
