@@ -2,7 +2,7 @@
 
 // pub mod audio; // TODO: Fix audio module compilation errors
 pub mod auth_commands;
-pub mod notes_commands;
+pub mod notes_commands; // Notes commands module
 
 use crate::db::{
     types::{
@@ -18,7 +18,7 @@ use tauri::State;
 // Re-export audio command functions and their generated helpers
 // pub use audio::*; // TODO: Fix audio module compilation errors
 pub use auth_commands::*;
-pub use notes_commands::*;
+pub use notes_commands::*; // Re-export notes commands
 
 pub struct AppState {
     pub db: Mutex<Database>,

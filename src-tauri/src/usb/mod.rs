@@ -1,0 +1,322 @@
+//! USB Device Integration Module
+//!
+//! This module handles communication with the HiDoc P1 USB audio transcription device.
+//! It provides both direct USB protocol communication and a mass storage fallback mode.
+
+use anyhow::{Context, Result};
+use log::{debug, error, info, warn};
+use serde::{Deserialize, Serialize};
+use std::time::Duration;
+
+pub mod detector;
+pub mod protocol;
+pub mod mass_storage;
+
+// ============================================================================
+// Device Constants
+// ============================================================================
+
+/// HiDoc P1 USB Vendor ID
+///
+/// NOTE: This is a PLACEHOLDER value. Must be updated after device enumeration.
+/// Use `system_profiler SPUSBDataType` (macOS) or `lsusb` (Linux) to determine
+/// the actual VID when the device is connected.
+pub const HIDOC_P1_VID: u16 = 0x0000; // TODO: Update with actual VID
+
+/// HiDoc P1 USB Product ID
+///
+/// NOTE: This is a PLACEHOLDER value. Must be updated after device enumeration.
+pub const HIDOC_P1_PID: u16 = 0x0000; // TODO: Update with actual PID
+
+/// Device manufacturer string (for validation)
+pub const HIDOC_MANUFACTURER: &str = "HiDoc"; // TODO: Verify actual string
+
+/// Device product string (for validation)
+pub const HIDOC_PRODUCT: &str = "P1"; // TODO: Verify actual string
+
+/// USB communication timeout (milliseconds)
+pub const USB_TIMEOUT_MS: u64 = 5000;
+
+/// Maximum audio chunk size for bulk transfers (bytes)
+pub const MAX_AUDIO_CHUNK_SIZE: usize = 16384; // 16KB chunks
+
+/// Default audio sample rate (Hz)
+/// NOTE: Must be confirmed through protocol analysis
+pub const DEFAULT_SAMPLE_RATE: u32 = 16000; // 16kHz assumed
+
+/// Audio bit depth
+pub const AUDIO_BIT_DEPTH: u16 = 16; // 16-bit PCM assumed
+
+/// Number of audio channels
+pub const AUDIO_CHANNELS: u16 = 1; // Mono assumed
+
+// ============================================================================
+// Device State
+// ============================================================================
+
+/// HiDoc P1 device state
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DeviceState {
+    /// Device is disconnected
+    Disconnected,
+    /// Device is connected but not initialized
+    Connected,
+    /// Device is idle and ready for commands
+    Idle,
+    /// Device is actively recording
+    Recording,
+    /// Device is playing back audio
+    Playing,
+    /// Device is transferring data
+    Transferring,
+    /// Device is in an error state
+    Error,
+}
+
+impl Default for DeviceState {
+    fn default() -> Self {
+        Self::Disconnected
+    }
+}
+
+// ============================================================================
+// Device Information
+// ============================================================================
+
+/// Information about a connected HiDoc P1 device
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceInfo {
+    /// USB Vendor ID
+    pub vendor_id: u16,
+    /// USB Product ID
+    pub product_id: u16,
+    /// Device serial number (if available)
+    pub serial_number: Option<String>,
+    /// Manufacturer string
+    pub manufacturer: Option<String>,
+    /// Product string
+    pub product: Option<String>,
+    /// USB bus number
+    pub bus_number: u8,
+    /// USB device address
+    pub device_address: u8,
+    /// Current device state
+    pub state: DeviceState,
+    /// Firmware version (if available)
+    pub firmware_version: Option<String>,
+    /// Available storage space (bytes, if mass storage mode)
+    pub storage_available: Option<u64>,
+    /// Total storage capacity (bytes, if mass storage mode)
+    pub storage_total: Option<u64>,
+}
+
+impl DeviceInfo {
+    /// Check if this is a HiDoc P1 device based on VID/PID
+    pub fn is_hidoc_p1(&self) -> bool {
+        self.vendor_id == HIDOC_P1_VID && self.product_id == HIDOC_P1_PID
+    }
+
+    /// Validate device using both VID/PID and strings
+    pub fn validate(&self) -> bool {
+        if !self.is_hidoc_p1() {
+            return false;
+        }
+
+        // Also check manufacturer/product strings if available
+        if let Some(ref mfg) = self.manufacturer {
+            if !mfg.contains(HIDOC_MANUFACTURER) {
+                warn!("Device VID/PID matches but manufacturer string does not: {}", mfg);
+            }
+        }
+
+        if let Some(ref prod) = self.product {
+            if !prod.contains(HIDOC_PRODUCT) {
+                warn!("Device VID/PID matches but product string does not: {}", prod);
+            }
+        }
+
+        true
+    }
+}
+
+// ============================================================================
+// Device Mode
+// ============================================================================
+
+/// Operating mode for HiDoc P1 communication
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DeviceMode {
+    /// Direct USB protocol communication
+    DirectUsb,
+    /// Mass storage device mode (fallback)
+    MassStorage,
+    /// Automatic detection and mode selection
+    Auto,
+}
+
+impl Default for DeviceMode {
+    fn default() -> Self {
+        Self::Auto
+    }
+}
+
+// ============================================================================
+// Error Types
+// ============================================================================
+
+/// USB-specific error types
+#[derive(Debug, thiserror::Error)]
+pub enum UsbError {
+    #[error("Device not found (VID: {vid:#06x}, PID: {pid:#06x})")]
+    DeviceNotFound { vid: u16, pid: u16 },
+
+    #[error("Failed to open device: {0}")]
+    DeviceOpenFailed(String),
+
+    #[error("Failed to claim interface {interface}: {reason}")]
+    InterfaceClaimFailed { interface: u8, reason: String },
+
+    #[error("USB transfer failed: {0}")]
+    TransferFailed(String),
+
+    #[error("USB transfer timed out after {timeout_ms}ms")]
+    TransferTimeout { timeout_ms: u64 },
+
+    #[error("Invalid device descriptor")]
+    InvalidDescriptor,
+
+    #[error("Device in invalid state: expected {expected:?}, got {actual:?}")]
+    InvalidState {
+        expected: DeviceState,
+        actual: DeviceState,
+    },
+
+    #[error("Protocol error: {0}")]
+    ProtocolError(String),
+
+    #[error("Permission denied: USB access requires elevated privileges")]
+    PermissionDenied,
+
+    #[error("Unsupported device class: {0:#04x}")]
+    UnsupportedDeviceClass(u8),
+}
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+/// Initialize the USB subsystem
+///
+/// Must be called before any USB operations.
+pub fn init() -> Result<()> {
+    info!("Initializing USB subsystem");
+
+    // TODO: Initialize rusb context
+    // let context = rusb::Context::new()?;
+
+    debug!("USB subsystem initialized");
+    Ok(())
+}
+
+/// Scan for connected HiDoc P1 devices
+///
+/// Returns a list of all detected devices matching the HiDoc P1 VID/PID.
+pub fn scan_devices() -> Result<Vec<DeviceInfo>> {
+    info!("Scanning for HiDoc P1 devices");
+
+    // TODO: Implement actual device scanning with rusb
+    // This is a placeholder implementation
+    let devices = Vec::new();
+
+    if devices.is_empty() {
+        debug!("No HiDoc P1 devices found");
+    } else {
+        info!("Found {} HiDoc P1 device(s)", devices.len());
+    }
+
+    Ok(devices)
+}
+
+/// Check if any HiDoc P1 device is connected
+pub fn is_device_connected() -> bool {
+    scan_devices()
+        .map(|devices| !devices.is_empty())
+        .unwrap_or(false)
+}
+
+// ============================================================================
+// Testing Utilities
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_device_info_validation() {
+        let mut info = DeviceInfo {
+            vendor_id: HIDOC_P1_VID,
+            product_id: HIDOC_P1_PID,
+            serial_number: None,
+            manufacturer: Some(HIDOC_MANUFACTURER.to_string()),
+            product: Some(HIDOC_PRODUCT.to_string()),
+            bus_number: 1,
+            device_address: 2,
+            state: DeviceState::Connected,
+            firmware_version: None,
+            storage_available: None,
+            storage_total: None,
+        };
+
+        // Note: With placeholder VID/PID (0x0000), this will pass
+        // but should be updated when real values are known
+        assert!(info.is_hidoc_p1());
+        assert!(info.validate());
+
+        // Test with wrong VID
+        info.vendor_id = 0xFFFF;
+        assert!(!info.is_hidoc_p1());
+        assert!(!info.validate());
+    }
+
+    #[test]
+    fn test_device_state_default() {
+        assert_eq!(DeviceState::default(), DeviceState::Disconnected);
+    }
+
+    #[test]
+    fn test_device_mode_default() {
+        assert_eq!(DeviceMode::default(), DeviceMode::Auto);
+    }
+
+    #[test]
+    fn test_usb_error_display() {
+        let err = UsbError::DeviceNotFound {
+            vid: HIDOC_P1_VID,
+            pid: HIDOC_P1_PID,
+        };
+        assert!(err.to_string().contains("Device not found"));
+
+        let err = UsbError::TransferTimeout { timeout_ms: 5000 };
+        assert!(err.to_string().contains("5000ms"));
+    }
+
+    #[test]
+    fn test_init() {
+        // Should not panic with placeholder implementation
+        assert!(init().is_ok());
+    }
+
+    #[test]
+    fn test_scan_devices_empty() {
+        // Placeholder implementation returns empty vec
+        let devices = scan_devices().expect("scan should not fail");
+        assert!(devices.is_empty());
+    }
+
+    #[test]
+    fn test_is_device_connected() {
+        // Should return false with placeholder implementation
+        assert!(!is_device_connected());
+    }
+}

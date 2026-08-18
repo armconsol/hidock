@@ -6,10 +6,9 @@ pub mod commands;
 pub mod db;
 pub mod sync;
 
-use commands::{AppState, AuthState};
+use commands::AppState;
 use db::Database;
-use std::sync::{Arc, Mutex};
-use tokio::sync::RwLock;
+use std::sync::Mutex;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -34,32 +33,18 @@ pub fn run() {
 
     let app_state = AppState { db: Mutex::new(db) };
 
-    // Initialize API client and OAuth handler for authentication
-    let api_client = api::client::HiNotesClient::new("https://api.hinotes.app/v1");
-    let oauth_handler = auth::oauth::OAuth2Handler::new("hinotes-desktop-client-id");
-
-    let auth_state = AuthState {
-        api_client: Arc::new(RwLock::new(api_client)),
-        oauth_handler: Arc::new(oauth_handler),
-    };
-
     tauri::Builder::default()
         .manage(app_state)
-        .manage(auth_state)
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,
-            // Authentication commands
-            commands::authenticate_with_credentials,
-            commands::authenticate_google,
-            commands::authenticate_apple,
             // Calendar commands
             commands::get_calendar_events,
             commands::get_today_events,
             commands::create_calendar_event,
             commands::update_calendar_event,
             commands::delete_calendar_event,
-            // commands::get_audio, // TODO: Fix audio module compilation errors first
+            // Template commands
             commands::list_templates,
             commands::get_template,
             commands::get_default_template,
@@ -68,15 +53,6 @@ pub fn run() {
             commands::toggle_template_favorite,
             commands::set_template_default,
             commands::delete_template,
-            // Audio processing commands - TODO: Fix audio module compilation errors first
-            // commands::merge_audio_files,
-            // commands::replace_audio_segment,
-            // commands::save_audio_as_new,
-            // commands::get_audio_duration,
-            // commands::trim_audio,
-            // commands::convert_audio_format,
-            // commands::cleanup_audio_temp_files,
-            // commands::verify_ffmpeg,
             // Smart Labels commands
             commands::list_smart_labels,
             commands::get_smart_label,
