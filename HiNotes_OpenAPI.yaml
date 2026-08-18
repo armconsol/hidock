@@ -1,0 +1,729 @@
+openapi: 3.0.3
+info:
+  title: HiNotes API (Unofficial)
+  description: |
+    Reverse-engineered API specification for HiNotes web application.
+    HiNotes is used with the HiDoc P1 USB audio transcription device.
+
+    **WARNING**: This is unofficial documentation created through reverse engineering.
+    Use at your own risk and respect the service's Terms of Service.
+  version: 1.0.0
+  contact:
+    name: Unofficial Documentation
+  license:
+    name: Educational Use Only
+
+servers:
+  - url: https://hinotes.hidock.com/v1
+    description: Production API
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: User
+    description: User profile and account management
+  - name: Devices
+    description: HiDoc P1 device management
+  - name: Notes
+    description: Note and transcription management
+  - name: Audio
+    description: Audio file operations
+  - name: Folders
+    description: Note organization
+  - name: To-Do
+    description: Task management
+  - name: Calendar
+    description: Calendar integration
+  - name: Live Translation
+    description: Real-time translation features
+  - name: Templates
+    description: Note templates
+  - name: Smart Labels
+    description: Label/category management
+  - name: Vocabulary
+    description: Custom vocabulary for transcription
+  - name: Settings
+    description: User preferences
+  - name: Sharing
+    description: Note sharing
+  - name: Subscription
+    description: Billing and subscription
+  - name: Referral
+    description: Referral program
+  - name: Sync
+    description: Data synchronization
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: JWT or session token obtained during authentication
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: integer
+
+    Note:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        folderId:
+          type: string
+        createTime:
+          type: string
+          format: date-time
+        duration:
+          type: string
+
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [connected, disconnected]
+
+    Folder:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+
+    Todo:
+      type: object
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+        dueDate:
+          type: string
+          format: date-time
+        state:
+          type: string
+          enum: [open, closed]
+        smartLabel:
+          type: string
+
+paths:
+  # Authentication
+  /oauth2/signin/google:
+    post:
+      tags: [Authentication]
+      summary: Sign in with Google
+      security: []
+      responses:
+        '200':
+          description: Successfully authenticated
+
+  /oauth2/signin/apple:
+    post:
+      tags: [Authentication]
+      summary: Sign in with Apple
+      security: []
+      responses:
+        '200':
+          description: Successfully authenticated
+
+  /user/signin:
+    post:
+      tags: [Authentication]
+      summary: Sign in with email/password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successfully authenticated
+
+  /user/register:
+    post:
+      tags: [Authentication]
+      summary: Register new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                name:
+                  type: string
+      responses:
+        '200':
+          description: User registered successfully
+
+  /user/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout current user
+      responses:
+        '200':
+          description: Logged out successfully
+
+  # User Management
+  /user/info:
+    post:
+      tags: [User]
+      summary: Get current user information
+      responses:
+        '200':
+          description: User information retrieved
+
+  /user/rename:
+    post:
+      tags: [User]
+      summary: Update user display name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Name updated
+
+  /user/avatar/upload:
+    post:
+      tags: [User]
+      summary: Upload user avatar
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Avatar uploaded
+
+  /user/delete:
+    post:
+      tags: [User]
+      summary: Delete user account
+      responses:
+        '200':
+          description: Account deleted
+
+  # Device Management
+  /user/device/list:
+    post:
+      tags: [Devices]
+      summary: List connected HiDoc devices
+      responses:
+        '200':
+          description: Device list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  devices:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Device'
+
+  /user/device/bind:
+    post:
+      tags: [Devices]
+      summary: Connect a new device
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deviceId:
+                  type: string
+                deviceName:
+                  type: string
+      responses:
+        '200':
+          description: Device bound successfully
+
+  /user/device/unbind:
+    post:
+      tags: [Devices]
+      summary: Disconnect a device
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deviceId:
+                  type: string
+      responses:
+        '200':
+          description: Device unbound successfully
+
+  /user/device/status:
+    get:
+      tags: [Devices]
+      summary: Get device connection status
+      responses:
+        '200':
+          description: Device status retrieved
+
+  # Notes
+  /note/recording/list:
+    get:
+      tags: [Notes]
+      summary: List recording notes
+      parameters:
+        - name: folderId
+          in: query
+          schema:
+            type: string
+          description: Filter by folder ID (-1 for all)
+        - name: pageIndex
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: sortType
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: sortField
+          in: query
+          schema:
+            type: string
+            default: createtime
+      responses:
+        '200':
+          description: Note list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Note'
+
+  /note/whisper/list:
+    get:
+      tags: [Notes]
+      summary: List whisper notes (quick voice notes)
+      parameters:
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: sortField
+          in: query
+          schema:
+            type: string
+            default: create_time
+      responses:
+        '200':
+          description: Whisper note list retrieved
+
+  /note/delete:
+    post:
+      tags: [Notes]
+      summary: Delete a note
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                noteId:
+                  type: string
+      responses:
+        '200':
+          description: Note deleted
+
+  /note/rate:
+    post:
+      tags: [Notes]
+      summary: Rate transcription quality
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                noteId:
+                  type: string
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+      responses:
+        '200':
+          description: Rating submitted
+
+  # Audio Operations
+  /audio/merge:
+    post:
+      tags: [Audio]
+      summary: Merge multiple audio files
+      responses:
+        '200':
+          description: Audio merged successfully
+
+  /audio/replace:
+    post:
+      tags: [Audio]
+      summary: Replace audio in existing note
+      responses:
+        '200':
+          description: Audio replaced
+
+  /audio/saveAsNew:
+    post:
+      tags: [Audio]
+      summary: Save audio segment as new note
+      responses:
+        '200':
+          description: New note created
+
+  # Folders
+  /folder/list:
+    post:
+      tags: [Folders]
+      summary: List user folders
+      responses:
+        '200':
+          description: Folder list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  folders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Folder'
+
+  /folder/create:
+    post:
+      tags: [Folders]
+      summary: Create new folder
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Folder created
+
+  /folder/rename:
+    post:
+      tags: [Folders]
+      summary: Rename folder
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                folderId:
+                  type: string
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Folder renamed
+
+  /folder/remove:
+    post:
+      tags: [Folders]
+      summary: Delete folder
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                folderId:
+                  type: string
+      responses:
+        '200':
+          description: Folder deleted
+
+  # To-Do
+  /todo/list:
+    get:
+      tags: [To-Do]
+      summary: List to-do items
+      parameters:
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: state
+          in: query
+          schema:
+            type: string
+            enum: [open, closed]
+        - name: tzOffset
+          in: query
+          schema:
+            type: integer
+            description: Timezone offset in minutes
+        - name: dueDateStart
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: dueDateEnd
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: To-do list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  todos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Todo'
+
+  /todo/update/description:
+    post:
+      tags: [To-Do]
+      summary: Update to-do description
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                todoId:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: To-do updated
+
+  /todo/delete:
+    post:
+      tags: [To-Do]
+      summary: Delete to-do item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                todoId:
+                  type: string
+      responses:
+        '200':
+          description: To-do deleted
+
+  # Calendar
+  /calendar/event/list:
+    get:
+      tags: [Calendar]
+      summary: List calendar events
+      parameters:
+        - name: start_time
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: Start date (YYYY-MM-DD HH:MM:SS)
+        - name: end_time
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: End date (YYYY-MM-DD HH:MM:SS)
+        - name: tz_offset
+          in: query
+          schema:
+            type: integer
+          description: Timezone offset in minutes
+      responses:
+        '200':
+          description: Calendar events retrieved
+
+  /calendar/event/add:
+    post:
+      tags: [Calendar]
+      summary: Add calendar event
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                startTime:
+                  type: string
+                  format: date-time
+                endTime:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Event added
+
+  # Live Translation
+  /live/language/list:
+    get:
+      tags: [Live Translation]
+      summary: Get supported languages
+      responses:
+        '200':
+          description: Language list retrieved
+
+  /live/note/get:
+    get:
+      tags: [Live Translation]
+      summary: Get active live translation session
+      responses:
+        '200':
+          description: Live note retrieved
+
+  # Templates
+  /template/list:
+    get:
+      tags: [Templates]
+      summary: List available templates
+      responses:
+        '200':
+          description: Template list retrieved
+
+  /template/save:
+    post:
+      tags: [Templates]
+      summary: Save template
+      parameters:
+        - name: createNew
+          in: query
+          schema:
+            type: boolean
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+      responses:
+        '200':
+          description: Template saved
+
+  # Settings
+  /user/setting/get:
+    post:
+      tags: [Settings]
+      summary: Get user settings
+      responses:
+        '200':
+          description: Settings retrieved
+
+  /user/setting/save:
+    post:
+      tags: [Settings]
+      summary: Save user settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Settings saved
+
+  # Referral
+  /referral/rewards-overview:
+    get:
+      tags: [Referral]
+      summary: Get referral rewards overview
+      responses:
+        '200':
+          description: Rewards overview retrieved
+
+  # Sync
+  /changes:
+    post:
+      tags: [Sync]
+      summary: Synchronize changes
+      responses:
+        '200':
+          description: Changes synchronized
+
+  /entry/info:
+    post:
+      tags: [Sync]
+      summary: Get application entry data
+      responses:
+        '200':
+          description: Entry info retrieved

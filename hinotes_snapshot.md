@@ -1,0 +1,225 @@
+- generic [ref=f1e466] [box=0,0,1200,1228]:
+  - complementary [ref=f1e468] [box=0,0,80,1228]:
+    - navigation [ref=f1e477] [box=0,84,80,986]:
+      - generic [ref=f1e478] [box=0,84,80,334]:
+        - generic [ref=f1e479] [box=0,84,80,54]:
+          - link "Home" [ref=f1e480] [cursor=pointer] [box=22,84,36,36]:
+            - /url: /home
+          - generic [ref=f1e485] [box=23,120,33,18]: Home
+        - generic [ref=f1e486] [box=0,154,80,54]:
+          - link "Notes" [ref=f1e487] [cursor=pointer] [box=22,154,36,36]:
+            - /url: /note
+          - generic [ref=f1e494] [box=23,190,33,18]: Notes
+        - generic [ref=f1e495] [box=0,224,80,54]:
+          - link "Translate" [ref=f1e496] [cursor=pointer] [box=22,224,36,36]:
+            - /url: /live
+          - generic [ref=f1e502] [box=14,260,52,18]: Translate
+        - generic [ref=f1e503] [box=0,294,80,54]:
+          - link "Whispers" [ref=f1e504] [cursor=pointer] [box=22,294,36,36]:
+            - /url: /whisper
+          - generic [ref=f1e515] [box=14,330,53,18]: Whispers
+        - generic [ref=f1e516] [box=0,364,80,54]:
+          - link "To-Do" [ref=f1e517] [cursor=pointer] [box=22,364,36,36]:
+            - /url: /todo
+          - generic [ref=f1e526] [box=23,400,35,18]: To-Do
+    - generic [ref=f1e529] [box=8,1070,64,134]:
+      - button "Add Device" [ref=f1e531] [cursor=pointer] [box=22,1070,36,36]
+      - generic [ref=f1e535] [cursor=pointer] [box=8,1118,64,82]:
+        - img "User Avatar" [ref=f1e539] [box=22,1132,36,36]
+        - generic [ref=f1e540] [box=12,1174,56,15]: Shaun Arman
+  - generic [ref=f1e541] [box=80,0,1120,1228]:
+    - generic [ref=f1e542] [box=80,0,1108,49]:
+      - generic [ref=f1e543] [box=96,14,1044,21]: Live Translation is now available on HiNotes for iOS and Android. Upgrade to Unlimited for unlimited access.
+      - button [ref=f1e545] [cursor=pointer] [box=1152,15,20,20]
+    - generic [ref=f1e550] [box=80,49,1108,1167]:
+      - generic [ref=f1e551] [box=116,85,1036,36]:
+        - paragraph [ref=f1e552] [box=116,85,110,36]: Tuesday
+        - paragraph [ref=f1e553] [box=234,85,210,36]: 18 August 2026
+      - generic [ref=f1e554] [box=116,157,1036,1023]:
+        - generic [ref=f1e555] [box=116,157,327,1023]:
+          - generic [ref=f1e556] [box=116,157,327,504]:
+            - paragraph [ref=f1e558] [box=138,179,283,24]: Recent Notes
+            - generic [ref=f1e559] [box=128,217,303,432]:
+              - button [ref=f1e560] [cursor=pointer] [box=128,217,299,56]:
+                - generic [ref=f1e563] [box=182,227,235,36]:
+                  - paragraph [ref=f1e564] [box=182,227,235,20]: 2026-08-17 Expense Reimbursement and Team Support Discussion
+                  - paragraph [ref=f1e565] [box=182,247,235,16]: 2026-08-17 16:37 37:10
+              - button [ref=f1e566] [cursor=pointer] [box=128,273,299,56]:
+                - generic [ref=f1e569] [box=182,283,235,36]:
+                  - paragraph [ref=f1e570] [box=182,283,235,20]: 2026-08-17 Team Transition and Knowledge Transfer Planning
+                  - paragraph [ref=f1e571] [box=182,303,235,16]: 2026-08-17 15:05 39:45
+              - button [ref=f1e572] [cursor=pointer] [box=128,329,299,56]:
+                - generic [ref=f1e575] [box=182,339,235,36]:
+                  - paragraph [ref=f1e576] [box=182,339,235,20]: 2026-08-17 Team Engagement and Project Progress Discussion
+                  - paragraph [ref=f1e577] [box=182,359,235,16]: 2026-08-17 10:27 1:09:40
+              - button [ref=f1e578] [cursor=pointer] [box=128,385,299,56]:
+                - generic [ref=f1e581] [box=182,395,235,36]:
+                  - paragraph [ref=f1e582] [box=182,395,235,20]: 2026-08-17 Compensation and Career Progression Strategies
+                  - paragraph [ref=f1e583] [box=182,415,235,16]: 2026-08-17 09:50 26:30
+              - button [ref=f1e584] [cursor=pointer] [box=128,441,299,56]:
+                - generic [ref=f1e587] [box=182,451,235,36]:
+                  - paragraph [ref=f1e588] [box=182,451,235,20]: 2026-08-17 Remote Access Troubleshooting and Career Transition Discussion
+                  - paragraph [ref=f1e589] [box=182,471,235,16]: 2026-08-17 08:35 1:07:15
+              - button [ref=f1e590] [cursor=pointer] [box=128,497,299,56]:
+                - generic [ref=f1e593] [box=182,507,235,36]:
+                  - paragraph [ref=f1e594] [box=182,507,235,20]: 2026-08-14 OneView Firmware Upgrade and System Rebuild Challenges
+                  - paragraph [ref=f1e595] [box=182,527,235,16]: 2026-08-14 15:29 2:51:19
+              - button [ref=f1e596] [cursor=pointer] [box=128,553,299,56]:
+                - generic [ref=f1e599] [box=182,563,235,36]:
+                  - paragraph [ref=f1e600] [box=182,563,235,20]: 2026-08-14 RAC2 System Recovery and Firmware Update Strategy
+                  - paragraph [ref=f1e601] [box=182,583,235,16]: 2026-08-14 14:57 31:45
+              - button [ref=f1e602] [cursor=pointer] [box=128,609,299,56]:
+                - generic [ref=f1e605] [box=182,619,235,36]:
+                  - paragraph [ref=f1e606] [box=182,619,235,20]: 2026-08-14 Interconnect Failover and Firmware Update Strategies
+                  - paragraph [ref=f1e607] [box=182,639,235,16]: 2026-08-14 14:41 14:50
+              - button [ref=f1e608] [cursor=pointer] [box=128,665,299,56]:
+                - generic [ref=f1e611] [box=182,675,235,36]:
+                  - paragraph [ref=f1e612] [box=182,675,235,20]: 2026-08-14 Troubleshooting Storage and Blade Hardware Issues
+                  - paragraph [ref=f1e613] [box=182,695,235,16]: 2026-08-14 10:41 3:59:58
+              - button [ref=f1e614] [cursor=pointer] [box=128,721,299,56]:
+                - generic [ref=f1e617] [box=182,731,235,36]:
+                  - paragraph [ref=f1e618] [box=182,731,235,20]: 2026-08-14 Project Updates and Infrastructure Challenges
+                  - paragraph [ref=f1e619] [box=182,751,235,16]: 2026-08-14 10:27 13:30
+          - generic [ref=f1e620] [box=116,677,327,504]:
+            - paragraph [ref=f1e622] [box=138,699,283,24]: Whispers
+            - generic [ref=f1e659] [box=164,959,231,87]:
+              - paragraph [ref=f1e660] [box=225,959,109,20]: No Whispers Yet
+              - paragraph [ref=f1e661] [box=164,987,231,59]: Connect HiDock to transfer recordings, or upload audio to get started.
+        - generic [ref=f1e662] [box=459,157,351,1023]:
+          - generic [ref=f1e663] [box=471,169,327,428]:
+            - generic [ref=f1e664] [box=471,169,327,52]:
+              - paragraph [ref=f1e665] [box=481,183,227,24]: August 2026
+              - generic [ref=f1e666] [box=715,179,72,32]:
+                - button [ref=f1e667] [cursor=pointer] [box=715,179,32,32]
+                - button [ref=f1e670] [cursor=pointer] [box=755,179,32,32]
+            - generic [ref=f1e673] [box=471,225,327,372]:
+              - generic [ref=f1e674] [box=479,233,311,32]:
+                - paragraph [ref=f1e676] [box=489,239,17,20]: Su
+                - paragraph [ref=f1e678] [box=533,239,20,20]: Mo
+                - paragraph [ref=f1e680] [box=581,239,16,20]: Tu
+                - paragraph [ref=f1e682] [box=624,239,21,20]: We
+                - paragraph [ref=f1e684] [box=671,239,17,20]: Th
+                - paragraph [ref=f1e686] [box=719,239,13,20]: Fr
+                - paragraph [ref=f1e688] [box=762,239,16,20]: Sa
+              - generic [ref=f1e689] [box=479,273,311,46]:
+                - button "26" [ref=f1e690] [cursor=pointer] [box=479,273,38,46]
+                - button "27" [ref=f1e693] [cursor=pointer] [box=524,273,38,46]
+                - button "28" [ref=f1e696] [cursor=pointer] [box=570,273,38,46]
+                - button "29" [ref=f1e699] [cursor=pointer] [box=615,273,38,46]
+                - button "30" [ref=f1e702] [cursor=pointer] [box=661,273,38,46]
+                - button "31" [ref=f1e705] [cursor=pointer] [box=706,273,38,46]
+                - button "1" [ref=f1e708] [cursor=pointer] [box=752,273,38,46]
+              - generic [ref=f1e711] [box=479,327,311,46]:
+                - button "2" [ref=f1e712] [cursor=pointer] [box=479,327,38,46]
+                - button "3" [ref=f1e715] [cursor=pointer] [box=524,327,38,46]
+                - button "4" [ref=f1e718] [cursor=pointer] [box=570,327,38,46]
+                - button "5" [ref=f1e721] [cursor=pointer] [box=615,327,38,46]
+                - button "6" [ref=f1e724] [cursor=pointer] [box=661,327,38,46]
+                - button "7" [ref=f1e727] [cursor=pointer] [box=706,327,38,46]
+                - button "8" [ref=f1e730] [cursor=pointer] [box=752,327,38,46]
+              - generic [ref=f1e733] [box=479,381,311,46]:
+                - button "9" [ref=f1e734] [cursor=pointer] [box=479,381,38,46]
+                - button "10" [ref=f1e737] [cursor=pointer] [box=524,381,38,46]
+                - button "11" [ref=f1e740] [cursor=pointer] [box=570,381,38,46]
+                - button "12" [ref=f1e743] [cursor=pointer] [box=615,381,38,46]
+                - button "13" [ref=f1e746] [cursor=pointer] [box=661,381,38,46]
+                - button "14" [ref=f1e749] [cursor=pointer] [box=706,381,38,46]
+                - button "15" [ref=f1e752] [cursor=pointer] [box=752,381,38,46]
+              - generic [ref=f1e755] [box=479,435,311,46]:
+                - button "16" [ref=f1e756] [cursor=pointer] [box=479,435,38,46]
+                - button "17" [ref=f1e759] [cursor=pointer] [box=524,435,38,46]
+                - button "18" [ref=f1e762] [cursor=pointer] [box=570,435,38,46]
+                - button "19" [ref=f1e765] [cursor=pointer] [box=615,435,38,46]
+                - button "20" [ref=f1e768] [cursor=pointer] [box=661,435,38,46]
+                - button "21" [ref=f1e771] [cursor=pointer] [box=706,435,38,46]
+                - button "22" [ref=f1e774] [cursor=pointer] [box=752,435,38,46]
+              - generic [ref=f1e777] [box=479,489,311,46]:
+                - button "23" [ref=f1e778] [cursor=pointer] [box=479,489,38,46]
+                - button "24" [ref=f1e781] [cursor=pointer] [box=524,489,38,46]
+                - button "25" [ref=f1e784] [cursor=pointer] [box=570,489,38,46]
+                - button "26" [ref=f1e787] [cursor=pointer] [box=615,489,38,46]
+                - button "27" [ref=f1e790] [cursor=pointer] [box=661,489,38,46]
+                - button "28" [ref=f1e793] [cursor=pointer] [box=706,489,38,46]
+                - button "29" [ref=f1e796] [cursor=pointer] [box=752,489,38,46]
+              - generic [ref=f1e799] [box=479,543,311,46]:
+                - button "30" [ref=f1e800] [cursor=pointer] [box=479,543,38,46]
+                - button "31" [ref=f1e803] [cursor=pointer] [box=524,543,38,46]
+                - button "1" [ref=f1e806] [cursor=pointer] [box=570,543,38,46]
+                - button "2" [ref=f1e809] [cursor=pointer] [box=615,543,38,46]
+                - button "3" [ref=f1e812] [cursor=pointer] [box=661,543,38,46]
+                - button "4" [ref=f1e815] [cursor=pointer] [box=706,543,38,46]
+                - button "5" [ref=f1e818] [cursor=pointer] [box=752,543,38,46]
+          - generic [ref=f1e822] [box=471,613,327,392]:
+            - generic [ref=f1e823] [cursor=pointer] [box=471,613,327,56]:
+              - img "google-meeting" [ref=f1e825] [box=487,631,20,20]
+              - generic [ref=f1e826] [box=525,623,263,36]:
+                - paragraph [ref=f1e827] [box=525,623,263,20]: Kochere Daily Scrum
+                - generic [ref=f1e828] [box=525,643,263,16]:
+                  - generic [ref=f1e829] [box=525,643,80,16]: 09:00 - 09:30
+                  - generic [ref=f1e830] [box=611,643,4,16]: ·
+                  - generic [ref=f1e831] [box=620,643,90,16]: Google Meeting
+            - generic [ref=f1e832] [cursor=pointer] [box=471,669,327,56]:
+              - img "google-meeting" [ref=f1e834] [box=487,687,20,20]
+              - generic [ref=f1e835] [box=525,679,263,36]:
+                - paragraph [ref=f1e836] [box=525,679,263,20]: ORION DAILY SCRUM
+                - generic [ref=f1e837] [box=525,699,263,16]:
+                  - generic [ref=f1e838] [box=525,699,80,16]: 09:30 - 09:55
+                  - generic [ref=f1e839] [box=611,699,4,16]: ·
+                  - generic [ref=f1e840] [box=620,699,90,16]: Google Meeting
+            - generic [ref=f1e841] [cursor=pointer] [box=471,725,327,56]:
+              - img "google-meeting" [ref=f1e843] [box=487,743,20,20]
+              - generic [ref=f1e844] [box=525,735,263,36]:
+                - paragraph [ref=f1e845] [box=525,735,263,20]: Helios Daily Scrum
+                - generic [ref=f1e846] [box=525,755,263,16]:
+                  - generic [ref=f1e847] [box=525,755,76,16]: 10:30 - 10:55
+                  - generic [ref=f1e848] [box=607,755,4,16]: ·
+                  - generic [ref=f1e849] [box=616,755,90,16]: Google Meeting
+            - generic [ref=f1e850] [cursor=pointer] [box=471,781,327,56]:
+              - img "google-meeting" [ref=f1e852] [box=487,799,20,20]
+              - generic [ref=f1e853] [box=525,791,263,36]:
+                - paragraph [ref=f1e854] [box=525,791,263,20]: "\"Office Hour\" with Shaun"
+                - generic [ref=f1e855] [box=525,811,263,16]:
+                  - generic [ref=f1e856] [box=525,811,76,16]: 13:00 - 14:00
+                  - generic [ref=f1e857] [box=607,811,4,16]: ·
+                  - generic [ref=f1e858] [box=616,811,90,16]: Google Meeting
+            - generic [ref=f1e859] [cursor=pointer] [box=471,837,327,56]:
+              - img "google-meeting" [ref=f1e861] [box=487,855,20,20]
+              - generic [ref=f1e862] [box=525,847,263,36]:
+                - paragraph [ref=f1e863] [box=525,847,263,20]: Chicago 1.2.2 upgrade preparation
+                - generic [ref=f1e864] [box=525,867,263,16]:
+                  - generic [ref=f1e865] [box=525,867,76,16]: 14:00 - 14:25
+                  - generic [ref=f1e866] [box=607,867,4,16]: ·
+                  - generic [ref=f1e867] [box=616,867,90,16]: Google Meeting
+            - generic [ref=f1e880] [cursor=pointer] [box=525,903,263,36]:
+              - paragraph [ref=f1e881] [box=525,903,263,20]: Home
+              - generic [ref=f1e882] [box=525,923,263,16]:
+                - generic [ref=f1e883] [box=525,923,118,16]: 19:00 - Aug 19 19:00
+                - generic [ref=f1e884] [box=649,923,4,16]: ·
+                - generic [ref=f1e885] [box=658,923,51,16]: Calendar
+            - generic [ref=f1e886] [cursor=pointer] [box=471,949,327,56]:
+              - img "google-meeting" [ref=f1e888] [box=487,967,20,20]
+              - generic [ref=f1e889] [box=525,959,263,36]:
+                - paragraph [ref=f1e890] [box=525,959,263,20]: S.H.I.T LLC
+                - generic [ref=f1e891] [box=525,979,263,16]:
+                  - generic [ref=f1e892] [box=525,979,118,16]: 19:00 - Aug 19 19:00
+                  - generic [ref=f1e893] [box=649,979,4,16]: ·
+                  - generic [ref=f1e894] [box=658,979,90,16]: Google Meeting
+        - generic [ref=f1e895] [box=825,157,327,1023]:
+          - generic [ref=f1e896] [box=825,157,327,763]:
+            - paragraph [ref=f1e898] [box=847,179,283,24]: To-Dos
+            - generic [ref=f1e899] [box=837,217,303,691]:
+              - generic [ref=f1e900] [box=837,217,303,86]:
+                - button [ref=f1e902] [cursor=pointer] [box=847,229,20,20]
+                - generic [ref=f1e903] [box=879,227,251,66]:
+                  - paragraph [ref=f1e904] [cursor=pointer] [box=879,227,251,40]: Participate in Postgres backup and restore session (next meeting)
+                  - generic [ref=f1e905] [box=879,271,251,22]: Aug 18, 19:00
+              - generic [ref=f1e909] [box=837,303,303,106]:
+                - button [ref=f1e911] [cursor=pointer] [box=847,315,20,20]
+                - generic [ref=f1e912] [box=879,313,251,86]:
+                  - paragraph [ref=f1e913] [cursor=pointer] [box=879,313,251,60]: Conduct Postgres backup and restore deep-dive meeting (scheduled for next week or rescheduled)
+                  - generic [ref=f1e914] [box=879,377,251,22]: Aug 18, 19:00
+          - generic [ref=f1e918] [box=825,936,327,244]:
+            - paragraph [ref=f1e920] [box=847,958,283,24]: Daily Quote
+            - generic [ref=f1e921] [box=837,996,303,160]:
+              - paragraph [ref=f1e927] [box=872,1006,226,112]: You will get all you want in life if you help enough other people get what they want.
+              - paragraph [ref=f1e928] [box=847,1126,283,20]: — Zig Ziglar
