@@ -1,3 +1,10 @@
+// Modules
+pub mod api;
+pub mod auth;
+pub mod commands;
+pub mod db;
+pub mod sync;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
