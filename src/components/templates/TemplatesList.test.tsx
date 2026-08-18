@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { TemplatesList } from './TemplatesList';
 import { useTemplatesStore } from '../../store/templatesStore';
 
@@ -78,13 +79,20 @@ describe('TemplatesList', () => {
     expect(mockStore.setFilter).toHaveBeenCalledWith({ searchQuery: 'meeting' });
   });
 
-  it('should handle sort change', () => {
+  it('should handle sort change', async () => {
+    const user = userEvent.setup();
     render(<TemplatesList />);
 
     const sortSelect = screen.getByPlaceholderText('Sort by');
-    fireEvent.change(sortSelect, { target: { value: 'title-asc' } });
+    await user.click(sortSelect);
 
-    expect(mockStore.setSorting).toHaveBeenCalledWith('title', 'asc');
+    // Find and click the option
+    const option = await screen.findByText('Title (A-Z)');
+    await user.click(option);
+
+    await waitFor(() => {
+      expect(mockStore.setSorting).toHaveBeenCalledWith('title', 'asc');
+    });
   });
 
   it('should toggle favorite filter', () => {
@@ -145,9 +153,10 @@ describe('TemplatesList', () => {
       isLoading: true,
     });
 
-    render(<TemplatesList />);
+    const { container } = render(<TemplatesList />);
 
-    expect(screen.getByRole('img', { hidden: true })).toBeInTheDocument(); // Spin component
+    // Check for loading container
+    expect(container.querySelector('.templates-list-loading')).toBeInTheDocument();
   });
 
   it('should display error message', () => {

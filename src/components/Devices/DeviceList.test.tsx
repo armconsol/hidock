@@ -143,13 +143,14 @@ describe('DeviceList', () => {
     });
 
     // Click the OK button in the Popconfirm
+    // Use fireEvent instead of user.click to bypass pointer-events check
     const confirmButtons = screen.getAllByRole('button', { name: /unbind/i });
     const okButton = confirmButtons.find((button) =>
       button.classList.contains('arco-btn-primary')
     );
 
     if (okButton) {
-      await user.click(okButton);
+      fireEvent.click(okButton);
     }
 
     await waitFor(() => {

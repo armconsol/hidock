@@ -35,7 +35,9 @@ const SharedNoteView: React.FC = () => {
       setNote(sharedNote);
     } catch (err) {
       console.error('Failed to load shared note:', err);
-      setError(String(err) || 'Failed to load note. The link may have expired or is invalid.');
+      // Handle null/undefined errors properly
+      const errorMessage = err && String(err) !== 'null' ? String(err) : 'Failed to load note. The link may have expired or is invalid.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

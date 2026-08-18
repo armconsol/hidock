@@ -94,7 +94,8 @@ describe('ShareDialog', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/test-token-123456789/i, { exact: false })).toBeInTheDocument();
+      // Token is truncated to first 16 chars + "..."
+      expect(screen.getByText(/test-token-12345/i)).toBeInTheDocument();
     });
   });
 

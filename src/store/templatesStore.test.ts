@@ -75,9 +75,10 @@ describe('templatesStore', () => {
 
       vi.mocked(invoke).mockResolvedValue(mockTemplate);
 
-      const store = useTemplatesStore.getState();
-      const result = await store.createTemplate('New Template', 'Content');
+      const result = await useTemplatesStore.getState().createTemplate('New Template', 'Content');
 
+      // Get fresh state after async operation
+      const store = useTemplatesStore.getState();
       expect(result.title).toBe('New Template');
       expect(store.templates).toHaveLength(1);
     });
@@ -98,15 +99,21 @@ describe('templatesStore', () => {
       useTemplatesStore.setState({ templates: [initialTemplate] });
 
       const updatedTemplate = {
-        ...initialTemplate,
+        id: 'template-1',
         title: 'Updated Title',
+        content: 'Content',
+        isFavorite: false,
+        isDefault: false,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
       };
 
       vi.mocked(invoke).mockResolvedValue(updatedTemplate);
 
-      const store = useTemplatesStore.getState();
-      const result = await store.updateTemplate('template-1', { title: 'Updated Title' });
+      const result = await useTemplatesStore.getState().updateTemplate('template-1', { title: 'Updated Title' });
 
+      // Get fresh state after async operation
+      const store = useTemplatesStore.getState();
       expect(result.title).toBe('Updated Title');
       expect(store.templates[0].title).toBe('Updated Title');
     });
@@ -128,9 +135,10 @@ describe('templatesStore', () => {
 
       vi.mocked(invoke).mockResolvedValue(undefined);
 
-      const store = useTemplatesStore.getState();
-      await store.deleteTemplate('template-1');
+      await useTemplatesStore.getState().deleteTemplate('template-1');
 
+      // Get fresh state after async operation
+      const store = useTemplatesStore.getState();
       expect(store.templates).toHaveLength(0);
     });
   });
@@ -149,12 +157,21 @@ describe('templatesStore', () => {
 
       useTemplatesStore.setState({ templates: [template] });
 
-      const toggledTemplate = { ...template, isFavorite: true };
+      const toggledTemplate = {
+        id: 'template-1',
+        title: 'Test Template',
+        content: 'Content',
+        isFavorite: true,
+        isDefault: false,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      };
       vi.mocked(invoke).mockResolvedValue(toggledTemplate);
 
-      const store = useTemplatesStore.getState();
-      const result = await store.toggleFavorite('template-1');
+      const result = await useTemplatesStore.getState().toggleFavorite('template-1');
 
+      // Get fresh state after async operation
+      const store = useTemplatesStore.getState();
       expect(result.isFavorite).toBe(true);
       expect(store.templates[0].isFavorite).toBe(true);
     });
@@ -185,12 +202,21 @@ describe('templatesStore', () => {
 
       useTemplatesStore.setState({ templates });
 
-      const updatedTemplate = { ...templates[1], isDefault: true };
+      const updatedTemplate = {
+        id: 'template-2',
+        title: 'Template 2',
+        content: 'Content 2',
+        isFavorite: false,
+        isDefault: true,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      };
       vi.mocked(invoke).mockResolvedValue(updatedTemplate);
 
-      const store = useTemplatesStore.getState();
-      await store.setAsDefault('template-2');
+      await useTemplatesStore.getState().setAsDefault('template-2');
 
+      // Get fresh state after async operation
+      const store = useTemplatesStore.getState();
       expect(store.templates[0].isDefault).toBe(false);
       expect(store.templates[1].isDefault).toBe(true);
     });

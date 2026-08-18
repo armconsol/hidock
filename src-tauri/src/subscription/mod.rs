@@ -50,13 +50,13 @@ impl SubscriptionManager {
         let subscription = if let Some(current_sub) = current {
             // Update existing subscription
             let update = UpdateSubscription {
-                status: Some(api_subscription.status.clone()),
+                status: Some(api_status_to_db_status(&api_subscription.status)),
                 expires_at: api_subscription
                     .expires_at
                     .as_ref()
                     .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
                     .map(|dt| dt.with_timezone(&Utc)),
-                canceled_at: if api_subscription.status == SubscriptionStatus::Canceled {
+                canceled_at: if api_subscription.status == ApiSubscriptionStatus::Canceled {
                     Some(Utc::now())
                 } else {
                     None
@@ -68,7 +68,7 @@ impl SubscriptionManager {
             // Insert new subscription
             let insert = InsertSubscription {
                 product_id: api_subscription.product_id.clone(),
-                status: api_subscription.status.clone(),
+                status: api_status_to_db_status(&api_subscription.status),
                 expires_at: api_subscription
                     .expires_at
                     .as_ref()
@@ -89,8 +89,8 @@ impl SubscriptionManager {
         let subscription = db.get_current_subscription()?;
 
         match subscription {
-            Some(sub) => Ok(sub.status == SubscriptionStatus::Active
-                || sub.status == SubscriptionStatus::Trial),
+            Some(sub) => Ok(sub.status == DbSubscriptionStatus::Active
+                || sub.status == DbSubscriptionStatus::Trial),
             None => Ok(false),
         }
     }
@@ -120,10 +120,10 @@ impl SubscriptionManager {
         if let Some(sub) = current_sub {
             let new_status = match event_type {
                 SubscriptionEventType::Activated | SubscriptionEventType::Renewed => {
-                    SubscriptionStatus::Active
+                    DbSubscriptionStatus::Active
                 }
-                SubscriptionEventType::Expired => SubscriptionStatus::Expired,
-                SubscriptionEventType::Canceled => SubscriptionStatus::Canceled,
+                SubscriptionEventType::Expired => DbSubscriptionStatus::Expired,
+                SubscriptionEventType::Canceled => DbSubscriptionStatus::Canceled,
             };
 
             let update = UpdateSubscription {
@@ -142,10 +142,10 @@ impl SubscriptionManager {
             let insert = InsertSubscription {
                 product_id,
                 status: match event_type {
-                    SubscriptionEventType::Activated => SubscriptionStatus::Active,
-                    SubscriptionEventType::Expired => SubscriptionStatus::Expired,
-                    SubscriptionEventType::Canceled => SubscriptionStatus::Canceled,
-                    SubscriptionEventType::Renewed => SubscriptionStatus::Active,
+                    SubscriptionEventType::Activated => DbSubscriptionStatus::Active,
+                    SubscriptionEventType::Expired => DbSubscriptionStatus::Expired,
+                    SubscriptionEventType::Canceled => DbSubscriptionStatus::Canceled,
+                    SubscriptionEventType::Renewed => DbSubscriptionStatus::Active,
                 },
                 expires_at,
                 purchased_at: Some(Utc::now()),
@@ -219,7 +219,7 @@ mod tests {
         let subscription = manager.get_current_subscription().await.unwrap();
         assert!(subscription.is_some());
         let sub = subscription.unwrap();
-        assert_eq!(sub.status, SubscriptionStatus::Active);
+        assert_eq!(sub.status, DbSubscriptionStatus::Active);
         assert_eq!(sub.product_id, "premium_monthly");
     }
 
@@ -253,7 +253,10 @@ mod tests {
         // Verify subscription is now expired
         let subscription = manager.get_current_subscription().await.unwrap();
         assert!(subscription.is_some());
-        assert_eq!(subscription.unwrap().status, SubscriptionStatus::Expired);
+        assert_eq!(
+            subscription.unwrap().status,
+            DbSubscriptionStatus::Expired
+        );
     }
 
     #[tokio::test]
@@ -288,7 +291,7 @@ mod tests {
         let subscription = manager.get_current_subscription().await.unwrap();
         assert!(subscription.is_some());
         let sub = subscription.unwrap();
-        assert_eq!(sub.status, SubscriptionStatus::Active);
+        assert_eq!(sub.status, DbSubscriptionStatus::Active);
         assert!(sub.expires_at.is_some());
     }
 
@@ -323,7 +326,7 @@ mod tests {
         let subscription = manager.get_current_subscription().await.unwrap();
         assert!(subscription.is_some());
         let sub = subscription.unwrap();
-        assert_eq!(sub.status, SubscriptionStatus::Canceled);
+        assert_eq!(sub.status, DbSubscriptionStatus::Canceled);
         assert!(sub.canceled_at.is_some());
     }
 

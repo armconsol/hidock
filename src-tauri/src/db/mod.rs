@@ -494,6 +494,33 @@ impl Database {
         Ok(())
     }
 
+    /// Update note with merged audio
+    ///
+    /// # Arguments
+    /// * `note_id` - ID of the note to update
+    /// * `audio_url` - Path or URL to the merged audio file
+    /// * `duration` - Optional duration string (e.g., "00:05:30")
+    ///
+    /// # Returns
+    /// Updated Note object
+    pub fn update_note_with_merged_audio(
+        &self,
+        note_id: &str,
+        audio_url: &str,
+        duration: Option<String>,
+    ) -> Result<Note> {
+        let update = UpdateNote {
+            title: None,
+            content: None,
+            folder_id: None,
+            audio_url: Some(Some(audio_url.to_string())),
+            duration,
+            rating: None,
+        };
+
+        self.update_note(note_id, &update)
+    }
+
     // ===== TODO CRUD OPERATIONS =====
 
     /// Insert a new todo
@@ -2274,6 +2301,137 @@ impl Database {
         }
 
         Ok(stats)
+    }
+
+    /// Update speaker assignment for a segment
+    pub fn assign_speaker_to_segment(&self, segment_id: &str, speaker_id: &str) -> Result<SpeakerSegment> {
+        // Verify speaker exists
+        self.get_speaker(speaker_id)?
+            .ok_or_else(|| anyhow::anyhow!("Speaker not found: {}", speaker_id))?;
+
+        let updated = self.conn.execute(
+            "UPDATE speaker_segments SET speaker_id = ?1 WHERE id = ?2",
+            params![speaker_id, segment_id],
+        )?;
+
+        if updated == 0 {
+            anyhow::bail!("Speaker segment not found: {}", segment_id);
+        }
+
+        self.get_speaker_segment(segment_id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve updated speaker segment"))
+    }
+
+    /// Compare two voice signatures and return similarity score (0.0 to 1.0)
+    /// Returns None if either signature is None
+    /// Currently uses simple string comparison - in production this would use
+    /// acoustic feature comparison (MFCCs, spectrograms, embeddings, etc.)
+    pub fn compare_voice_signatures(&self, signature1: Option<&str>, signature2: Option<&str>) -> Option<f64> {
+        match (signature1, signature2) {
+            (Some(sig1), Some(sig2)) => {
+                // Simple placeholder implementation - string similarity
+                // In production, this would parse acoustic features and compute similarity
+                if sig1 == sig2 {
+                    Some(1.0)
+                } else {
+                    // Basic edit distance-based similarity
+                    let distance = Self::levenshtein_distance(sig1, sig2);
+                    let max_len = sig1.len().max(sig2.len()) as f64;
+                    if max_len == 0.0 {
+                        Some(1.0)
+                    } else {
+                        Some(1.0 - (distance as f64 / max_len))
+                    }
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Calculate Levenshtein distance between two strings
+    fn levenshtein_distance(s1: &str, s2: &str) -> usize {
+        let len1 = s1.len();
+        let len2 = s2.len();
+
+        if len1 == 0 {
+            return len2;
+        }
+        if len2 == 0 {
+            return len1;
+        }
+
+        let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
+
+        for i in 0..=len1 {
+            matrix[i][0] = i;
+        }
+        for j in 0..=len2 {
+            matrix[0][j] = j;
+        }
+
+        let s1_chars: Vec<char> = s1.chars().collect();
+        let s2_chars: Vec<char> = s2.chars().collect();
+
+        for i in 1..=len1 {
+            for j in 1..=len2 {
+                let cost = if s1_chars[i - 1] == s2_chars[j - 1] { 0 } else { 1 };
+                matrix[i][j] = (matrix[i - 1][j] + 1)
+                    .min(matrix[i][j - 1] + 1)
+                    .min(matrix[i - 1][j - 1] + cost);
+            }
+        }
+
+        matrix[len1][len2]
+    }
+
+    /// Find the best matching speaker for a given voice signature
+    /// Returns (speaker_id, similarity_score) if a match above threshold is found
+    pub fn find_matching_speaker(&self, voice_signature: &str, threshold: f64) -> Result<Option<(String, f64)>> {
+        let speakers = self.list_speakers()?;
+
+        let mut best_match: Option<(String, f64)> = None;
+
+        for speaker in speakers {
+            if let Some(similarity) = self.compare_voice_signatures(
+                Some(voice_signature),
+                speaker.voice_signature.as_deref(),
+            ) {
+                if similarity >= threshold {
+                    match best_match {
+                        Some((_, best_score)) if similarity > best_score => {
+                            best_match = Some((speaker.id.clone(), similarity));
+                        }
+                        None => {
+                            best_match = Some((speaker.id.clone(), similarity));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        Ok(best_match)
+    }
+
+    /// Auto-assign speakers to segments based on voice signature matching
+    /// Returns the number of segments that were assigned
+    pub fn auto_assign_speakers_to_segments(
+        &self,
+        note_id: &str,
+        signature_map: &[(String, String)], // (segment_id, voice_signature)
+        threshold: f64,
+    ) -> Result<usize> {
+        let mut assigned_count = 0;
+
+        for (segment_id, voice_signature) in signature_map {
+            if let Some((speaker_id, _similarity)) = self.find_matching_speaker(voice_signature, threshold)? {
+                if self.assign_speaker_to_segment(segment_id, &speaker_id).is_ok() {
+                    assigned_count += 1;
+                }
+            }
+        }
+
+        Ok(assigned_count)
     }
 
     // ===== SUBSCRIPTION CRUD OPERATIONS =====
@@ -4789,5 +4947,367 @@ mod tests {
         // Delete note should cascade delete segments
         db.delete_note("note-1").unwrap();
         assert_eq!(db.count_speaker_segments().unwrap(), 0);
+    }
+
+    // ===== SPEAKER PROFILE MANAGEMENT TESTS =====
+
+    #[test]
+    fn test_assign_speaker_to_segment() {
+        let db = setup();
+
+        // Create prerequisites
+        let note = InsertNote {
+            id: "note-1".to_string(),
+            title: "Test Note".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        db.insert_note(&note).unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("Alice")))
+            .unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-2", Some("Bob")))
+            .unwrap();
+
+        let segment_data = create_test_segment("note-1", "speaker-1", 0.0, 10.0);
+        let segment_id = segment_data.id.clone();
+        db.insert_speaker_segment(&segment_data).unwrap();
+
+        // Verify initial assignment
+        let segment = db.get_speaker_segment(&segment_id).unwrap().unwrap();
+        assert_eq!(segment.speaker_id, "speaker-1");
+
+        // Reassign to speaker-2
+        let updated = db.assign_speaker_to_segment(&segment_id, "speaker-2").unwrap();
+        assert_eq!(updated.speaker_id, "speaker-2");
+        assert_eq!(updated.id, segment_id);
+    }
+
+    #[test]
+    fn test_assign_nonexistent_speaker_to_segment() {
+        let db = setup();
+
+        // Create prerequisites
+        let note = InsertNote {
+            id: "note-1".to_string(),
+            title: "Test Note".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        db.insert_note(&note).unwrap();
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("Alice")))
+            .unwrap();
+
+        let segment_data = create_test_segment("note-1", "speaker-1", 0.0, 10.0);
+        let segment_id = segment_data.id.clone();
+        db.insert_speaker_segment(&segment_data).unwrap();
+
+        // Try to assign to non-existent speaker
+        let result = db.assign_speaker_to_segment(&segment_id, "nonexistent");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Speaker not found"));
+    }
+
+    #[test]
+    fn test_assign_speaker_to_nonexistent_segment() {
+        let db = setup();
+
+        db.insert_speaker(&create_test_speaker("speaker-1", Some("Alice")))
+            .unwrap();
+
+        let result = db.assign_speaker_to_segment("nonexistent-segment", "speaker-1");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Speaker segment not found"));
+    }
+
+    #[test]
+    fn test_compare_voice_signatures_identical() {
+        let db = setup();
+
+        let signature = "voice_data_abc123";
+        let similarity = db.compare_voice_signatures(Some(signature), Some(signature));
+
+        assert!(similarity.is_some());
+        assert_eq!(similarity.unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_compare_voice_signatures_different() {
+        let db = setup();
+
+        let sig1 = "voice_data_abc123";
+        let sig2 = "voice_data_xyz789";
+        let similarity = db.compare_voice_signatures(Some(sig1), Some(sig2));
+
+        assert!(similarity.is_some());
+        let score = similarity.unwrap();
+        assert!(score >= 0.0 && score < 1.0);
+    }
+
+    #[test]
+    fn test_compare_voice_signatures_similar() {
+        let db = setup();
+
+        let sig1 = "voice_data_abc123";
+        let sig2 = "voice_data_abc124"; // Very similar
+        let similarity = db.compare_voice_signatures(Some(sig1), Some(sig2));
+
+        assert!(similarity.is_some());
+        let score = similarity.unwrap();
+        assert!(score > 0.8); // Should be high similarity
+    }
+
+    #[test]
+    fn test_compare_voice_signatures_none() {
+        let db = setup();
+
+        let sig1 = "voice_data_abc123";
+
+        // One signature is None
+        let similarity1 = db.compare_voice_signatures(Some(sig1), None);
+        assert!(similarity1.is_none());
+
+        // Other signature is None
+        let similarity2 = db.compare_voice_signatures(None, Some(sig1));
+        assert!(similarity2.is_none());
+
+        // Both are None
+        let similarity3 = db.compare_voice_signatures(None, None);
+        assert!(similarity3.is_none());
+    }
+
+    #[test]
+    fn test_find_matching_speaker_exact_match() {
+        let db = setup();
+
+        let voice_sig = "voice_data_alice_123";
+        let mut speaker = create_test_speaker("speaker-1", Some("Alice"));
+        speaker.voice_signature = Some(voice_sig.to_string());
+        db.insert_speaker(&speaker).unwrap();
+
+        let result = db.find_matching_speaker(voice_sig, 0.9).unwrap();
+        assert!(result.is_some());
+
+        let (speaker_id, score) = result.unwrap();
+        assert_eq!(speaker_id, "speaker-1");
+        assert_eq!(score, 1.0);
+    }
+
+    #[test]
+    fn test_find_matching_speaker_above_threshold() {
+        let db = setup();
+
+        let mut speaker1 = create_test_speaker("speaker-1", Some("Alice"));
+        speaker1.voice_signature = Some("voice_data_abc123".to_string());
+        db.insert_speaker(&speaker1).unwrap();
+
+        let mut speaker2 = create_test_speaker("speaker-2", Some("Bob"));
+        speaker2.voice_signature = Some("voice_data_xyz789".to_string());
+        db.insert_speaker(&speaker2).unwrap();
+
+        // Very similar to speaker1's signature
+        let test_signature = "voice_data_abc124";
+        let result = db.find_matching_speaker(test_signature, 0.8).unwrap();
+
+        assert!(result.is_some());
+        let (speaker_id, score) = result.unwrap();
+        assert_eq!(speaker_id, "speaker-1");
+        assert!(score > 0.8);
+    }
+
+    #[test]
+    fn test_find_matching_speaker_below_threshold() {
+        let db = setup();
+
+        let mut speaker = create_test_speaker("speaker-1", Some("Alice"));
+        speaker.voice_signature = Some("voice_data_abc123".to_string());
+        db.insert_speaker(&speaker).unwrap();
+
+        // Very different signature
+        let test_signature = "completely_different_voice_xyz789";
+        let result = db.find_matching_speaker(test_signature, 0.9).unwrap();
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_find_matching_speaker_no_speakers() {
+        let db = setup();
+
+        let test_signature = "voice_data_test";
+        let result = db.find_matching_speaker(test_signature, 0.8).unwrap();
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_find_matching_speaker_best_match() {
+        let db = setup();
+
+        // Create multiple speakers with different signatures
+        let mut speaker1 = create_test_speaker("speaker-1", Some("Alice"));
+        speaker1.voice_signature = Some("voice_data_abc".to_string());
+        db.insert_speaker(&speaker1).unwrap();
+
+        let mut speaker2 = create_test_speaker("speaker-2", Some("Bob"));
+        speaker2.voice_signature = Some("voice_data_abcd".to_string());
+        db.insert_speaker(&speaker2).unwrap();
+
+        let mut speaker3 = create_test_speaker("speaker-3", Some("Charlie"));
+        speaker3.voice_signature = Some("voice_data_xyz".to_string());
+        db.insert_speaker(&speaker3).unwrap();
+
+        // Test signature most similar to speaker2
+        let test_signature = "voice_data_abcde";
+        let result = db.find_matching_speaker(test_signature, 0.5).unwrap();
+
+        assert!(result.is_some());
+        let (speaker_id, _score) = result.unwrap();
+        assert_eq!(speaker_id, "speaker-2"); // Best match
+    }
+
+    #[test]
+    fn test_auto_assign_speakers_to_segments_success() {
+        let db = setup();
+
+        // Create note and speakers
+        let note = InsertNote {
+            id: "note-1".to_string(),
+            title: "Test Note".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        db.insert_note(&note).unwrap();
+
+        let mut speaker1 = create_test_speaker("speaker-1", Some("Alice"));
+        speaker1.voice_signature = Some("voice_alice_123".to_string());
+        db.insert_speaker(&speaker1).unwrap();
+
+        let mut speaker2 = create_test_speaker("speaker-2", Some("Bob"));
+        speaker2.voice_signature = Some("voice_bob_456".to_string());
+        db.insert_speaker(&speaker2).unwrap();
+
+        // Create dummy speaker for initial assignment
+        db.insert_speaker(&create_test_speaker("speaker-unknown", Some("Unknown")))
+            .unwrap();
+
+        // Create segments with unknown speaker
+        let segment1 = create_test_segment("note-1", "speaker-unknown", 0.0, 10.0);
+        let segment2 = create_test_segment("note-1", "speaker-unknown", 10.0, 20.0);
+        let segment1_id = segment1.id.clone();
+        let segment2_id = segment2.id.clone();
+        db.insert_speaker_segment(&segment1).unwrap();
+        db.insert_speaker_segment(&segment2).unwrap();
+
+        // Auto-assign based on voice signatures
+        let signature_map = vec![
+            (segment1_id.clone(), "voice_alice_123".to_string()),
+            (segment2_id.clone(), "voice_bob_456".to_string()),
+        ];
+
+        let assigned_count = db.auto_assign_speakers_to_segments("note-1", &signature_map, 0.9).unwrap();
+        assert_eq!(assigned_count, 2);
+
+        // Verify assignments
+        let seg1 = db.get_speaker_segment(&segment1_id).unwrap().unwrap();
+        assert_eq!(seg1.speaker_id, "speaker-1");
+
+        let seg2 = db.get_speaker_segment(&segment2_id).unwrap().unwrap();
+        assert_eq!(seg2.speaker_id, "speaker-2");
+    }
+
+    #[test]
+    fn test_auto_assign_speakers_partial_match() {
+        let db = setup();
+
+        // Create note and speaker
+        let note = InsertNote {
+            id: "note-1".to_string(),
+            title: "Test Note".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        db.insert_note(&note).unwrap();
+
+        let mut speaker = create_test_speaker("speaker-1", Some("Alice"));
+        speaker.voice_signature = Some("voice_alice_123".to_string());
+        db.insert_speaker(&speaker).unwrap();
+
+        db.insert_speaker(&create_test_speaker("speaker-unknown", Some("Unknown")))
+            .unwrap();
+
+        // Create two segments
+        let segment1 = create_test_segment("note-1", "speaker-unknown", 0.0, 10.0);
+        let segment2 = create_test_segment("note-1", "speaker-unknown", 10.0, 20.0);
+        let segment1_id = segment1.id.clone();
+        let segment2_id = segment2.id.clone();
+        db.insert_speaker_segment(&segment1).unwrap();
+        db.insert_speaker_segment(&segment2).unwrap();
+
+        // One matching, one non-matching
+        let signature_map = vec![
+            (segment1_id.clone(), "voice_alice_123".to_string()),
+            (segment2_id.clone(), "completely_different_voice".to_string()),
+        ];
+
+        let assigned_count = db.auto_assign_speakers_to_segments("note-1", &signature_map, 0.9).unwrap();
+        assert_eq!(assigned_count, 1); // Only one should match
+
+        // Verify only segment1 was reassigned
+        let seg1 = db.get_speaker_segment(&segment1_id).unwrap().unwrap();
+        assert_eq!(seg1.speaker_id, "speaker-1");
+
+        let seg2 = db.get_speaker_segment(&segment2_id).unwrap().unwrap();
+        assert_eq!(seg2.speaker_id, "speaker-unknown"); // Unchanged
+    }
+
+    #[test]
+    fn test_auto_assign_speakers_no_matches() {
+        let db = setup();
+
+        let note = InsertNote {
+            id: "note-1".to_string(),
+            title: "Test Note".to_string(),
+            content: None,
+            folder_id: None,
+            audio_url: None,
+            duration: None,
+            rating: None,
+        };
+        db.insert_note(&note).unwrap();
+
+        let mut speaker = create_test_speaker("speaker-1", Some("Alice"));
+        speaker.voice_signature = Some("voice_alice_123".to_string());
+        db.insert_speaker(&speaker).unwrap();
+
+        db.insert_speaker(&create_test_speaker("speaker-unknown", Some("Unknown")))
+            .unwrap();
+
+        let segment = create_test_segment("note-1", "speaker-unknown", 0.0, 10.0);
+        let segment_id = segment.id.clone();
+        db.insert_speaker_segment(&segment).unwrap();
+
+        // No matching signatures
+        let signature_map = vec![
+            (segment_id.clone(), "completely_different_voice".to_string()),
+        ];
+
+        let assigned_count = db.auto_assign_speakers_to_segments("note-1", &signature_map, 0.9).unwrap();
+        assert_eq!(assigned_count, 0);
+
+        // Verify segment unchanged
+        let seg = db.get_speaker_segment(&segment_id).unwrap().unwrap();
+        assert_eq!(seg.speaker_id, "speaker-unknown");
     }
 }

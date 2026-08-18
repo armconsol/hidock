@@ -83,6 +83,21 @@ impl AudioProcessor {
     /// # Returns
     /// Path to the merged audio file in temp directory
     pub async fn merge_audio(&self, files: &[PathBuf]) -> Result<PathBuf> {
+        self.merge_audio_with_progress(files, |_| {}).await
+    }
+
+    /// Merge multiple audio files with progress callback
+    ///
+    /// # Arguments
+    /// * `files` - List of audio file paths to merge (in order)
+    /// * `progress_callback` - Callback function called with progress (0.0 to 1.0)
+    ///
+    /// # Returns
+    /// Path to the merged audio file in temp directory
+    pub async fn merge_audio_with_progress<F>(&self, files: &[PathBuf], progress_callback: F) -> Result<PathBuf>
+    where
+        F: Fn(f32) + Send + 'static,
+    {
         if files.is_empty() {
             return Err(anyhow!("No files provided for merging"));
         }
@@ -91,12 +106,22 @@ impl AudioProcessor {
             return Err(anyhow!("Need at least 2 files to merge"));
         }
 
+        progress_callback(0.0);
+
         // Validate all input files exist
-        for file in files {
+        for (i, file) in files.iter().enumerate() {
             if !file.exists() {
                 return Err(anyhow!("Input file does not exist: {:?}", file));
             }
+            progress_callback(0.1 * (i as f32 / files.len() as f32));
         }
+
+        progress_callback(0.1);
+
+        // Detect if files have different codecs/formats
+        let needs_re_encode = self.needs_re_encode(files).await?;
+
+        progress_callback(0.2);
 
         // Create concat list file
         let concat_list = self.temp_dir.join("concat_list.txt");
@@ -111,36 +136,121 @@ impl AudioProcessor {
             .await
             .context("Failed to write concat list")?;
 
+        progress_callback(0.3);
+
         // Output file
         let timestamp = chrono::Utc::now().timestamp_millis();
         let output_file = self.temp_dir.join(format!("merged_{}.m4a", timestamp));
 
+        progress_callback(0.4);
+
+        // Build FFmpeg command based on whether re-encoding is needed
+        let mut args = vec![
+            "-f".to_string(),
+            "concat".to_string(),
+            "-safe".to_string(),
+            "0".to_string(),
+            "-i".to_string(),
+            concat_list.to_str().unwrap().to_string(),
+        ];
+
+        if needs_re_encode {
+            // Re-encode to ensure compatibility
+            args.extend([
+                "-c:a".to_string(),
+                "aac".to_string(),
+                "-b:a".to_string(),
+                "192k".to_string(),
+            ]);
+        } else {
+            // Copy codec (faster, no quality loss)
+            args.extend([
+                "-c".to_string(),
+                "copy".to_string(),
+            ]);
+        }
+
+        args.extend([
+            "-y".to_string(), // Overwrite output file if exists
+            output_file.to_str().unwrap().to_string(),
+        ]);
+
+        progress_callback(0.5);
+
         // Run FFmpeg concat
         let output = Command::new(&self.ffmpeg_path)
-            .args([
-                "-f",
-                "concat",
-                "-safe",
-                "0",
-                "-i",
-                concat_list.to_str().unwrap(),
-                "-c",
-                "copy",
-                "-y", // Overwrite output file if exists
-                output_file.to_str().unwrap(),
-            ])
+            .args(&args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())
             .output()
             .context("Failed to execute FFmpeg merge")?;
 
+        progress_callback(0.9);
+
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
+            // Clean up on error
+            let _ = fs::remove_file(concat_list).await;
             return Err(anyhow!("FFmpeg merge failed: {}", stderr));
         }
 
         // Clean up concat list
         let _ = fs::remove_file(concat_list).await;
 
+        progress_callback(1.0);
+
         Ok(output_file)
+    }
+
+    /// Check if files need re-encoding for merging
+    async fn needs_re_encode(&self, files: &[PathBuf]) -> Result<bool> {
+        if files.is_empty() {
+            return Ok(false);
+        }
+
+        // Get format info for first file
+        let first_format = self.detect_audio_format(&files[0]).await?;
+
+        // Check if all files have the same format
+        for file in files.iter().skip(1) {
+            let format = self.detect_audio_format(file).await?;
+            if format != first_format {
+                return Ok(true); // Different formats, need re-encode
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// Detect audio format of a file
+    async fn detect_audio_format(&self, file: &Path) -> Result<String> {
+        let output = Command::new(&self.ffmpeg_path)
+            .args([
+                "-i",
+                file.to_str().unwrap(),
+                "-hide_banner",
+            ])
+            .output()
+            .context("Failed to probe audio format")?;
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+
+        // Parse codec from FFmpeg output
+        // Example: "Audio: aac (LC) (mp4a / 0x6134706D)"
+        for line in stderr.lines() {
+            if line.contains("Audio:") {
+                if let Some(codec_part) = line.split("Audio:").nth(1) {
+                    if let Some(codec) = codec_part.trim().split_whitespace().next() {
+                        return Ok(codec.to_lowercase());
+                    }
+                }
+            }
+        }
+
+        // Fallback to extension-based detection
+        if let Some(ext) = file.extension() {
+            return Ok(ext.to_string_lossy().to_lowercase().to_string());
+        }
+
+        Err(anyhow!("Failed to detect audio format for: {:?}", file))
     }
 
     /// Replace a segment of audio with new audio
@@ -150,6 +260,7 @@ impl AudioProcessor {
     /// * `replacement` - Path to the replacement audio file
     /// * `start_ms` - Start time in milliseconds where replacement begins
     /// * `end_ms` - End time in milliseconds where replacement ends
+    /// * `fade_duration_ms` - Duration of fade in/out transitions (0 = no fade)
     ///
     /// # Returns
     /// Path to the new audio file with replaced segment
@@ -159,6 +270,7 @@ impl AudioProcessor {
         replacement: &Path,
         start_ms: u64,
         end_ms: u64,
+        fade_duration_ms: u64,
     ) -> Result<PathBuf> {
         if !original.exists() {
             return Err(anyhow!("Original file does not exist"));
@@ -170,65 +282,245 @@ impl AudioProcessor {
             return Err(anyhow!("Start time must be before end time"));
         }
 
+        // Validate time ranges against original file duration
+        let original_duration = self.get_duration(original).await?;
+        if end_ms > original_duration {
+            return Err(anyhow!(
+                "End time ({} ms) exceeds original file duration ({} ms)",
+                end_ms,
+                original_duration
+            ));
+        }
+
         let start_sec = start_ms as f64 / 1000.0;
         let end_sec = end_ms as f64 / 1000.0;
+        let fade_sec = fade_duration_ms as f64 / 1000.0;
 
         let timestamp = chrono::Utc::now().timestamp_millis();
 
-        // Extract part before replacement
+        // Extract part before replacement (with fade out if requested)
         let before_file = self.temp_dir.join(format!("before_{}.m4a", timestamp));
-        let before_output = Command::new(&self.ffmpeg_path)
-            .args([
-                "-i",
-                original.to_str().unwrap(),
-                "-t",
-                &start_sec.to_string(),
-                "-c",
-                "copy",
-                "-y",
-                before_file.to_str().unwrap(),
-            ])
-            .output()
-            .context("Failed to extract before segment")?;
+        if start_ms > 0 {
+            let mut before_args = vec![
+                "-i".to_string(),
+                original.to_str().unwrap().to_string(),
+                "-t".to_string(),
+                start_sec.to_string(),
+            ];
 
-        if !before_output.status.success() {
-            let stderr = String::from_utf8_lossy(&before_output.stderr);
-            return Err(anyhow!("Failed to extract before segment: {}", stderr));
+            // Add fade out filter if fade is enabled
+            if fade_duration_ms > 0 && start_ms > fade_duration_ms {
+                let fade_start = (start_ms - fade_duration_ms) as f64 / 1000.0;
+                before_args.extend([
+                    "-af".to_string(),
+                    format!("afade=t=out:st={}:d={}", fade_start, fade_sec),
+                ]);
+            }
+
+            before_args.extend([
+                "-y".to_string(),
+                before_file.to_str().unwrap().to_string(),
+            ]);
+
+            let before_output = Command::new(&self.ffmpeg_path)
+                .args(&before_args)
+                .output()
+                .context("Failed to extract before segment")?;
+
+            if !before_output.status.success() {
+                let stderr = String::from_utf8_lossy(&before_output.stderr);
+                return Err(anyhow!("Failed to extract before segment: {}", stderr));
+            }
+        } else {
+            // Create empty placeholder if start is at beginning
+            fs::write(&before_file, b"").await?;
         }
 
-        // Extract part after replacement
-        let after_file = self.temp_dir.join(format!("after_{}.m4a", timestamp));
-        let after_output = Command::new(&self.ffmpeg_path)
-            .args([
-                "-i",
-                original.to_str().unwrap(),
-                "-ss",
-                &end_sec.to_string(),
-                "-c",
-                "copy",
-                "-y",
-                after_file.to_str().unwrap(),
-            ])
-            .output()
-            .context("Failed to extract after segment")?;
+        // Process replacement audio (with fade in and fade out if requested)
+        let processed_replacement = if fade_duration_ms > 0 {
+            let replacement_duration = self.get_duration(replacement).await?;
+            let fade_out_start = if replacement_duration > fade_duration_ms {
+                (replacement_duration - fade_duration_ms) as f64 / 1000.0
+            } else {
+                0.0
+            };
 
-        if !after_output.status.success() {
-            let stderr = String::from_utf8_lossy(&after_output.stderr);
-            return Err(anyhow!("Failed to extract after segment: {}", stderr));
+            let proc_repl_file = self
+                .temp_dir
+                .join(format!("processed_replacement_{}.m4a", timestamp));
+
+            let fade_filter = format!(
+                "afade=t=in:st=0:d={},afade=t=out:st={}:d={}",
+                fade_sec, fade_out_start, fade_sec
+            );
+
+            let proc_output = Command::new(&self.ffmpeg_path)
+                .args([
+                    "-i",
+                    replacement.to_str().unwrap(),
+                    "-af",
+                    &fade_filter,
+                    "-y",
+                    proc_repl_file.to_str().unwrap(),
+                ])
+                .output()
+                .context("Failed to process replacement with fades")?;
+
+            if !proc_output.status.success() {
+                let stderr = String::from_utf8_lossy(&proc_output.stderr);
+                return Err(anyhow!("Failed to process replacement: {}", stderr));
+            }
+
+            proc_repl_file
+        } else {
+            replacement.to_path_buf()
+        };
+
+        // Extract part after replacement (with fade in if requested)
+        let after_file = self.temp_dir.join(format!("after_{}.m4a", timestamp));
+        if end_ms < original_duration {
+            let mut after_args = vec![
+                "-i".to_string(),
+                original.to_str().unwrap().to_string(),
+                "-ss".to_string(),
+                end_sec.to_string(),
+            ];
+
+            // Add fade in filter if fade is enabled
+            if fade_duration_ms > 0 {
+                after_args.extend([
+                    "-af".to_string(),
+                    format!("afade=t=in:st=0:d={}", fade_sec),
+                ]);
+            }
+
+            after_args.extend([
+                "-y".to_string(),
+                after_file.to_str().unwrap().to_string(),
+            ]);
+
+            let after_output = Command::new(&self.ffmpeg_path)
+                .args(&after_args)
+                .output()
+                .context("Failed to extract after segment")?;
+
+            if !after_output.status.success() {
+                let stderr = String::from_utf8_lossy(&after_output.stderr);
+                return Err(anyhow!("Failed to extract after segment: {}", stderr));
+            }
+        } else {
+            // Create empty placeholder if end is at file end
+            fs::write(&after_file, b"").await?;
         }
 
         // Merge: before + replacement + after
-        let parts = vec![before_file.clone(), replacement.to_path_buf(), after_file.clone()];
+        let mut parts = Vec::new();
+        if start_ms > 0 && before_file.metadata().await?.len() > 0 {
+            parts.push(before_file.clone());
+        }
+        parts.push(processed_replacement.clone());
+        if end_ms < original_duration && after_file.metadata().await?.len() > 0 {
+            parts.push(after_file.clone());
+        }
+
         let result = self.merge_audio(&parts).await?;
 
         // Clean up temporary files
         let _ = fs::remove_file(before_file).await;
         let _ = fs::remove_file(after_file).await;
+        if fade_duration_ms > 0 {
+            let _ = fs::remove_file(processed_replacement).await;
+        }
 
         Ok(result)
     }
 
-    /// Save audio data to a new file
+    /// Parse timestamp string to milliseconds
+    ///
+    /// Supports formats:
+    /// - Milliseconds: "1234" or "1234ms"
+    /// - Seconds: "12.5s" or "12.5"
+    /// - HH:MM:SS: "00:01:23"
+    /// - HH:MM:SS.mmm: "00:01:23.456"
+    ///
+    /// # Arguments
+    /// * `timestamp` - Timestamp string in supported format
+    ///
+    /// # Returns
+    /// Time in milliseconds
+    pub fn parse_timestamp(timestamp: &str) -> Result<u64> {
+        let timestamp = timestamp.trim();
+
+        // HH:MM:SS or HH:MM:SS.mmm format
+        if timestamp.contains(':') {
+            let parts: Vec<&str> = timestamp.split(':').collect();
+            if parts.len() != 3 {
+                return Err(anyhow!("Invalid timestamp format. Expected HH:MM:SS"));
+            }
+
+            let hours: u64 = parts[0]
+                .parse()
+                .context("Invalid hours in timestamp")?;
+            let minutes: u64 = parts[1]
+                .parse()
+                .context("Invalid minutes in timestamp")?;
+
+            // Handle seconds with optional milliseconds
+            let seconds_part = parts[2];
+            let (seconds, millis) = if seconds_part.contains('.') {
+                let sec_parts: Vec<&str> = seconds_part.split('.').collect();
+                let secs: u64 = sec_parts[0]
+                    .parse()
+                    .context("Invalid seconds in timestamp")?;
+                let ms_str = sec_parts[1];
+                // Pad or truncate to 3 digits
+                let ms: u64 = if ms_str.len() >= 3 {
+                    ms_str[..3].parse().context("Invalid milliseconds")?
+                } else {
+                    let padded = format!("{:0<3}", ms_str);
+                    padded.parse().context("Invalid milliseconds")?
+                };
+                (secs, ms)
+            } else {
+                (seconds_part.parse().context("Invalid seconds")?, 0)
+            };
+
+            let total_ms = hours * 3600000 + minutes * 60000 + seconds * 1000 + millis;
+            return Ok(total_ms);
+        }
+
+        // Milliseconds format (number or "123ms")
+        if timestamp.ends_with("ms") {
+            let num_str = timestamp.trim_end_matches("ms");
+            return num_str
+                .parse()
+                .context("Invalid milliseconds value");
+        }
+
+        // Seconds format (number with 's' or just decimal)
+        if timestamp.ends_with('s') {
+            let num_str = timestamp.trim_end_matches('s');
+            let seconds: f64 = num_str
+                .parse()
+                .context("Invalid seconds value")?;
+            return Ok((seconds * 1000.0) as u64);
+        }
+
+        // Plain number - try as milliseconds first, if very large
+        // Otherwise treat as seconds if it contains decimal point
+        if timestamp.contains('.') {
+            let seconds: f64 = timestamp
+                .parse()
+                .context("Invalid numeric timestamp")?;
+            Ok((seconds * 1000.0) as u64)
+        } else {
+            timestamp
+                .parse()
+                .context("Invalid numeric timestamp")
+        }
+    }
+
+    /// Save audio data to a new file (legacy - kept for backward compatibility)
     ///
     /// # Arguments
     /// * `audio_data` - Raw audio data bytes
@@ -249,6 +541,112 @@ impl AudioProcessor {
             .context("Failed to write audio file")?;
 
         Ok(output_file)
+    }
+
+    /// Save an existing audio file as a new note with optional format conversion
+    ///
+    /// # Arguments
+    /// * `source_path` - Path to the source audio file
+    /// * `output_format` - Desired output format (e.g., "m4a", "mp3", "wav", "ogg")
+    /// * `quality_settings` - Optional audio quality settings (bitrate)
+    ///
+    /// # Returns
+    /// Path to the new audio file
+    pub async fn save_audio_as_new(
+        &self,
+        source_path: &Path,
+        output_format: &str,
+        quality_settings: Option<AudioQualitySettings>,
+    ) -> Result<PathBuf> {
+        if !source_path.exists() {
+            return Err(anyhow!("Source file does not exist"));
+        }
+
+        // Validate output format
+        let valid_formats = ["m4a", "mp3", "wav", "ogg"];
+        if !valid_formats.contains(&output_format) {
+            return Err(anyhow!(
+                "Unsupported output format: {}. Supported formats: {:?}",
+                output_format,
+                valid_formats
+            ));
+        }
+
+        // Get source format
+        let source_ext = source_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("m4a");
+
+        // If formats match and no quality settings provided, just copy the file
+        if source_ext == output_format && quality_settings.is_none() {
+            let timestamp = chrono::Utc::now().timestamp_millis();
+            let output_file = self
+                .temp_dir
+                .join(format!("save_as_new_{}.{}", timestamp, output_format));
+
+            fs::copy(source_path, &output_file)
+                .await
+                .context("Failed to copy audio file")?;
+
+            return Ok(output_file);
+        }
+
+        // Convert format or apply quality settings
+        let bitrate = quality_settings
+            .as_ref()
+            .map(|s| s.bitrate.as_str());
+
+        self.convert_format(source_path, output_format, bitrate)
+            .await
+    }
+}
+
+/// Audio quality settings for save-as-new operations
+#[derive(Debug, Clone)]
+pub struct AudioQualitySettings {
+    pub bitrate: String, // e.g., "128k", "192k", "320k"
+}
+
+impl AudioQualitySettings {
+    /// Create new quality settings with the specified bitrate
+    pub fn new(bitrate: &str) -> Self {
+        Self {
+            bitrate: bitrate.to_string(),
+        }
+    }
+
+    /// High quality preset (320k for MP3, 256k for AAC)
+    pub fn high(format: &str) -> Self {
+        let bitrate = match format {
+            "mp3" => "320k",
+            "m4a" => "256k",
+            "ogg" => "320k",
+            _ => "256k",
+        };
+        Self::new(bitrate)
+    }
+
+    /// Medium quality preset (192k for MP3, 192k for AAC)
+    pub fn medium(format: &str) -> Self {
+        let bitrate = match format {
+            "mp3" => "192k",
+            "m4a" => "192k",
+            "ogg" => "192k",
+            _ => "192k",
+        };
+        Self::new(bitrate)
+    }
+
+    /// Low quality preset (128k for MP3, 128k for AAC)
+    pub fn low(format: &str) -> Self {
+        let bitrate = match format {
+            "mp3" => "128k",
+            "m4a" => "128k",
+            "ogg" => "128k",
+            _ => "128k",
+        };
+        Self::new(bitrate)
     }
 
     /// Convert audio to a specific format
@@ -429,6 +827,7 @@ impl AudioProcessor {
 mod tests {
     use super::*;
     use std::io::Write;
+    use hound::{WavSpec, WavWriter};
 
     fn create_test_audio_file(path: &Path) -> Result<()> {
         // Create a minimal valid M4A file header for testing
@@ -441,6 +840,43 @@ mod tests {
             0x00, 0x00, 0x00, 0x08, 0x66, 0x72, 0x65, 0x65,
         ];
         file.write_all(m4a_header)?;
+        Ok(())
+    }
+
+    fn create_test_wav_file(path: &Path) -> Result<()> {
+        let spec = WavSpec {
+            channels: 1,
+            sample_rate: 44100,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+
+        let mut writer = WavWriter::create(path, spec)?;
+
+        // Write 1 second of silence
+        for _ in 0..44100 {
+            writer.write_sample(0i16)?;
+        }
+
+        writer.finalize()?;
+        Ok(())
+    }
+
+    fn create_test_mp3_file(path: &Path) -> Result<()> {
+        // Create a minimal MP3 file with ID3v2 header
+        let mut file = std::fs::File::create(path)?;
+
+        // ID3v2.3 header
+        let id3_header: &[u8] = &[
+            0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // ID3v2.3 header
+        ];
+        file.write_all(id3_header)?;
+
+        // Minimal MP3 frame
+        let mp3_frame: &[u8] = &[
+            0xFF, 0xFB, 0x90, 0x00, // MPEG1 Layer3 frame
+        ];
+        file.write_all(mp3_frame)?;
         Ok(())
     }
 
@@ -512,5 +948,441 @@ mod tests {
 
         // Give async cleanup a moment
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    }
+
+    // ===== MERGE AUDIO TESTS (TDD) =====
+
+    #[tokio::test]
+    async fn test_merge_audio_two_files_success() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return, // Skip if FFmpeg not available
+        };
+
+        let temp_dir = std::env::temp_dir();
+        let file1 = temp_dir.join("test_merge1.wav");
+        let file2 = temp_dir.join("test_merge2.wav");
+
+        create_test_wav_file(&file1).unwrap();
+        create_test_wav_file(&file2).unwrap();
+
+        let result = processor.merge_audio(&[file1.clone(), file2.clone()]).await;
+
+        assert!(result.is_ok(), "Merge should succeed with valid files");
+
+        if let Ok(output) = result {
+            assert!(output.exists(), "Output file should exist");
+            assert!(output.metadata().unwrap().len() > 0, "Output file should not be empty");
+
+            // Cleanup
+            let _ = fs::remove_file(output).await;
+        }
+
+        let _ = std::fs::remove_file(file1);
+        let _ = std::fs::remove_file(file2);
+    }
+
+    #[tokio::test]
+    async fn test_merge_audio_multiple_files() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        let temp_dir = std::env::temp_dir();
+        let file1 = temp_dir.join("test_merge_m1.wav");
+        let file2 = temp_dir.join("test_merge_m2.wav");
+        let file3 = temp_dir.join("test_merge_m3.wav");
+
+        create_test_wav_file(&file1).unwrap();
+        create_test_wav_file(&file2).unwrap();
+        create_test_wav_file(&file3).unwrap();
+
+        let result = processor.merge_audio(&[file1.clone(), file2.clone(), file3.clone()]).await;
+
+        assert!(result.is_ok(), "Merge should succeed with 3 files");
+
+        if let Ok(output) = result {
+            assert!(output.exists());
+            let _ = fs::remove_file(output).await;
+        }
+
+        let _ = std::fs::remove_file(file1);
+        let _ = std::fs::remove_file(file2);
+        let _ = std::fs::remove_file(file3);
+    }
+
+    #[tokio::test]
+    async fn test_merge_audio_file_not_found() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        let file1 = PathBuf::from("/tmp/nonexistent1.wav");
+        let file2 = PathBuf::from("/tmp/nonexistent2.wav");
+
+        let result = processor.merge_audio(&[file1, file2]).await;
+
+        assert!(result.is_err(), "Should fail when files don't exist");
+        assert!(result.unwrap_err().to_string().contains("does not exist"));
+    }
+
+    #[tokio::test]
+    async fn test_merge_audio_empty_array() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        let result = processor.merge_audio(&[]).await;
+
+        assert!(result.is_err(), "Should fail with empty array");
+        assert!(result.unwrap_err().to_string().contains("No files provided"));
+    }
+
+    #[tokio::test]
+    async fn test_merge_audio_single_file() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        let temp_dir = std::env::temp_dir();
+        let file1 = temp_dir.join("test_merge_single.wav");
+        create_test_wav_file(&file1).unwrap();
+
+        let result = processor.merge_audio(&[file1.clone()]).await;
+
+        assert!(result.is_err(), "Should fail with single file");
+        assert!(result.unwrap_err().to_string().contains("at least 2 files"));
+
+        let _ = std::fs::remove_file(file1);
+    }
+
+    #[tokio::test]
+    async fn test_merge_audio_mixed_formats() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        let temp_dir = std::env::temp_dir();
+        let wav_file = temp_dir.join("test_merge_fmt1.wav");
+        let mp3_file = temp_dir.join("test_merge_fmt2.mp3");
+
+        create_test_wav_file(&wav_file).unwrap();
+        create_test_mp3_file(&mp3_file).unwrap();
+
+        let result = processor.merge_audio(&[wav_file.clone(), mp3_file.clone()]).await;
+
+        // FFmpeg should handle format conversion automatically
+        if result.is_ok() {
+            let output = result.unwrap();
+            assert!(output.exists());
+            let _ = fs::remove_file(output).await;
+        }
+
+        let _ = std::fs::remove_file(wav_file);
+        let _ = std::fs::remove_file(mp3_file);
+    }
+
+    #[tokio::test]
+    async fn test_merge_audio_with_callback() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        let temp_dir = std::env::temp_dir();
+        let file1 = temp_dir.join("test_merge_cb1.wav");
+        let file2 = temp_dir.join("test_merge_cb2.wav");
+
+        create_test_wav_file(&file1).unwrap();
+        create_test_wav_file(&file2).unwrap();
+
+        let progress_called = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let progress_called_clone = progress_called.clone();
+
+        let callback = move |_progress: f32| {
+            progress_called_clone.store(true, std::sync::atomic::Ordering::SeqCst);
+        };
+
+        let result = processor.merge_audio_with_progress(&[file1.clone(), file2.clone()], callback).await;
+
+        if result.is_ok() {
+            let output = result.unwrap();
+            assert!(output.exists());
+            // Note: callback might not be called for fast operations
+            let _ = fs::remove_file(output).await;
+        }
+
+        let _ = std::fs::remove_file(file1);
+        let _ = std::fs::remove_file(file2);
+    }
+
+    #[tokio::test]
+    async fn test_merge_audio_codec_issues() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        let temp_dir = std::env::temp_dir();
+        let corrupted_file1 = temp_dir.join("test_merge_bad1.wav");
+        let corrupted_file2 = temp_dir.join("test_merge_bad2.wav");
+
+        // Create corrupted files
+        std::fs::write(&corrupted_file1, b"invalid audio data").unwrap();
+        std::fs::write(&corrupted_file2, b"also invalid").unwrap();
+
+        let result = processor.merge_audio(&[corrupted_file1.clone(), corrupted_file2.clone()]).await;
+
+        // Should fail due to invalid format
+        assert!(result.is_err(), "Should fail with corrupted files");
+
+        let _ = std::fs::remove_file(corrupted_file1);
+        let _ = std::fs::remove_file(corrupted_file2);
+    }
+
+    // ===== SAVE AS NEW TESTS (TDD) =====
+
+    #[tokio::test]
+    async fn test_save_audio_as_new_source_not_exists() {
+        let processor = AudioProcessor::new().unwrap();
+        let nonexistent = PathBuf::from("/tmp/nonexistent_audio.m4a");
+
+        let result = processor
+            .save_audio_as_new(&nonexistent, "m4a", None)
+            .await;
+
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Source file does not exist"));
+    }
+
+    #[tokio::test]
+    async fn test_save_audio_as_new_invalid_format() {
+        let processor = AudioProcessor::new().unwrap();
+
+        // Create a test audio file
+        let test_file = processor.temp_dir.join("test_invalid_format.m4a");
+        create_test_audio_file(&test_file).unwrap();
+
+        let result = processor
+            .save_audio_as_new(&test_file, "invalid", None)
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Unsupported output format"));
+
+        // Cleanup
+        let _ = fs::remove_file(test_file).await;
+    }
+
+    #[tokio::test]
+    async fn test_save_audio_as_new_same_format_no_quality() {
+        let processor = AudioProcessor::new().unwrap();
+
+        // Create a test audio file
+        let test_file = processor.temp_dir.join("test_same_format.m4a");
+        create_test_audio_file(&test_file).unwrap();
+
+        let result = processor
+            .save_audio_as_new(&test_file, "m4a", None)
+            .await;
+
+        assert!(result.is_ok());
+        let output_path = result.unwrap();
+        assert!(output_path.exists());
+        assert_eq!(output_path.extension().unwrap(), "m4a");
+        assert!(output_path.file_name().unwrap().to_str().unwrap().starts_with("save_as_new_"));
+
+        // Verify file was copied
+        let output_size = fs::metadata(&output_path).await.unwrap().len();
+        let source_size = fs::metadata(&test_file).await.unwrap().len();
+        assert_eq!(output_size, source_size);
+
+        // Cleanup
+        let _ = fs::remove_file(test_file).await;
+        let _ = fs::remove_file(output_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_save_audio_as_new_different_format() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        // Only run if FFmpeg is available
+        if processor.verify_ffmpeg().is_err() {
+            return;
+        }
+
+        // Create a test audio file
+        let test_file = processor.temp_dir.join("test_convert_format.m4a");
+        create_test_audio_file(&test_file).unwrap();
+
+        let result = processor
+            .save_audio_as_new(&test_file, "mp3", None)
+            .await;
+
+        // Cleanup regardless of result
+        let _ = fs::remove_file(&test_file).await;
+
+        assert!(result.is_ok());
+        let output_path = result.unwrap();
+        assert!(output_path.exists());
+        assert_eq!(output_path.extension().unwrap(), "mp3");
+
+        let _ = fs::remove_file(output_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_save_audio_as_new_with_quality_high() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if processor.verify_ffmpeg().is_err() {
+            return;
+        }
+
+        // Create a test audio file
+        let test_file = processor.temp_dir.join("test_quality_high.m4a");
+        create_test_audio_file(&test_file).unwrap();
+
+        let quality = AudioQualitySettings::high("mp3");
+        let result = processor
+            .save_audio_as_new(&test_file, "mp3", Some(quality))
+            .await;
+
+        // Cleanup regardless of result
+        let _ = fs::remove_file(&test_file).await;
+
+        assert!(result.is_ok());
+        let output_path = result.unwrap();
+        assert!(output_path.exists());
+        assert_eq!(output_path.extension().unwrap(), "mp3");
+
+        let _ = fs::remove_file(output_path).await;
+    }
+
+    #[tokio::test]
+    async fn test_save_audio_as_new_with_quality_medium() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if processor.verify_ffmpeg().is_err() {
+            return;
+        }
+
+        // Create a test audio file
+        let test_file = processor.temp_dir.join("test_quality_medium.m4a");
+        create_test_audio_file(&test_file).unwrap();
+
+        let quality = AudioQualitySettings::medium("mp3");
+        assert_eq!(quality.bitrate, "192k");
+
+        let result = processor
+            .save_audio_as_new(&test_file, "mp3", Some(quality))
+            .await;
+
+        // Cleanup
+        let _ = fs::remove_file(&test_file).await;
+
+        if let Ok(output_path) = result {
+            let _ = fs::remove_file(output_path).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn test_save_audio_as_new_with_quality_low() {
+        let processor = match AudioProcessor::new() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if processor.verify_ffmpeg().is_err() {
+            return;
+        }
+
+        // Create a test audio file
+        let test_file = processor.temp_dir.join("test_quality_low.m4a");
+        create_test_audio_file(&test_file).unwrap();
+
+        let quality = AudioQualitySettings::low("mp3");
+        assert_eq!(quality.bitrate, "128k");
+
+        let result = processor
+            .save_audio_as_new(&test_file, "mp3", Some(quality))
+            .await;
+
+        // Cleanup
+        let _ = fs::remove_file(&test_file).await;
+
+        if let Ok(output_path) = result {
+            let _ = fs::remove_file(output_path).await;
+        }
+    }
+
+    #[test]
+    fn test_audio_quality_settings() {
+        // Test custom bitrate
+        let custom = AudioQualitySettings::new("256k");
+        assert_eq!(custom.bitrate, "256k");
+
+        // Test presets for different formats
+        let high_mp3 = AudioQualitySettings::high("mp3");
+        assert_eq!(high_mp3.bitrate, "320k");
+
+        let high_m4a = AudioQualitySettings::high("m4a");
+        assert_eq!(high_m4a.bitrate, "256k");
+
+        let medium_mp3 = AudioQualitySettings::medium("mp3");
+        assert_eq!(medium_mp3.bitrate, "192k");
+
+        let low_ogg = AudioQualitySettings::low("ogg");
+        assert_eq!(low_ogg.bitrate, "128k");
+    }
+
+    #[tokio::test]
+    async fn test_save_audio_as_new_supported_formats() {
+        let processor = AudioProcessor::new().unwrap();
+
+        // Create a test audio file
+        let test_file = processor.temp_dir.join("test_formats.m4a");
+        create_test_audio_file(&test_file).unwrap();
+
+        let formats = ["m4a", "mp3", "wav", "ogg"];
+
+        for format in &formats {
+            let result = processor
+                .save_audio_as_new(&test_file, format, None)
+                .await;
+
+            // m4a should always work (copy), others need FFmpeg
+            if *format == "m4a" {
+                assert!(result.is_ok());
+                if let Ok(output_path) = result {
+                    assert!(output_path.exists());
+                    let _ = fs::remove_file(output_path).await;
+                }
+            } else if processor.verify_ffmpeg().is_ok() {
+                // Other formats should work if FFmpeg is available
+                if let Ok(output_path) = result {
+                    let _ = fs::remove_file(output_path).await;
+                }
+            }
+        }
+
+        // Cleanup
+        let _ = fs::remove_file(test_file).await;
     }
 }

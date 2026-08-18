@@ -6,9 +6,10 @@ use tokio::sync::RwLock;
 
 use super::types::{
     AuthResponse, CalendarEventsResponse, CreateEventRequest, DetectLanguageRequest,
-    DetectLanguageResponse, GoogleCalendarEvent, Language, LanguageListResponse, LoginRequest,
-    ReferralInfo, ReferralOverviewResponse, Subscription, SubscriptionResponse,
-    SubscriptionStatus, TranslationRequest, TranslationResponse, UserInfo,
+    DetectLanguageResponse, FindSpeakersRequest, FindSpeakersResponse, GoogleCalendarEvent,
+    Language, LanguageListResponse, LoginRequest, ReferralInfo, ReferralOverviewResponse,
+    Subscription, SubscriptionResponse, SubscriptionStatus, TranslationRequest,
+    TranslationResponse, UserInfo,
 };
 
 pub struct HiNotesClient {
@@ -297,6 +298,33 @@ impl HiNotesClient {
         let lang_response: LanguageListResponse = response.json().await?;
         Ok(lang_response.languages)
     }
+
+    /// Analyze speakers in a note's audio recording
+    pub async fn analyze_speakers(&self, request: FindSpeakersRequest) -> Result<FindSpeakersResponse> {
+        let token = self
+            .get_token()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("Not authenticated"))?;
+
+        if request.note_id.is_empty() {
+            anyhow::bail!("Note ID cannot be empty");
+        }
+
+        let response = self
+            .http_client
+            .post(&format!("{}/note/speaker/find", self.base_url))
+            .bearer_auth(&token)
+            .json(&request)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to analyze speakers: {}", response.status());
+        }
+
+        let speaker_response: FindSpeakersResponse = response.json().await?;
+        Ok(speaker_response)
+    }
 }
 
 #[cfg(test)]
@@ -511,5 +539,37 @@ mod tests {
         let result = client.get_language_list().await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+    }
+
+    #[tokio::test]
+    async fn test_analyze_speakers_requires_auth() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+
+        let request = FindSpeakersRequest {
+            note_id: "note-123".to_string(),
+            audio_url: Some("https://example.com/audio.mp3".to_string()),
+        };
+
+        let result = client.analyze_speakers(request).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+    }
+
+    #[tokio::test]
+    async fn test_analyze_speakers_empty_note_id() {
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        *client.auth_token.write().await = Some("mock_token".to_string());
+
+        let request = FindSpeakersRequest {
+            note_id: "".to_string(),
+            audio_url: None,
+        };
+
+        let result = client.analyze_speakers(request).await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Note ID cannot be empty"));
     }
 }
