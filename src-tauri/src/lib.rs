@@ -7,7 +7,7 @@ pub mod db;
 pub mod sync;
 pub mod usb;
 
-use commands::AppState;
+use commands::{AppState, FFmpegState};
 use db::Database;
 use std::sync::Mutex;
 

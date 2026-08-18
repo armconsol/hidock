@@ -3,6 +3,7 @@
 // pub mod audio; // TODO: Fix audio module compilation errors
 pub mod auth_commands;
 pub mod device_commands; // Device commands module
+pub mod ffmpeg; // FFmpeg commands module
 pub mod notes_commands; // Notes commands module
 pub mod sharing_commands; // Sharing commands module
 
@@ -21,6 +22,7 @@ use tauri::State;
 // pub use audio::*; // TODO: Fix audio module compilation errors
 pub use auth_commands::*;
 pub use device_commands::*; // Re-export device commands
+pub use ffmpeg::*; // Re-export FFmpeg commands
 pub use notes_commands::*; // Re-export notes commands
 pub use sharing_commands::*; // Re-export sharing commands
 

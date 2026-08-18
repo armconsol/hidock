@@ -142,6 +142,51 @@ CREATE TABLE IF NOT EXISTS share_links (
     FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
 );
 
+-- Subscriptions (RevenueCat)
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id TEXT NOT NULL,
+    status TEXT CHECK(status IN ('active', 'expired', 'canceled', 'trial')) NOT NULL,
+    expires_at DATETIME,
+    purchased_at DATETIME,
+    canceled_at DATETIME,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+);
+
+-- Subscription events (audit trail)
+CREATE TABLE IF NOT EXISTS subscription_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    subscription_id INTEGER,
+    event_type TEXT CHECK(event_type IN ('activated', 'expired', 'renewed', 'canceled')) NOT NULL,
+    product_id TEXT NOT NULL,
+    expires_at DATETIME,
+    occurred_at DATETIME NOT NULL,
+    FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE SET NULL
+);
+
+-- Speaker profiles for diarization
+CREATE TABLE IF NOT EXISTS speakers (
+    id TEXT PRIMARY KEY,
+    name TEXT,
+    voice_signature TEXT,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+);
+
+-- Speaker segments in recordings
+CREATE TABLE IF NOT EXISTS speaker_segments (
+    id TEXT PRIMARY KEY,
+    note_id TEXT NOT NULL,
+    speaker_id TEXT NOT NULL,
+    start_time REAL NOT NULL,
+    end_time REAL NOT NULL,
+    confidence REAL NOT NULL CHECK(confidence >= 0.0 AND confidence <= 1.0),
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+    FOREIGN KEY (speaker_id) REFERENCES speakers(id) ON DELETE CASCADE
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_notes_folder ON notes(folder_id);
 CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at DESC);
@@ -152,3 +197,6 @@ CREATE INDEX IF NOT EXISTS idx_pending_ops_created ON pending_operations(created
 CREATE INDEX IF NOT EXISTS idx_audio_cache_accessed ON audio_cache(last_accessed);
 CREATE INDEX IF NOT EXISTS idx_share_links_note ON share_links(note_id);
 CREATE INDEX IF NOT EXISTS idx_share_links_token ON share_links(token);
+CREATE INDEX IF NOT EXISTS idx_speaker_segments_note ON speaker_segments(note_id);
+CREATE INDEX IF NOT EXISTS idx_speaker_segments_speaker ON speaker_segments(speaker_id);
+CREATE INDEX IF NOT EXISTS idx_speaker_segments_time ON speaker_segments(start_time, end_time);

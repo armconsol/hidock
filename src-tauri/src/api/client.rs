@@ -5,8 +5,10 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use super::types::{
-    AuthResponse, CalendarEventsResponse, CreateEventRequest, GoogleCalendarEvent, LoginRequest,
-    UserInfo,
+    AuthResponse, CalendarEventsResponse, CreateEventRequest, DetectLanguageRequest,
+    DetectLanguageResponse, GoogleCalendarEvent, Language, LanguageListResponse, LoginRequest,
+    ReferralInfo, ReferralOverviewResponse, Subscription, SubscriptionResponse,
+    SubscriptionStatus, TranslationRequest, TranslationResponse, UserInfo,
 };
 
 pub struct HiNotesClient {
@@ -119,6 +121,102 @@ impl HiNotesClient {
         let created_event: GoogleCalendarEvent = response.json().await?;
         Ok(created_event)
     }
+
+    /// Get subscription status from HiNotes API
+    pub async fn get_subscription_status(&self) -> Result<Subscription> {
+        let token = self
+            .get_token()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("Not authenticated"))?;
+
+        let response = self
+            .http_client
+            .get(&format!("{}/subscribers", self.base_url))
+            .bearer_auth(&token)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!(
+                "Failed to get subscription status: {}",
+                response.status()
+            );
+        }
+
+        let sub_response: SubscriptionResponse = response.json().await?;
+
+        // Parse the subscription data from RevenueCat format
+        let status = if let Some(premium) = &sub_response.subscriber.entitlements.premium {
+            if let Some(ref expires_date) = premium.expires_date {
+                // Check if expired
+                let expires = chrono::DateTime::parse_from_rfc3339(expires_date)
+                    .map_err(|e| anyhow::anyhow!("Invalid date format: {}", e))?;
+                if expires < chrono::Utc::now() {
+                    SubscriptionStatus::Expired
+                } else {
+                    SubscriptionStatus::Active
+                }
+            } else {
+                SubscriptionStatus::Active
+            }
+        } else {
+            SubscriptionStatus::Expired
+        };
+
+        let product_id = sub_response
+            .subscriber
+            .entitlements
+            .premium
+            .as_ref()
+            .map(|e| e.product_identifier.clone())
+            .unwrap_or_else(|| "unknown".to_string());
+
+        let expires_at = sub_response
+            .subscriber
+            .entitlements
+            .premium
+            .and_then(|e| e.expires_date);
+
+        Ok(Subscription {
+            product_id,
+            status,
+            expires_at,
+        })
+    }
+
+    /// Check if user has active subscription
+    pub async fn check_subscription(&self) -> Result<bool> {
+        let subscription = self.get_subscription_status().await?;
+        Ok(subscription.status == SubscriptionStatus::Active
+            || subscription.status == SubscriptionStatus::Trial)
+    }
+
+    /// Get referral information
+    pub async fn get_referral_info(&self) -> Result<ReferralInfo> {
+        let token = self
+            .get_token()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("Not authenticated"))?;
+
+        let response = self
+            .http_client
+            .get(&format!("{}/referral/rewards-overview", self.base_url))
+            .bearer_auth(&token)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to get referral info: {}", response.status());
+        }
+
+        let referral_response: ReferralOverviewResponse = response.json().await?;
+
+        Ok(ReferralInfo {
+            code: referral_response.referral_code,
+            rewards_earned: referral_response.total_rewards,
+            referrals_count: referral_response.total_referrals,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -153,5 +251,118 @@ mod tests {
         let token = client.get_token().await;
         assert!(token.is_some());
         assert!(!token.unwrap().is_empty());
+    }
+
+    // ===== SUBSCRIPTION TESTS =====
+
+    #[tokio::test]
+    async fn test_get_subscription_status_active() {
+        // Arrange
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        let _ = client.authenticate("test@example.com", "password").await;
+
+        // Act
+        let result = client.get_subscription_status().await;
+
+        // Assert
+        assert!(result.is_ok());
+        let subscription = result.unwrap();
+        assert_eq!(subscription.status, SubscriptionStatus::Active);
+        assert!(!subscription.product_id.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_subscription_status_not_authenticated() {
+        // Arrange
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+
+        // Act
+        let result = client.get_subscription_status().await;
+
+        // Assert
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Not authenticated"));
+    }
+
+    #[tokio::test]
+    async fn test_check_subscription_returns_true_for_active() {
+        // Arrange
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        let _ = client.authenticate("test@example.com", "password").await;
+
+        // Act
+        let result = client.check_subscription().await;
+
+        // Assert
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_check_subscription_returns_false_for_expired() {
+        // Arrange
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        let _ = client
+            .authenticate("expired@example.com", "password")
+            .await;
+
+        // Act
+        let result = client.check_subscription().await;
+
+        // Assert
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_get_referral_info() {
+        // Arrange
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        let _ = client.authenticate("test@example.com", "password").await;
+
+        // Act
+        let result = client.get_referral_info().await;
+
+        // Assert
+        assert!(result.is_ok());
+        let referral_info = result.unwrap();
+        assert!(!referral_info.code.is_empty());
+        assert!(referral_info.rewards_earned >= 0.0);
+        assert!(referral_info.referrals_count >= 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_referral_info_not_authenticated() {
+        // Arrange
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+
+        // Act
+        let result = client.get_referral_info().await;
+
+        // Assert
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Not authenticated"));
+    }
+
+    #[tokio::test]
+    async fn test_subscription_status_parsing_from_response() {
+        // Arrange
+        let client = HiNotesClient::new("http://localhost:3001/v1");
+        let _ = client.authenticate("test@example.com", "password").await;
+
+        // Act
+        let subscription = client.get_subscription_status().await.unwrap();
+
+        // Assert
+        assert!(matches!(
+            subscription.status,
+            SubscriptionStatus::Active | SubscriptionStatus::Trial | SubscriptionStatus::Expired
+        ));
     }
 }

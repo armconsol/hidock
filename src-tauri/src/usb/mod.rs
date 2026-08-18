@@ -16,23 +16,32 @@ pub mod mass_storage;
 // Device Constants
 // ============================================================================
 
-/// HiDoc P1 USB Vendor ID
+/// HiDoc P1 USB Device Identifiers
 ///
-/// NOTE: This is a PLACEHOLDER value. Must be updated after device enumeration.
-/// Use `system_profiler SPUSBDataType` (macOS) or `lsusb` (Linux) to determine
-/// the actual VID when the device is connected.
-pub const HIDOC_P1_VID: u16 = 0x0000; // TODO: Update with actual VID
+/// The HiDoc P1 exposes TWO USB interfaces:
+/// 1. Audio interface (Actions Semiconductor chip): VID=0x10d6, PID=0xb00e
+/// 2. Control/Storage interface (Solid State System): VID=0x1395, PID=0x005d
+///
+/// Discovered via: system_profiler SPUSBDataType on macOS
+/// Serial Number: ACTIONS-BOS-002
 
-/// HiDoc P1 USB Product ID
-///
-/// NOTE: This is a PLACEHOLDER value. Must be updated after device enumeration.
-pub const HIDOC_P1_PID: u16 = 0x0000; // TODO: Update with actual PID
+/// Audio interface Vendor ID (Actions Semiconductor Co., Ltd.)
+pub const HIDOC_P1_AUDIO_VID: u16 = 0x10d6;
+
+/// Audio interface Product ID
+pub const HIDOC_P1_AUDIO_PID: u16 = 0xb00e;
+
+/// Control/Storage interface Vendor ID (Solid State System Co.,Ltd.)
+pub const HIDOC_P1_CONTROL_VID: u16 = 0x1395;
+
+/// Control/Storage interface Product ID
+pub const HIDOC_P1_CONTROL_PID: u16 = 0x005d;
 
 /// Device manufacturer string (for validation)
-pub const HIDOC_MANUFACTURER: &str = "HiDoc"; // TODO: Verify actual string
+pub const HIDOC_MANUFACTURER: &str = "HiDock"; // Note: "HiDock" not "HiDoc"
 
 /// Device product string (for validation)
-pub const HIDOC_PRODUCT: &str = "P1"; // TODO: Verify actual string
+pub const HIDOC_PRODUCT: &str = "P1";
 
 /// USB communication timeout (milliseconds)
 pub const USB_TIMEOUT_MS: u64 = 5000;

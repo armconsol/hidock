@@ -264,3 +264,47 @@ pub struct InsertShareLink {
     pub token: String,
     pub expires_at: Option<DateTime<Utc>>,
 }
+
+// Speaker Diarization Types
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Speaker {
+    pub id: String,
+    pub name: Option<String>,
+    pub voice_signature: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InsertSpeaker {
+    pub id: String,
+    pub name: Option<String>,
+    pub voice_signature: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateSpeaker {
+    pub name: Option<String>,
+    pub voice_signature: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SpeakerSegment {
+    pub id: String,
+    pub note_id: String,
+    pub speaker_id: String,
+    pub start_time: f64,
+    pub end_time: f64,
+    pub confidence: f64,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InsertSpeakerSegment {
+    pub id: String,
+    pub note_id: String,
+    pub speaker_id: String,
+    pub start_time: f64,
+    pub end_time: f64,
+    pub confidence: f64,
+}
