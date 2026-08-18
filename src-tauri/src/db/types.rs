@@ -176,3 +176,39 @@ impl PaginationParams {
         Self { limit, offset }
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SmartLabel {
+    pub id: String,
+    pub name: String,
+    pub color: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InsertSmartLabel {
+    pub id: String,
+    pub name: String,
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateSmartLabel {
+    pub name: Option<String>,
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Vocabulary {
+    pub id: String,
+    pub word: String,
+    pub pronunciation: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InsertVocabulary {
+    pub id: String,
+    pub word: String,
+    pub pronunciation: Option<String>,
+}

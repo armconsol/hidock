@@ -1,0 +1,30 @@
+.template-editor {
+  height: 100%;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--color-bg-2);
+}
+
+.template-editor-card {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.template-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.template-editor-header h5 {
+  margin: 0;
+}
+
+.template-editor-empty,
+.template-editor-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}

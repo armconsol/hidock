@@ -6,7 +6,11 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::path::Path;
-use types::{CalendarEvent, EventSource, Folder, InsertNote, InsertTodo, Note, PaginationParams, Todo, TodoState, UpdateNote, UpdateTodo};
+use types::{
+    CalendarEvent, EventSource, Folder, InsertNote, InsertSmartLabel, InsertTodo, InsertVocabulary,
+    Note, PaginationParams, SmartLabel, Template, Todo, TodoState, UpdateNote, UpdateSmartLabel,
+    UpdateTodo, Vocabulary,
+};
 
 /// Helper function to parse datetime from SQLite TEXT field (for use outside query_map)
 fn parse_datetime(s: String) -> Result<DateTime<Utc>> {
@@ -23,30 +27,20 @@ fn parse_datetime_opt(s: Option<String>) -> Result<Option<DateTime<Utc>>> {
     }
 }
 
-/// Helper function to parse datetime from SQLite TEXT field (for use inside query_map with rusqlite::Error)
-fn parse_datetime_sql(s: String) -> Result<DateTime<Utc>, rusqlite::Error> {
-    DateTime::parse_from_rfc3339(&s)
-        .map(|dt| dt.with_timezone(&Utc))
-        .map_err(|_| rusqlite::Error::InvalidQuery)
-}
-
-/// Helper function to parse optional datetime from SQLite TEXT field (for use inside query_map with rusqlite::Error)
-fn parse_datetime_opt_sql(s: Option<String>) -> Result<Option<DateTime<Utc>>, rusqlite::Error> {
-    match s {
-        Some(s) => Ok(Some(parse_datetime_sql(s)?)),
-        None => Ok(None),
-    }
-}
-
 pub struct Database {
     conn: Connection,
+    path: Option<std::path::PathBuf>,
 }
 
 impl Database {
     /// Open or create a new SQLite database
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let conn = Connection::open(path)?;
-        let db = Database { conn };
+        let path_buf = path.as_ref().to_path_buf();
+        let conn = Connection::open(&path_buf)?;
+        let db = Database {
+            conn,
+            path: Some(path_buf),
+        };
         db.initialize()?;
         Ok(db)
     }
@@ -54,9 +48,16 @@ impl Database {
     /// Create an in-memory database for testing
     pub fn new_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
-        let db = Database { conn };
+        let db = Database { conn, path: None };
         db.initialize()?;
         Ok(db)
+    }
+
+    /// Get the database path
+    pub fn get_db_path(&self) -> std::path::PathBuf {
+        self.path
+            .clone()
+            .unwrap_or_else(|| std::path::PathBuf::from(":memory:"))
     }
 
     /// Initialize database schema
@@ -252,20 +253,29 @@ impl Database {
             .optional()?;
 
         match note {
-            Some((id, title, content, folder_id, audio_url, duration, rating, created_at, updated_at, synced_at)) => {
-                Ok(Some(Note {
-                    id,
-                    title,
-                    content,
-                    folder_id,
-                    audio_url,
-                    duration,
-                    rating,
-                    created_at: parse_datetime(created_at)?,
-                    updated_at: parse_datetime(updated_at)?,
-                    synced_at: parse_datetime_opt(synced_at)?,
-                }))
-            }
+            Some((
+                id,
+                title,
+                content,
+                folder_id,
+                audio_url,
+                duration,
+                rating,
+                created_at,
+                updated_at,
+                synced_at,
+            )) => Ok(Some(Note {
+                id,
+                title,
+                content,
+                folder_id,
+                audio_url,
+                duration,
+                rating,
+                created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
+                synced_at: parse_datetime_opt(synced_at)?,
+            })),
             None => Ok(None),
         }
     }
@@ -296,7 +306,18 @@ impl Database {
 
         let mut notes = Vec::new();
         for row in rows {
-            let (id, title, content, folder_id, audio_url, duration, rating, created_at, updated_at, synced_at) = row?;
+            let (
+                id,
+                title,
+                content,
+                folder_id,
+                audio_url,
+                duration,
+                rating,
+                created_at,
+                updated_at,
+                synced_at,
+            ) = row?;
             notes.push(Note {
                 id,
                 title,
@@ -315,7 +336,12 @@ impl Database {
     }
 
     /// List notes by folder with pagination
-    pub fn list_notes_by_folder(&self, folder_id: &str, limit: i64, offset: i64) -> Result<Vec<Note>> {
+    pub fn list_notes_by_folder(
+        &self,
+        folder_id: &str,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<Note>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, title, content, folder_id, audio_url, duration, rating, created_at, updated_at, synced_at
              FROM notes
@@ -341,7 +367,18 @@ impl Database {
 
         let mut notes = Vec::new();
         for row in rows {
-            let (id, title, content, folder_id, audio_url, duration, rating, created_at, updated_at, synced_at) = row?;
+            let (
+                id,
+                title,
+                content,
+                folder_id,
+                audio_url,
+                duration,
+                rating,
+                created_at,
+                updated_at,
+                synced_at,
+            ) = row?;
             notes.push(Note {
                 id,
                 title,
@@ -393,7 +430,9 @@ impl Database {
         }
 
         if updates.is_empty() {
-            return self.get_note(id)?.ok_or_else(|| anyhow::anyhow!("Note not found"));
+            return self
+                .get_note(id)?
+                .ok_or_else(|| anyhow::anyhow!("Note not found"));
         }
 
         updates.push("updated_at = ?");
@@ -417,7 +456,9 @@ impl Database {
 
     /// Delete a note
     pub fn delete_note(&self, id: &str) -> Result<()> {
-        let deleted = self.conn.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
+        let deleted = self
+            .conn
+            .execute("DELETE FROM notes WHERE id = ?1", params![id])?;
 
         if deleted == 0 {
             anyhow::bail!("Note not found: {}", id);
@@ -428,7 +469,9 @@ impl Database {
 
     /// Count total notes
     pub fn count_notes(&self) -> Result<i64> {
-        let count: i64 = self.conn.query_row("SELECT COUNT(*) FROM notes", [], |row| row.get(0))?;
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM notes", [], |row| row.get(0))?;
         Ok(count)
     }
 
@@ -496,19 +539,26 @@ impl Database {
             .optional()?;
 
         match result {
-            Some((id, description, due_date, state, smart_label, created_at, updated_at, synced_at)) => {
-                Ok(Some(Todo {
-                    id,
-                    description,
-                    due_date: parse_datetime_opt(due_date)?,
-                    state: TodoState::from_str(&state)
-                        .map_err(|e| anyhow::anyhow!("Invalid todo state: {}", e))?,
-                    smart_label,
-                    created_at: parse_datetime(created_at)?,
-                    updated_at: parse_datetime(updated_at)?,
-                    synced_at: parse_datetime_opt(synced_at)?,
-                }))
-            }
+            Some((
+                id,
+                description,
+                due_date,
+                state,
+                smart_label,
+                created_at,
+                updated_at,
+                synced_at,
+            )) => Ok(Some(Todo {
+                id,
+                description,
+                due_date: parse_datetime_opt(due_date)?,
+                state: TodoState::from_str(&state)
+                    .map_err(|e| anyhow::anyhow!("Invalid todo state: {}", e))?,
+                smart_label,
+                created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
+                synced_at: parse_datetime_opt(synced_at)?,
+            })),
             None => Ok(None),
         }
     }
@@ -539,7 +589,8 @@ impl Database {
 
         let mut todos = Vec::new();
         for row in rows {
-            let (id, description, due_date, state, smart_label, created_at, updated_at, synced_at) = row?;
+            let (id, description, due_date, state, smart_label, created_at, updated_at, synced_at) =
+                row?;
             todos.push(Todo {
                 id,
                 description,
@@ -590,7 +641,8 @@ impl Database {
 
         let mut todos = Vec::new();
         for row in rows {
-            let (id, description, due_date, state, smart_label, created_at, updated_at, synced_at) = row?;
+            let (id, description, due_date, state, smart_label, created_at, updated_at, synced_at) =
+                row?;
             todos.push(Todo {
                 id,
                 description,
@@ -637,12 +689,10 @@ impl Database {
         // Add id as last param
         params_vec.push(Box::new(id.to_string()));
 
-        let sql = format!(
-            "UPDATE todos SET {} WHERE id = ?",
-            update_parts.join(", ")
-        );
+        let sql = format!("UPDATE todos SET {} WHERE id = ?", update_parts.join(", "));
 
-        let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|b| b.as_ref()).collect();
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            params_vec.iter().map(|b| b.as_ref()).collect();
         let updated = self.conn.execute(&sql, params_refs.as_slice())?;
 
         if updated == 0 {
@@ -694,6 +744,877 @@ impl Database {
 
         Ok(())
     }
+
+    // ===== CALENDAR EVENTS CRUD OPERATIONS =====
+
+    /// Insert a new calendar event
+    pub fn insert_calendar_event(&self, event: &CalendarEvent) -> Result<CalendarEvent> {
+        self.conn.execute(
+            "INSERT INTO calendar_events (id, title, start_time, end_time, source, meeting_url, created_at, synced_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                &event.id,
+                &event.title,
+                event.start_time.to_rfc3339(),
+                event.end_time.to_rfc3339(),
+                event.source.as_str(),
+                &event.meeting_url,
+                event.created_at.to_rfc3339(),
+                event.synced_at.as_ref().map(|dt| dt.to_rfc3339()),
+            ],
+        )?;
+
+        self.get_calendar_event(&event.id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve inserted calendar event"))
+    }
+
+    /// Get a calendar event by ID
+    pub fn get_calendar_event(&self, id: &str) -> Result<Option<CalendarEvent>> {
+        let event = self
+            .conn
+            .query_row(
+                "SELECT id, title, start_time, end_time, source, meeting_url, created_at, synced_at
+                 FROM calendar_events WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                        row.get::<_, String>(6)?,
+                        row.get::<_, Option<String>>(7)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match event {
+            Some((id, title, start_time, end_time, source, meeting_url, created_at, synced_at)) => {
+                Ok(Some(CalendarEvent {
+                    id,
+                    title,
+                    start_time: parse_datetime(start_time)?,
+                    end_time: parse_datetime(end_time)?,
+                    source: EventSource::from_str(&source).map_err(|e| anyhow::anyhow!(e))?,
+                    meeting_url,
+                    created_at: parse_datetime(created_at)?,
+                    synced_at: parse_datetime_opt(synced_at)?,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// List calendar events with pagination
+    pub fn list_calendar_events(&self, limit: i64, offset: i64) -> Result<Vec<CalendarEvent>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, title, start_time, end_time, source, meeting_url, created_at, synced_at
+             FROM calendar_events
+             ORDER BY start_time ASC
+             LIMIT ?1 OFFSET ?2",
+        )?;
+
+        let rows = stmt.query_map(params![limit, offset], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, String>(6)?,
+                row.get::<_, Option<String>>(7)?,
+            ))
+        })?;
+
+        let mut events = Vec::new();
+        for row in rows {
+            let (id, title, start_time, end_time, source, meeting_url, created_at, synced_at) =
+                row?;
+            events.push(CalendarEvent {
+                id,
+                title,
+                start_time: parse_datetime(start_time)?,
+                end_time: parse_datetime(end_time)?,
+                source: EventSource::from_str(&source).map_err(|e| anyhow::anyhow!(e))?,
+                meeting_url,
+                created_at: parse_datetime(created_at)?,
+                synced_at: parse_datetime_opt(synced_at)?,
+            });
+        }
+
+        Ok(events)
+    }
+
+    /// List calendar events for a specific date range (alias for consistency)
+    pub fn list_calendar_events_by_date_range(
+        &self,
+        start: &DateTime<Utc>,
+        end: &DateTime<Utc>,
+    ) -> Result<Vec<CalendarEvent>> {
+        self.list_calendar_events_in_range(*start, *end)
+    }
+
+    /// List calendar events for a specific date range
+    pub fn list_calendar_events_in_range(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<CalendarEvent>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, title, start_time, end_time, source, meeting_url, created_at, synced_at
+             FROM calendar_events
+             WHERE start_time >= ?1 AND start_time < ?2
+             ORDER BY start_time ASC",
+        )?;
+
+        let rows = stmt.query_map(params![&start.to_rfc3339(), &end.to_rfc3339()], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, String>(6)?,
+                row.get::<_, Option<String>>(7)?,
+            ))
+        })?;
+
+        let mut events = Vec::new();
+        for row in rows {
+            let (id, title, start_time, end_time, source, meeting_url, created_at, synced_at) =
+                row?;
+            events.push(CalendarEvent {
+                id,
+                title,
+                start_time: parse_datetime(start_time)?,
+                end_time: parse_datetime(end_time)?,
+                source: EventSource::from_str(&source).map_err(|e| anyhow::anyhow!(e))?,
+                meeting_url,
+                created_at: parse_datetime(created_at)?,
+                synced_at: parse_datetime_opt(synced_at)?,
+            });
+        }
+
+        Ok(events)
+    }
+
+    /// Update a calendar event
+    pub fn update_calendar_event(&self, event: &CalendarEvent) -> Result<CalendarEvent> {
+        let updated = self.conn.execute(
+            "UPDATE calendar_events SET title = ?1, start_time = ?2, end_time = ?3, source = ?4, meeting_url = ?5, synced_at = ?6
+             WHERE id = ?7",
+            params![
+                &event.title,
+                event.start_time.to_rfc3339(),
+                event.end_time.to_rfc3339(),
+                event.source.as_str(),
+                &event.meeting_url,
+                event.synced_at.as_ref().map(|dt| dt.to_rfc3339()),
+                &event.id,
+            ],
+        )?;
+
+        if updated == 0 {
+            anyhow::bail!("Calendar event not found: {}", event.id);
+        }
+
+        self.get_calendar_event(&event.id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve updated calendar event"))
+    }
+
+    /// Delete a calendar event
+    pub fn delete_calendar_event(&self, id: &str) -> Result<()> {
+        let deleted = self
+            .conn
+            .execute("DELETE FROM calendar_events WHERE id = ?1", params![id])?;
+
+        if deleted == 0 {
+            anyhow::bail!("Calendar event not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    /// Count total calendar events
+    pub fn count_calendar_events(&self) -> Result<i64> {
+        let count: i64 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM calendar_events", [], |row| row.get(0))?;
+        Ok(count)
+    }
+
+    /// Mark a calendar event as synced
+    pub fn mark_calendar_event_synced(&self, id: &str) -> Result<()> {
+        let now = Utc::now();
+
+        let updated = self.conn.execute(
+            "UPDATE calendar_events SET synced_at = ?1 WHERE id = ?2",
+            params![now.to_rfc3339(), id],
+        )?;
+
+        if updated == 0 {
+            anyhow::bail!("Calendar event not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    // ===== TEMPLATE CRUD OPERATIONS =====
+
+    /// Insert a new template
+    pub fn insert_template(
+        &self,
+        id: &str,
+        title: &str,
+        content: &str,
+        is_favorite: bool,
+        is_default: bool,
+    ) -> Result<Template> {
+        let now = Utc::now();
+
+        // If setting as default, unset all other default templates first
+        if is_default {
+            self.conn.execute(
+                "UPDATE templates SET is_default = 0 WHERE is_default = 1",
+                [],
+            )?;
+        }
+
+        self.conn.execute(
+            "INSERT INTO templates (id, title, content, is_favorite, is_default, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                id,
+                title,
+                content,
+                is_favorite as i32,
+                is_default as i32,
+                now.to_rfc3339(),
+                now.to_rfc3339()
+            ],
+        )?;
+
+        self.get_template(id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve inserted template"))
+    }
+
+    /// Get a template by ID
+    pub fn get_template(&self, id: &str) -> Result<Option<Template>> {
+        let template = self
+            .conn
+            .query_row(
+                "SELECT id, title, content, is_favorite, is_default, created_at, updated_at, synced_at
+                 FROM templates WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, i32>(3)?,
+                        row.get::<_, i32>(4)?,
+                        row.get::<_, String>(5)?,
+                        row.get::<_, String>(6)?,
+                        row.get::<_, Option<String>>(7)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match template {
+            Some((
+                id,
+                title,
+                content,
+                is_favorite,
+                is_default,
+                created_at,
+                updated_at,
+                synced_at,
+            )) => Ok(Some(Template {
+                id,
+                title,
+                content,
+                is_favorite: is_favorite != 0,
+                is_default: is_default != 0,
+                created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
+                synced_at: parse_datetime_opt(synced_at)?,
+            })),
+            None => Ok(None),
+        }
+    }
+
+    /// List all templates with optional filtering
+    pub fn list_templates(
+        &self,
+        favorite_only: bool,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<Template>> {
+        let query = if favorite_only {
+            "SELECT id, title, content, is_favorite, is_default, created_at, updated_at, synced_at
+             FROM templates
+             WHERE is_favorite = 1
+             ORDER BY created_at DESC
+             LIMIT ?1 OFFSET ?2"
+        } else {
+            "SELECT id, title, content, is_favorite, is_default, created_at, updated_at, synced_at
+             FROM templates
+             ORDER BY created_at DESC
+             LIMIT ?1 OFFSET ?2"
+        };
+
+        let mut stmt = self.conn.prepare(query)?;
+
+        let rows = stmt.query_map(params![limit, offset], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i32>(3)?,
+                row.get::<_, i32>(4)?,
+                row.get::<_, String>(5)?,
+                row.get::<_, String>(6)?,
+                row.get::<_, Option<String>>(7)?,
+            ))
+        })?;
+
+        let mut templates = Vec::new();
+        for row in rows {
+            let (id, title, content, is_favorite, is_default, created_at, updated_at, synced_at) =
+                row?;
+            templates.push(Template {
+                id,
+                title,
+                content,
+                is_favorite: is_favorite != 0,
+                is_default: is_default != 0,
+                created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
+                synced_at: parse_datetime_opt(synced_at)?,
+            });
+        }
+
+        Ok(templates)
+    }
+
+    /// Get the default template
+    pub fn get_default_template(&self) -> Result<Option<Template>> {
+        let template = self
+            .conn
+            .query_row(
+                "SELECT id, title, content, is_favorite, is_default, created_at, updated_at, synced_at
+                 FROM templates WHERE is_default = 1 LIMIT 1",
+                [],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, i32>(3)?,
+                        row.get::<_, i32>(4)?,
+                        row.get::<_, String>(5)?,
+                        row.get::<_, String>(6)?,
+                        row.get::<_, Option<String>>(7)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match template {
+            Some((
+                id,
+                title,
+                content,
+                is_favorite,
+                is_default,
+                created_at,
+                updated_at,
+                synced_at,
+            )) => Ok(Some(Template {
+                id,
+                title,
+                content,
+                is_favorite: is_favorite != 0,
+                is_default: is_default != 0,
+                created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
+                synced_at: parse_datetime_opt(synced_at)?,
+            })),
+            None => Ok(None),
+        }
+    }
+
+    /// Update a template
+    pub fn update_template(
+        &self,
+        id: &str,
+        title: Option<&str>,
+        content: Option<&str>,
+        is_favorite: Option<bool>,
+        is_default: Option<bool>,
+    ) -> Result<Template> {
+        let now = Utc::now();
+
+        // Get current template to use existing values where not updated
+        let current = self
+            .get_template(id)?
+            .ok_or_else(|| anyhow::anyhow!("Template not found: {}", id))?;
+
+        let new_title = title.unwrap_or(&current.title);
+        let new_content = content.unwrap_or(&current.content);
+        let new_is_favorite = is_favorite.unwrap_or(current.is_favorite);
+        let new_is_default = is_default.unwrap_or(current.is_default);
+
+        // If setting as default, unset all other default templates first
+        if new_is_default && !current.is_default {
+            self.conn.execute(
+                "UPDATE templates SET is_default = 0 WHERE is_default = 1",
+                [],
+            )?;
+        }
+
+        self.conn.execute(
+            "UPDATE templates SET title = ?1, content = ?2, is_favorite = ?3, is_default = ?4, updated_at = ?5
+             WHERE id = ?6",
+            params![
+                new_title,
+                new_content,
+                new_is_favorite as i32,
+                new_is_default as i32,
+                now.to_rfc3339(),
+                id
+            ],
+        )?;
+
+        self.get_template(id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve updated template"))
+    }
+
+    /// Toggle favorite status of a template
+    pub fn toggle_template_favorite(&self, id: &str) -> Result<Template> {
+        let current = self
+            .get_template(id)?
+            .ok_or_else(|| anyhow::anyhow!("Template not found: {}", id))?;
+
+        self.update_template(id, None, None, Some(!current.is_favorite), None)
+    }
+
+    /// Set a template as default (unsets all others)
+    pub fn set_template_default(&self, id: &str) -> Result<Template> {
+        // Verify template exists
+        self.get_template(id)?
+            .ok_or_else(|| anyhow::anyhow!("Template not found: {}", id))?;
+
+        // Unset all default templates
+        self.conn.execute(
+            "UPDATE templates SET is_default = 0 WHERE is_default = 1",
+            [],
+        )?;
+
+        // Set this template as default
+        self.update_template(id, None, None, None, Some(true))
+    }
+
+    /// Delete a template
+    pub fn delete_template(&self, id: &str) -> Result<()> {
+        let deleted = self
+            .conn
+            .execute("DELETE FROM templates WHERE id = ?1", params![id])?;
+
+        if deleted == 0 {
+            anyhow::bail!("Template not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    /// Count total templates
+    pub fn count_templates(&self) -> Result<i64> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM templates", [], |row| row.get(0))?;
+        Ok(count)
+    }
+
+    /// Mark a template as synced
+    pub fn mark_template_synced(&self, id: &str) -> Result<()> {
+        let now = Utc::now();
+
+        let updated = self.conn.execute(
+            "UPDATE templates SET synced_at = ?1 WHERE id = ?2",
+            params![now.to_rfc3339(), id],
+        )?;
+
+        if updated == 0 {
+            anyhow::bail!("Template not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    // ===== PENDING OPERATIONS QUEUE =====
+
+    /// Add a pending operation to the queue
+    pub fn add_pending_operation(
+        &self,
+        operation_type: &str,
+        entity_type: &str,
+        entity_id: &str,
+        payload: &str,
+    ) -> Result<i64> {
+        let now = Utc::now();
+
+        self.conn.execute(
+            "INSERT INTO pending_operations (operation_type, entity_type, entity_id, payload, created_at, retry_count)
+             VALUES (?1, ?2, ?3, ?4, ?5, 0)",
+            params![operation_type, entity_type, entity_id, payload, now.to_rfc3339()],
+        )?;
+
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Get all pending operations
+    pub fn get_pending_operations(&self) -> Result<Vec<PendingOperationRow>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, operation_type, entity_type, entity_id, payload, created_at, retry_count
+             FROM pending_operations
+             ORDER BY created_at ASC",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok(PendingOperationRow {
+                id: row.get(0)?,
+                operation_type: row.get(1)?,
+                entity_type: row.get(2)?,
+                entity_id: row.get(3)?,
+                payload: row.get(4)?,
+                created_at: row.get(5)?,
+                retry_count: row.get(6)?,
+            })
+        })?;
+
+        let mut operations = Vec::new();
+        for row in rows {
+            operations.push(row?);
+        }
+
+        Ok(operations)
+    }
+
+    /// Remove a pending operation by ID
+    pub fn remove_pending_operation(&self, id: i64) -> Result<()> {
+        let deleted = self
+            .conn
+            .execute("DELETE FROM pending_operations WHERE id = ?1", params![id])?;
+
+        if deleted == 0 {
+            anyhow::bail!("Pending operation not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    /// Increment retry count for a pending operation
+    pub fn increment_pending_operation_retry(&self, id: i64) -> Result<()> {
+        let updated = self.conn.execute(
+            "UPDATE pending_operations SET retry_count = retry_count + 1 WHERE id = ?1",
+            params![id],
+        )?;
+
+        if updated == 0 {
+            anyhow::bail!("Pending operation not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    /// Count pending operations
+    pub fn count_pending_operations(&self) -> Result<i64> {
+        let count: i64 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM pending_operations", [], |row| {
+                    row.get(0)
+                })?;
+        Ok(count)
+    }
+
+    // ===== SMART LABELS CRUD OPERATIONS =====
+
+    /// Insert a new smart label
+    pub fn insert_smart_label(&self, label: &InsertSmartLabel) -> Result<SmartLabel> {
+        let now = Utc::now();
+
+        self.conn.execute(
+            "INSERT INTO smart_labels (id, name, color, created_at) VALUES (?1, ?2, ?3, ?4)",
+            params![&label.id, &label.name, &label.color, now.to_rfc3339()],
+        )?;
+
+        self.get_smart_label(&label.id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve inserted smart label"))
+    }
+
+    /// Get a smart label by ID
+    pub fn get_smart_label(&self, id: &str) -> Result<Option<SmartLabel>> {
+        let label = self
+            .conn
+            .query_row(
+                "SELECT id, name, color, created_at FROM smart_labels WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, String>(3)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match label {
+            Some((id, name, color, created_at)) => Ok(Some(SmartLabel {
+                id,
+                name,
+                color,
+                created_at: parse_datetime(created_at)?,
+            })),
+            None => Ok(None),
+        }
+    }
+
+    /// List all smart labels
+    pub fn list_smart_labels(&self) -> Result<Vec<SmartLabel>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, name, color, created_at FROM smart_labels ORDER BY created_at DESC",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })?;
+
+        let mut labels = Vec::new();
+        for row in rows {
+            let (id, name, color, created_at) = row?;
+            labels.push(SmartLabel {
+                id,
+                name,
+                color,
+                created_at: parse_datetime(created_at)?,
+            });
+        }
+
+        Ok(labels)
+    }
+
+    /// Update a smart label
+    pub fn update_smart_label(&self, id: &str, update: &UpdateSmartLabel) -> Result<SmartLabel> {
+        let mut update_parts = Vec::new();
+        let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        if let Some(ref name) = update.name {
+            update_parts.push("name = ?");
+            params_vec.push(Box::new(name.clone()));
+        }
+        if update.color.is_some() {
+            update_parts.push("color = ?");
+            params_vec.push(Box::new(update.color.clone()));
+        }
+
+        if update_parts.is_empty() {
+            return self
+                .get_smart_label(id)?
+                .ok_or_else(|| anyhow::anyhow!("Smart label not found"));
+        }
+
+        params_vec.push(Box::new(id.to_string()));
+
+        let sql = format!(
+            "UPDATE smart_labels SET {} WHERE id = ?",
+            update_parts.join(", ")
+        );
+
+        let params_refs: Vec<&dyn rusqlite::ToSql> =
+            params_vec.iter().map(|b| b.as_ref()).collect();
+        let updated = self.conn.execute(&sql, params_refs.as_slice())?;
+
+        if updated == 0 {
+            anyhow::bail!("Smart label not found: {}", id);
+        }
+
+        self.get_smart_label(id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve updated smart label"))
+    }
+
+    /// Delete a smart label
+    pub fn delete_smart_label(&self, id: &str) -> Result<()> {
+        let deleted = self
+            .conn
+            .execute("DELETE FROM smart_labels WHERE id = ?1", params![id])?;
+
+        if deleted == 0 {
+            anyhow::bail!("Smart label not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    /// Count total smart labels
+    pub fn count_smart_labels(&self) -> Result<i64> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM smart_labels", [], |row| row.get(0))?;
+        Ok(count)
+    }
+
+    // ===== VOCABULARY CRUD OPERATIONS =====
+
+    /// Insert a new vocabulary word
+    pub fn insert_vocabulary(&self, vocab: &InsertVocabulary) -> Result<Vocabulary> {
+        let now = Utc::now();
+
+        self.conn.execute(
+            "INSERT INTO vocabulary (id, word, pronunciation, created_at) VALUES (?1, ?2, ?3, ?4)",
+            params![
+                &vocab.id,
+                &vocab.word,
+                &vocab.pronunciation,
+                now.to_rfc3339()
+            ],
+        )?;
+
+        self.get_vocabulary(&vocab.id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve inserted vocabulary"))
+    }
+
+    /// Get a vocabulary word by ID
+    pub fn get_vocabulary(&self, id: &str) -> Result<Option<Vocabulary>> {
+        let vocab = self
+            .conn
+            .query_row(
+                "SELECT id, word, pronunciation, created_at FROM vocabulary WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, String>(3)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match vocab {
+            Some((id, word, pronunciation, created_at)) => Ok(Some(Vocabulary {
+                id,
+                word,
+                pronunciation,
+                created_at: parse_datetime(created_at)?,
+            })),
+            None => Ok(None),
+        }
+    }
+
+    /// List all vocabulary words
+    pub fn list_vocabulary(&self) -> Result<Vec<Vocabulary>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, word, pronunciation, created_at FROM vocabulary ORDER BY word ASC",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })?;
+
+        let mut words = Vec::new();
+        for row in rows {
+            let (id, word, pronunciation, created_at) = row?;
+            words.push(Vocabulary {
+                id,
+                word,
+                pronunciation,
+                created_at: parse_datetime(created_at)?,
+            });
+        }
+
+        Ok(words)
+    }
+
+    /// Delete a vocabulary word
+    pub fn delete_vocabulary(&self, id: &str) -> Result<()> {
+        let deleted = self
+            .conn
+            .execute("DELETE FROM vocabulary WHERE id = ?1", params![id])?;
+
+        if deleted == 0 {
+            anyhow::bail!("Vocabulary not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    /// Count total vocabulary words
+    pub fn count_vocabulary(&self) -> Result<i64> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM vocabulary", [], |row| row.get(0))?;
+        Ok(count)
+    }
+
+    /// Export vocabulary as JSON array
+    pub fn export_vocabulary_json(&self) -> Result<String> {
+        let words = self.list_vocabulary()?;
+        serde_json::to_string_pretty(&words)
+            .map_err(|e| anyhow::anyhow!("Failed to serialize vocabulary: {}", e))
+    }
+
+    /// Import vocabulary from JSON array
+    pub fn import_vocabulary_json(&self, json: &str) -> Result<usize> {
+        let words: Vec<InsertVocabulary> = serde_json::from_str(json)
+            .map_err(|e| anyhow::anyhow!("Failed to parse vocabulary JSON: {}", e))?;
+
+        let mut imported_count = 0;
+        for word in words {
+            // Skip if word already exists (based on unique constraint)
+            match self.insert_vocabulary(&word) {
+                Ok(_) => imported_count += 1,
+                Err(e) => {
+                    // Log error but continue with other words
+                    eprintln!("Failed to import word '{}': {}", word.word, e);
+                }
+            }
+        }
+
+        Ok(imported_count)
+    }
+}
+
+/// Row data for pending operations
+#[derive(Debug)]
+pub struct PendingOperationRow {
+    pub id: i64,
+    pub operation_type: String,
+    pub entity_type: String,
+    pub entity_id: String,
+    pub payload: String,
+    pub created_at: String,
+    pub retry_count: i32,
 }
 
 #[cfg(test)]
@@ -1056,7 +1977,9 @@ mod tests {
         // List notes by folder
         let notes = db.list_notes_by_folder("folder-1", 10, 0).unwrap();
         assert_eq!(notes.len(), 3);
-        assert!(notes.iter().all(|n| n.folder_id == Some("folder-1".to_string())));
+        assert!(notes
+            .iter()
+            .all(|n| n.folder_id == Some("folder-1".to_string())));
     }
 
     #[test]
@@ -1139,5 +2062,1186 @@ mod tests {
         assert_eq!(notes[0].id, "note-3");
         assert_eq!(notes[1].id, "note-2");
         assert_eq!(notes[2].id, "note-1");
+    }
+
+    // ===== TODO TESTS =====
+
+    fn create_test_todo(id: &str, description: &str) -> InsertTodo {
+        InsertTodo {
+            id: id.to_string(),
+            description: description.to_string(),
+            due_date: None,
+            state: TodoState::Open,
+            smart_label: None,
+        }
+    }
+
+    #[test]
+    fn test_insert_and_get_todo() {
+        let db = setup();
+        let todo_data = create_test_todo("todo-1", "Test todo");
+
+        let inserted = db.insert_todo(todo_data).expect("Failed to insert todo");
+
+        assert_eq!(inserted.id, "todo-1");
+        assert_eq!(inserted.description, "Test todo");
+        assert_eq!(inserted.state, TodoState::Open);
+        assert!(inserted.due_date.is_none());
+        assert!(inserted.smart_label.is_none());
+
+        let retrieved = db.get_todo("todo-1").expect("Failed to get todo");
+        assert!(retrieved.is_some());
+        let retrieved = retrieved.unwrap();
+        assert_eq!(retrieved.id, inserted.id);
+        assert_eq!(retrieved.description, inserted.description);
+    }
+
+    #[test]
+    fn test_get_nonexistent_todo() {
+        let db = setup();
+        let result = db.get_todo("nonexistent").expect("Query failed");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_insert_todo_with_all_fields() {
+        let db = setup();
+        let due_date = Utc::now();
+
+        let todo_data = InsertTodo {
+            id: "todo-2".to_string(),
+            description: "Todo with all fields".to_string(),
+            due_date: Some(due_date),
+            state: TodoState::Open,
+            smart_label: Some("work".to_string()),
+        };
+
+        let inserted = db.insert_todo(todo_data).expect("Failed to insert todo");
+
+        assert_eq!(inserted.id, "todo-2");
+        assert_eq!(inserted.description, "Todo with all fields");
+        assert!(inserted.due_date.is_some());
+        assert_eq!(inserted.smart_label, Some("work".to_string()));
+    }
+
+    #[test]
+    fn test_list_todos_empty() {
+        let db = setup();
+        let todos = db.list_todos(None).expect("Failed to list todos");
+        assert_eq!(todos.len(), 0);
+    }
+
+    #[test]
+    fn test_list_todos() {
+        let db = setup();
+
+        db.insert_todo(create_test_todo("todo-1", "First todo"))
+            .unwrap();
+        db.insert_todo(create_test_todo("todo-2", "Second todo"))
+            .unwrap();
+        db.insert_todo(create_test_todo("todo-3", "Third todo"))
+            .unwrap();
+
+        let todos = db.list_todos(None).expect("Failed to list todos");
+        assert_eq!(todos.len(), 3);
+
+        // Should be ordered by created_at DESC, so most recent first
+        assert_eq!(todos[0].id, "todo-3");
+        assert_eq!(todos[1].id, "todo-2");
+        assert_eq!(todos[2].id, "todo-1");
+    }
+
+    #[test]
+    fn test_list_todos_with_pagination() {
+        let db = setup();
+
+        for i in 1..=5 {
+            db.insert_todo(create_test_todo(
+                &format!("todo-{}", i),
+                &format!("Todo {}", i),
+            ))
+            .unwrap();
+        }
+
+        // Get first page (2 items)
+        let page1 = db.list_todos(Some(PaginationParams::new(2, 0))).unwrap();
+        assert_eq!(page1.len(), 2);
+        assert_eq!(page1[0].id, "todo-5");
+        assert_eq!(page1[1].id, "todo-4");
+
+        // Get second page (2 items)
+        let page2 = db.list_todos(Some(PaginationParams::new(2, 2))).unwrap();
+        assert_eq!(page2.len(), 2);
+        assert_eq!(page2[0].id, "todo-3");
+        assert_eq!(page2[1].id, "todo-2");
+
+        // Get third page (1 item remaining)
+        let page3 = db.list_todos(Some(PaginationParams::new(2, 4))).unwrap();
+        assert_eq!(page3.len(), 1);
+        assert_eq!(page3[0].id, "todo-1");
+    }
+
+    #[test]
+    fn test_list_todos_by_state() {
+        let db = setup();
+
+        let mut todo1 = create_test_todo("todo-1", "Open todo 1");
+        todo1.state = TodoState::Open;
+        db.insert_todo(todo1).unwrap();
+
+        let mut todo2 = create_test_todo("todo-2", "Closed todo");
+        todo2.state = TodoState::Closed;
+        db.insert_todo(todo2).unwrap();
+
+        let mut todo3 = create_test_todo("todo-3", "Open todo 2");
+        todo3.state = TodoState::Open;
+        db.insert_todo(todo3).unwrap();
+
+        let open_todos = db.list_todos_by_state(TodoState::Open, None).unwrap();
+        assert_eq!(open_todos.len(), 2);
+        assert!(open_todos.iter().all(|t| t.state == TodoState::Open));
+
+        let closed_todos = db.list_todos_by_state(TodoState::Closed, None).unwrap();
+        assert_eq!(closed_todos.len(), 1);
+        assert_eq!(closed_todos[0].id, "todo-2");
+    }
+
+    #[test]
+    fn test_update_todo_description() {
+        let db = setup();
+        db.insert_todo(create_test_todo("todo-1", "Original description"))
+            .unwrap();
+
+        let updates = UpdateTodo {
+            description: Some("Updated description".to_string()),
+            due_date: None,
+            state: None,
+            smart_label: None,
+        };
+
+        let updated = db
+            .update_todo("todo-1", updates)
+            .expect("Failed to update todo");
+        assert_eq!(updated.description, "Updated description");
+        assert_eq!(updated.state, TodoState::Open);
+    }
+
+    #[test]
+    fn test_update_todo_state() {
+        let db = setup();
+        db.insert_todo(create_test_todo("todo-1", "Test todo"))
+            .unwrap();
+
+        let updates = UpdateTodo {
+            description: None,
+            due_date: None,
+            state: Some(TodoState::Closed),
+            smart_label: None,
+        };
+
+        let updated = db
+            .update_todo("todo-1", updates)
+            .expect("Failed to update todo");
+        assert_eq!(updated.state, TodoState::Closed);
+        assert_eq!(updated.description, "Test todo");
+    }
+
+    #[test]
+    fn test_update_todo_multiple_fields() {
+        let db = setup();
+        db.insert_todo(create_test_todo("todo-1", "Test todo"))
+            .unwrap();
+
+        let due_date = Utc::now();
+        let updates = UpdateTodo {
+            description: Some("Updated todo".to_string()),
+            due_date: Some(due_date),
+            state: Some(TodoState::Closed),
+            smart_label: Some("urgent".to_string()),
+        };
+
+        let updated = db
+            .update_todo("todo-1", updates)
+            .expect("Failed to update todo");
+        assert_eq!(updated.description, "Updated todo");
+        assert_eq!(updated.state, TodoState::Closed);
+        assert!(updated.due_date.is_some());
+        assert_eq!(updated.smart_label, Some("urgent".to_string()));
+    }
+
+    #[test]
+    fn test_update_nonexistent_todo() {
+        let db = setup();
+
+        let updates = UpdateTodo {
+            description: Some("Updated".to_string()),
+            due_date: None,
+            state: None,
+            smart_label: None,
+        };
+
+        let result = db.update_todo("nonexistent", updates);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Todo not found"));
+    }
+
+    #[test]
+    fn test_delete_todo() {
+        let db = setup();
+        db.insert_todo(create_test_todo("todo-1", "Test todo"))
+            .unwrap();
+
+        let deleted = db.delete_todo("todo-1").expect("Failed to delete todo");
+        assert!(deleted);
+
+        let retrieved = db.get_todo("todo-1").expect("Query failed");
+        assert!(retrieved.is_none());
+    }
+
+    #[test]
+    fn test_delete_nonexistent_todo() {
+        let db = setup();
+        let deleted = db
+            .delete_todo("nonexistent")
+            .expect("Failed to delete todo");
+        assert!(!deleted);
+    }
+
+    #[test]
+    fn test_count_todos() {
+        let db = setup();
+        assert_eq!(db.count_todos().unwrap(), 0);
+
+        db.insert_todo(create_test_todo("todo-1", "First")).unwrap();
+        assert_eq!(db.count_todos().unwrap(), 1);
+
+        db.insert_todo(create_test_todo("todo-2", "Second"))
+            .unwrap();
+        assert_eq!(db.count_todos().unwrap(), 2);
+
+        db.delete_todo("todo-1").unwrap();
+        assert_eq!(db.count_todos().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_count_todos_by_state() {
+        let db = setup();
+
+        let mut todo1 = create_test_todo("todo-1", "Open 1");
+        todo1.state = TodoState::Open;
+        db.insert_todo(todo1).unwrap();
+
+        let mut todo2 = create_test_todo("todo-2", "Open 2");
+        todo2.state = TodoState::Open;
+        db.insert_todo(todo2).unwrap();
+
+        let mut todo3 = create_test_todo("todo-3", "Closed");
+        todo3.state = TodoState::Closed;
+        db.insert_todo(todo3).unwrap();
+
+        assert_eq!(db.count_todos_by_state(TodoState::Open).unwrap(), 2);
+        assert_eq!(db.count_todos_by_state(TodoState::Closed).unwrap(), 1);
+    }
+
+    #[test]
+    fn test_mark_todo_synced() {
+        let db = setup();
+
+        let todo = db
+            .insert_todo(create_test_todo("todo-1", "Test todo"))
+            .unwrap();
+        assert!(todo.synced_at.is_none());
+
+        db.mark_todo_synced("todo-1").unwrap();
+
+        let synced_todo = db.get_todo("todo-1").unwrap().unwrap();
+        assert!(synced_todo.synced_at.is_some());
+    }
+
+    #[test]
+    fn test_mark_nonexistent_todo_synced() {
+        let db = setup();
+
+        let result = db.mark_todo_synced("nonexistent");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Todo not found"));
+    }
+
+    // ===== CALENDAR EVENTS TESTS =====
+
+    fn create_test_event(id: &str, title: &str, hours_from_now: i64) -> CalendarEvent {
+        let now = Utc::now();
+        CalendarEvent {
+            id: id.to_string(),
+            title: title.to_string(),
+            start_time: now + chrono::Duration::hours(hours_from_now),
+            end_time: now + chrono::Duration::hours(hours_from_now + 1),
+            source: EventSource::GoogleCalendar,
+            meeting_url: Some("https://meet.google.com/test".to_string()),
+            created_at: now,
+            synced_at: None,
+        }
+    }
+
+    #[test]
+    fn test_insert_and_get_calendar_event() {
+        let db = setup();
+
+        let event = create_test_event("event-1", "Team Meeting", 2);
+        let inserted = db.insert_calendar_event(&event).unwrap();
+
+        assert_eq!(inserted.id, "event-1");
+        assert_eq!(inserted.title, "Team Meeting");
+        assert_eq!(inserted.source, EventSource::GoogleCalendar);
+        assert!(inserted.meeting_url.is_some());
+        assert!(inserted.synced_at.is_none());
+
+        let retrieved = db.get_calendar_event("event-1").unwrap().unwrap();
+        assert_eq!(retrieved.id, inserted.id);
+        assert_eq!(retrieved.title, inserted.title);
+    }
+
+    #[test]
+    fn test_get_nonexistent_calendar_event() {
+        let db = setup();
+
+        let result = db.get_calendar_event("nonexistent").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_list_calendar_events_with_pagination() {
+        let db = setup();
+
+        // Insert 5 events
+        for i in 1..=5 {
+            let event = create_test_event(&format!("event-{}", i), &format!("Event {}", i), i);
+            db.insert_calendar_event(&event).unwrap();
+        }
+
+        // Get first page
+        let page1 = db.list_calendar_events(2, 0).unwrap();
+        assert_eq!(page1.len(), 2);
+
+        // Get second page
+        let page2 = db.list_calendar_events(2, 2).unwrap();
+        assert_eq!(page2.len(), 2);
+
+        // Get third page
+        let page3 = db.list_calendar_events(2, 4).unwrap();
+        assert_eq!(page3.len(), 1);
+
+        // Verify total count
+        let count = db.count_calendar_events().unwrap();
+        assert_eq!(count, 5);
+    }
+
+    #[test]
+    fn test_list_calendar_events_in_range() {
+        let db = setup();
+
+        let now = Utc::now();
+
+        // Insert events at different times
+        let event1 = create_test_event("event-1", "Today", 1);
+        let event2 = create_test_event("event-2", "Tomorrow", 25);
+        let event3 = create_test_event("event-3", "Later Today", 5);
+
+        db.insert_calendar_event(&event1).unwrap();
+        db.insert_calendar_event(&event2).unwrap();
+        db.insert_calendar_event(&event3).unwrap();
+
+        // Query events for the next 24 hours
+        let start = now;
+        let end = now + chrono::Duration::hours(24);
+
+        let events = db.list_calendar_events_in_range(start, end).unwrap();
+
+        // Should only get events within the range
+        assert_eq!(events.len(), 2);
+        assert!(events.iter().any(|e| e.id == "event-1"));
+        assert!(events.iter().any(|e| e.id == "event-3"));
+
+        // Events should be ordered by start_time
+        assert!(events[0].start_time <= events[1].start_time);
+    }
+
+    #[test]
+    fn test_update_calendar_event() {
+        let db = setup();
+
+        let event = create_test_event("event-1", "Original Title", 2);
+        db.insert_calendar_event(&event).unwrap();
+
+        let mut updated_event = event.clone();
+        updated_event.title = "Updated Title".to_string();
+        updated_event.meeting_url = Some("https://zoom.us/new".to_string());
+
+        let result = db.update_calendar_event(&updated_event).unwrap();
+
+        assert_eq!(result.title, "Updated Title");
+        assert_eq!(result.meeting_url, Some("https://zoom.us/new".to_string()));
+    }
+
+    #[test]
+    fn test_update_nonexistent_calendar_event() {
+        let db = setup();
+
+        let event = create_test_event("nonexistent", "Test", 2);
+        let result = db.update_calendar_event(&event);
+
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Calendar event not found"));
+    }
+
+    #[test]
+    fn test_delete_calendar_event() {
+        let db = setup();
+
+        let event = create_test_event("event-1", "Test Event", 2);
+        db.insert_calendar_event(&event).unwrap();
+        assert!(db.get_calendar_event("event-1").unwrap().is_some());
+
+        db.delete_calendar_event("event-1").unwrap();
+        assert!(db.get_calendar_event("event-1").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_delete_nonexistent_calendar_event() {
+        let db = setup();
+
+        let result = db.delete_calendar_event("nonexistent");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Calendar event not found"));
+    }
+
+    #[test]
+    fn test_mark_calendar_event_synced() {
+        let db = setup();
+
+        let event = create_test_event("event-1", "Test Event", 2);
+        let inserted = db.insert_calendar_event(&event).unwrap();
+        assert!(inserted.synced_at.is_none());
+
+        db.mark_calendar_event_synced("event-1").unwrap();
+
+        let synced_event = db.get_calendar_event("event-1").unwrap().unwrap();
+        assert!(synced_event.synced_at.is_some());
+    }
+
+    #[test]
+    fn test_mark_nonexistent_calendar_event_synced() {
+        let db = setup();
+
+        let result = db.mark_calendar_event_synced("nonexistent");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Calendar event not found"));
+    }
+
+    #[test]
+    fn test_calendar_events_ordered_by_start_time() {
+        let db = setup();
+
+        // Insert events in non-chronological order
+        let event3 = create_test_event("event-3", "Third", 6);
+        let event1 = create_test_event("event-1", "First", 2);
+        let event2 = create_test_event("event-2", "Second", 4);
+
+        db.insert_calendar_event(&event3).unwrap();
+        db.insert_calendar_event(&event1).unwrap();
+        db.insert_calendar_event(&event2).unwrap();
+
+        let events = db.list_calendar_events(10, 0).unwrap();
+
+        // Should be ordered by start_time ASC
+        assert_eq!(events[0].id, "event-1");
+        assert_eq!(events[1].id, "event-2");
+        assert_eq!(events[2].id, "event-3");
+    }
+
+    #[test]
+    fn test_calendar_event_sources() {
+        let db = setup();
+
+        let mut google_event = create_test_event("event-1", "Google Event", 2);
+        google_event.source = EventSource::GoogleCalendar;
+
+        let mut hinotes_event = create_test_event("event-2", "HiNotes Event", 3);
+        hinotes_event.source = EventSource::Hinotes;
+
+        db.insert_calendar_event(&google_event).unwrap();
+        db.insert_calendar_event(&hinotes_event).unwrap();
+
+        let retrieved_google = db.get_calendar_event("event-1").unwrap().unwrap();
+        let retrieved_hinotes = db.get_calendar_event("event-2").unwrap().unwrap();
+
+        assert_eq!(retrieved_google.source, EventSource::GoogleCalendar);
+        assert_eq!(retrieved_hinotes.source, EventSource::Hinotes);
+    }
+
+    // ===== TEMPLATE TESTS =====
+
+    #[test]
+    fn test_insert_and_get_template() {
+        let db = setup();
+
+        let template = db
+            .insert_template(
+                "template-1",
+                "Meeting Notes",
+                "## Meeting Notes\n\nDate: \nAttendees: ",
+                false,
+                false,
+            )
+            .unwrap();
+
+        assert_eq!(template.id, "template-1");
+        assert_eq!(template.title, "Meeting Notes");
+        assert_eq!(template.content, "## Meeting Notes\n\nDate: \nAttendees: ");
+        assert!(!template.is_favorite);
+        assert!(!template.is_default);
+        assert!(template.synced_at.is_none());
+
+        let retrieved = db.get_template("template-1").unwrap().unwrap();
+        assert_eq!(retrieved.id, template.id);
+        assert_eq!(retrieved.title, template.title);
+    }
+
+    #[test]
+    fn test_get_nonexistent_template() {
+        let db = setup();
+
+        let result = db.get_template("nonexistent").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_list_templates() {
+        let db = setup();
+
+        // Insert multiple templates
+        db.insert_template("template-1", "Template 1", "Content 1", false, false)
+            .unwrap();
+        db.insert_template("template-2", "Template 2", "Content 2", true, false)
+            .unwrap();
+        db.insert_template("template-3", "Template 3", "Content 3", true, false)
+            .unwrap();
+
+        // List all templates
+        let all_templates = db.list_templates(false, 10, 0).unwrap();
+        assert_eq!(all_templates.len(), 3);
+
+        // List only favorites
+        let favorites = db.list_templates(true, 10, 0).unwrap();
+        assert_eq!(favorites.len(), 2);
+        assert!(favorites.iter().all(|t| t.is_favorite));
+    }
+
+    #[test]
+    fn test_list_templates_pagination() {
+        let db = setup();
+
+        // Insert 5 templates
+        for i in 1..=5 {
+            db.insert_template(
+                &format!("template-{}", i),
+                &format!("Template {}", i),
+                &format!("Content {}", i),
+                false,
+                false,
+            )
+            .unwrap();
+        }
+
+        // Get first page
+        let page1 = db.list_templates(false, 2, 0).unwrap();
+        assert_eq!(page1.len(), 2);
+
+        // Get second page
+        let page2 = db.list_templates(false, 2, 2).unwrap();
+        assert_eq!(page2.len(), 2);
+
+        // Get third page
+        let page3 = db.list_templates(false, 2, 4).unwrap();
+        assert_eq!(page3.len(), 1);
+    }
+
+    #[test]
+    fn test_update_template() {
+        let db = setup();
+
+        db.insert_template(
+            "template-1",
+            "Original Title",
+            "Original Content",
+            false,
+            false,
+        )
+        .unwrap();
+
+        let updated = db
+            .update_template(
+                "template-1",
+                Some("Updated Title"),
+                Some("Updated Content"),
+                Some(true),
+                None,
+            )
+            .unwrap();
+
+        assert_eq!(updated.title, "Updated Title");
+        assert_eq!(updated.content, "Updated Content");
+        assert!(updated.is_favorite);
+        assert!(!updated.is_default);
+    }
+
+    #[test]
+    fn test_update_template_partial() {
+        let db = setup();
+
+        db.insert_template(
+            "template-1",
+            "Original Title",
+            "Original Content",
+            false,
+            false,
+        )
+        .unwrap();
+
+        // Update only title
+        let updated = db
+            .update_template("template-1", Some("New Title"), None, None, None)
+            .unwrap();
+
+        assert_eq!(updated.title, "New Title");
+        assert_eq!(updated.content, "Original Content"); // Content unchanged
+    }
+
+    #[test]
+    fn test_update_nonexistent_template() {
+        let db = setup();
+
+        let result = db.update_template("nonexistent", Some("Title"), None, None, None);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Template not found"));
+    }
+
+    #[test]
+    fn test_toggle_template_favorite() {
+        let db = setup();
+
+        let template = db
+            .insert_template("template-1", "Test Template", "Content", false, false)
+            .unwrap();
+        assert!(!template.is_favorite);
+
+        // Toggle to favorite
+        let toggled = db.toggle_template_favorite("template-1").unwrap();
+        assert!(toggled.is_favorite);
+
+        // Toggle back to non-favorite
+        let toggled_back = db.toggle_template_favorite("template-1").unwrap();
+        assert!(!toggled_back.is_favorite);
+    }
+
+    #[test]
+    fn test_set_template_default() {
+        let db = setup();
+
+        // Insert multiple templates
+        db.insert_template("template-1", "Template 1", "Content 1", false, false)
+            .unwrap();
+        db.insert_template("template-2", "Template 2", "Content 2", false, false)
+            .unwrap();
+
+        // Set first template as default
+        db.set_template_default("template-1").unwrap();
+
+        let template1 = db.get_template("template-1").unwrap().unwrap();
+        assert!(template1.is_default);
+
+        // Set second template as default (should unset first)
+        db.set_template_default("template-2").unwrap();
+
+        let template1_updated = db.get_template("template-1").unwrap().unwrap();
+        let template2 = db.get_template("template-2").unwrap().unwrap();
+
+        assert!(!template1_updated.is_default);
+        assert!(template2.is_default);
+    }
+
+    #[test]
+    fn test_get_default_template() {
+        let db = setup();
+
+        // No default initially
+        let default = db.get_default_template().unwrap();
+        assert!(default.is_none());
+
+        // Set a template as default
+        db.insert_template("template-1", "Default Template", "Content", false, true)
+            .unwrap();
+
+        let default = db.get_default_template().unwrap().unwrap();
+        assert_eq!(default.id, "template-1");
+        assert!(default.is_default);
+    }
+
+    #[test]
+    fn test_insert_template_as_default_unsets_others() {
+        let db = setup();
+
+        // Insert first template as default
+        db.insert_template("template-1", "Template 1", "Content 1", false, true)
+            .unwrap();
+
+        // Insert second template as default
+        db.insert_template("template-2", "Template 2", "Content 2", false, true)
+            .unwrap();
+
+        let template1 = db.get_template("template-1").unwrap().unwrap();
+        let template2 = db.get_template("template-2").unwrap().unwrap();
+
+        assert!(!template1.is_default);
+        assert!(template2.is_default);
+    }
+
+    #[test]
+    fn test_delete_template() {
+        let db = setup();
+
+        db.insert_template("template-1", "Test Template", "Content", false, false)
+            .unwrap();
+        assert!(db.get_template("template-1").unwrap().is_some());
+
+        db.delete_template("template-1").unwrap();
+        assert!(db.get_template("template-1").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_delete_nonexistent_template() {
+        let db = setup();
+
+        let result = db.delete_template("nonexistent");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Template not found"));
+    }
+
+    #[test]
+    fn test_count_templates() {
+        let db = setup();
+
+        assert_eq!(db.count_templates().unwrap(), 0);
+
+        db.insert_template("template-1", "Template 1", "Content 1", false, false)
+            .unwrap();
+        db.insert_template("template-2", "Template 2", "Content 2", false, false)
+            .unwrap();
+
+        assert_eq!(db.count_templates().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_mark_template_synced() {
+        let db = setup();
+
+        let template = db
+            .insert_template("template-1", "Test Template", "Content", false, false)
+            .unwrap();
+        assert!(template.synced_at.is_none());
+
+        db.mark_template_synced("template-1").unwrap();
+
+        let synced_template = db.get_template("template-1").unwrap().unwrap();
+        assert!(synced_template.synced_at.is_some());
+    }
+
+    #[test]
+    fn test_mark_nonexistent_template_synced() {
+        let db = setup();
+
+        let result = db.mark_template_synced("nonexistent");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Template not found"));
+    }
+
+    // ===== SMART LABELS TESTS =====
+
+    #[test]
+    fn test_insert_and_get_smart_label() {
+        let db = setup();
+
+        let label = InsertSmartLabel {
+            id: "label-1".to_string(),
+            name: "Work".to_string(),
+            color: Some("#FF0000".to_string()),
+        };
+
+        let inserted = db.insert_smart_label(&label).unwrap();
+        assert_eq!(inserted.id, "label-1");
+        assert_eq!(inserted.name, "Work");
+        assert_eq!(inserted.color, Some("#FF0000".to_string()));
+
+        let retrieved = db.get_smart_label("label-1").unwrap().unwrap();
+        assert_eq!(retrieved.id, inserted.id);
+        assert_eq!(retrieved.name, inserted.name);
+    }
+
+    #[test]
+    fn test_get_nonexistent_smart_label() {
+        let db = setup();
+
+        let result = db.get_smart_label("nonexistent").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_list_smart_labels() {
+        let db = setup();
+
+        // Insert multiple labels
+        db.insert_smart_label(&InsertSmartLabel {
+            id: "label-1".to_string(),
+            name: "Work".to_string(),
+            color: Some("#FF0000".to_string()),
+        })
+        .unwrap();
+
+        db.insert_smart_label(&InsertSmartLabel {
+            id: "label-2".to_string(),
+            name: "Personal".to_string(),
+            color: Some("#00FF00".to_string()),
+        })
+        .unwrap();
+
+        let labels = db.list_smart_labels().unwrap();
+        assert_eq!(labels.len(), 2);
+    }
+
+    #[test]
+    fn test_update_smart_label() {
+        let db = setup();
+
+        db.insert_smart_label(&InsertSmartLabel {
+            id: "label-1".to_string(),
+            name: "Work".to_string(),
+            color: Some("#FF0000".to_string()),
+        })
+        .unwrap();
+
+        let update = UpdateSmartLabel {
+            name: Some("Office".to_string()),
+            color: Some("#0000FF".to_string()),
+        };
+
+        let updated = db.update_smart_label("label-1", &update).unwrap();
+        assert_eq!(updated.name, "Office");
+        assert_eq!(updated.color, Some("#0000FF".to_string()));
+    }
+
+    #[test]
+    fn test_update_nonexistent_smart_label() {
+        let db = setup();
+
+        let update = UpdateSmartLabel {
+            name: Some("Test".to_string()),
+            color: None,
+        };
+
+        let result = db.update_smart_label("nonexistent", &update);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Smart label not found"));
+    }
+
+    #[test]
+    fn test_delete_smart_label() {
+        let db = setup();
+
+        db.insert_smart_label(&InsertSmartLabel {
+            id: "label-1".to_string(),
+            name: "Work".to_string(),
+            color: None,
+        })
+        .unwrap();
+
+        assert!(db.get_smart_label("label-1").unwrap().is_some());
+
+        db.delete_smart_label("label-1").unwrap();
+        assert!(db.get_smart_label("label-1").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_delete_nonexistent_smart_label() {
+        let db = setup();
+
+        let result = db.delete_smart_label("nonexistent");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Smart label not found"));
+    }
+
+    #[test]
+    fn test_count_smart_labels() {
+        let db = setup();
+
+        assert_eq!(db.count_smart_labels().unwrap(), 0);
+
+        db.insert_smart_label(&InsertSmartLabel {
+            id: "label-1".to_string(),
+            name: "Work".to_string(),
+            color: None,
+        })
+        .unwrap();
+
+        assert_eq!(db.count_smart_labels().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_smart_label_unique_name() {
+        let db = setup();
+
+        db.insert_smart_label(&InsertSmartLabel {
+            id: "label-1".to_string(),
+            name: "Work".to_string(),
+            color: None,
+        })
+        .unwrap();
+
+        // Try to insert another label with the same name (should fail due to UNIQUE constraint)
+        let result = db.insert_smart_label(&InsertSmartLabel {
+            id: "label-2".to_string(),
+            name: "Work".to_string(),
+            color: Some("#FF0000".to_string()),
+        });
+
+        assert!(result.is_err());
+    }
+
+    // ===== VOCABULARY TESTS =====
+
+    #[test]
+    fn test_insert_and_get_vocabulary() {
+        let db = setup();
+
+        let vocab = InsertVocabulary {
+            id: "vocab-1".to_string(),
+            word: "Kubernetes".to_string(),
+            pronunciation: Some("koo-ber-net-eez".to_string()),
+        };
+
+        let inserted = db.insert_vocabulary(&vocab).unwrap();
+        assert_eq!(inserted.id, "vocab-1");
+        assert_eq!(inserted.word, "Kubernetes");
+        assert_eq!(inserted.pronunciation, Some("koo-ber-net-eez".to_string()));
+
+        let retrieved = db.get_vocabulary("vocab-1").unwrap().unwrap();
+        assert_eq!(retrieved.id, inserted.id);
+        assert_eq!(retrieved.word, inserted.word);
+    }
+
+    #[test]
+    fn test_get_nonexistent_vocabulary() {
+        let db = setup();
+
+        let result = db.get_vocabulary("nonexistent").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_list_vocabulary() {
+        let db = setup();
+
+        // Insert multiple words
+        db.insert_vocabulary(&InsertVocabulary {
+            id: "vocab-1".to_string(),
+            word: "Kubernetes".to_string(),
+            pronunciation: None,
+        })
+        .unwrap();
+
+        db.insert_vocabulary(&InsertVocabulary {
+            id: "vocab-2".to_string(),
+            word: "Algorithm".to_string(),
+            pronunciation: Some("al-go-rith-um".to_string()),
+        })
+        .unwrap();
+
+        let words = db.list_vocabulary().unwrap();
+        assert_eq!(words.len(), 2);
+
+        // Should be ordered alphabetically
+        assert_eq!(words[0].word, "Algorithm");
+        assert_eq!(words[1].word, "Kubernetes");
+    }
+
+    #[test]
+    fn test_delete_vocabulary() {
+        let db = setup();
+
+        db.insert_vocabulary(&InsertVocabulary {
+            id: "vocab-1".to_string(),
+            word: "Test".to_string(),
+            pronunciation: None,
+        })
+        .unwrap();
+
+        assert!(db.get_vocabulary("vocab-1").unwrap().is_some());
+
+        db.delete_vocabulary("vocab-1").unwrap();
+        assert!(db.get_vocabulary("vocab-1").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_delete_nonexistent_vocabulary() {
+        let db = setup();
+
+        let result = db.delete_vocabulary("nonexistent");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Vocabulary not found"));
+    }
+
+    #[test]
+    fn test_count_vocabulary() {
+        let db = setup();
+
+        assert_eq!(db.count_vocabulary().unwrap(), 0);
+
+        db.insert_vocabulary(&InsertVocabulary {
+            id: "vocab-1".to_string(),
+            word: "Test".to_string(),
+            pronunciation: None,
+        })
+        .unwrap();
+
+        assert_eq!(db.count_vocabulary().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_vocabulary_unique_word() {
+        let db = setup();
+
+        db.insert_vocabulary(&InsertVocabulary {
+            id: "vocab-1".to_string(),
+            word: "Kubernetes".to_string(),
+            pronunciation: None,
+        })
+        .unwrap();
+
+        // Try to insert another word with the same name (should fail due to UNIQUE constraint)
+        let result = db.insert_vocabulary(&InsertVocabulary {
+            id: "vocab-2".to_string(),
+            word: "Kubernetes".to_string(),
+            pronunciation: Some("different".to_string()),
+        });
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_export_vocabulary_json() {
+        let db = setup();
+
+        db.insert_vocabulary(&InsertVocabulary {
+            id: "vocab-1".to_string(),
+            word: "Kubernetes".to_string(),
+            pronunciation: Some("koo-ber-net-eez".to_string()),
+        })
+        .unwrap();
+
+        db.insert_vocabulary(&InsertVocabulary {
+            id: "vocab-2".to_string(),
+            word: "Algorithm".to_string(),
+            pronunciation: None,
+        })
+        .unwrap();
+
+        let json = db.export_vocabulary_json().unwrap();
+        assert!(json.contains("Kubernetes"));
+        assert!(json.contains("Algorithm"));
+        assert!(json.contains("koo-ber-net-eez"));
+    }
+
+    #[test]
+    fn test_import_vocabulary_json() {
+        let db = setup();
+
+        let json = r#"[
+            {
+                "id": "vocab-1",
+                "word": "Kubernetes",
+                "pronunciation": "koo-ber-net-eez"
+            },
+            {
+                "id": "vocab-2",
+                "word": "Algorithm",
+                "pronunciation": null
+            }
+        ]"#;
+
+        let imported_count = db.import_vocabulary_json(json).unwrap();
+        assert_eq!(imported_count, 2);
+
+        let words = db.list_vocabulary().unwrap();
+        assert_eq!(words.len(), 2);
+    }
+
+    #[test]
+    fn test_import_vocabulary_json_skip_duplicates() {
+        let db = setup();
+
+        // Insert one word first
+        db.insert_vocabulary(&InsertVocabulary {
+            id: "vocab-1".to_string(),
+            word: "Kubernetes".to_string(),
+            pronunciation: None,
+        })
+        .unwrap();
+
+        // Try to import a list that includes a duplicate
+        let json = r#"[
+            {
+                "id": "vocab-1-dup",
+                "word": "Kubernetes",
+                "pronunciation": "koo-ber-net-eez"
+            },
+            {
+                "id": "vocab-2",
+                "word": "Algorithm",
+                "pronunciation": null
+            }
+        ]"#;
+
+        let imported_count = db.import_vocabulary_json(json).unwrap();
+        // Should only import 1 (Algorithm), skipping the duplicate Kubernetes
+        assert_eq!(imported_count, 1);
+
+        let words = db.list_vocabulary().unwrap();
+        assert_eq!(words.len(), 2);
     }
 }

@@ -1,0 +1,148 @@
+.notes-list-container {
+  width: 100%;
+  padding: 16px;
+}
+
+.notes-list {
+  width: 100%;
+}
+
+.note-card {
+  min-height: 56px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+}
+
+.note-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.note-card:active {
+  transform: translateY(0);
+}
+
+.note-card-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  padding: 8px 0;
+}
+
+.note-card-main {
+  flex: 1;
+  min-width: 0; /* Enable text truncation */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.note-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+
+.note-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--color-text-3);
+}
+
+.note-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.note-meta-icon {
+  font-size: 14px;
+}
+
+.note-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.note-tag {
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  background-color: var(--color-primary-light-1);
+  color: var(--color-primary-6);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.note-tag-more {
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-3);
+  background-color: var(--color-fill-2);
+  border-radius: 4px;
+}
+
+.notes-list-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  padding: 40px 20px;
+}
+
+/* Dark mode adjustments */
+body[arco-theme='dark'] .note-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+body[arco-theme='dark'] .note-tag {
+  background-color: rgba(var(--primary-6), 0.15);
+  color: var(--color-primary-light-4);
+}
+
+body[arco-theme='dark'] .note-tag-more {
+  background-color: var(--color-fill-3);
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .note-card-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .note-tags {
+    width: 100%;
+  }
+
+  .note-meta {
+    flex-wrap: wrap;
+  }
+}
+
+/* Pinned note indicator */
+.note-card.note-pinned {
+  border-left: 3px solid var(--color-primary-6);
+}
+
+/* Archived note styling */
+.note-card.note-archived {
+  opacity: 0.6;
+}
+
+.note-card.note-archived:hover {
+  opacity: 0.8;
+}

@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    hinotes_desktop_init_lib::run()
+    hinotes_desktop_lib::run()
 }

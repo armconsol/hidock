@@ -1,7 +1,7 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use std::sync::Arc;
+use tiny_http::{Response, Server};
 use tokio::sync::oneshot;
-use tiny_http::{Server, Response};
 
 /// OAuth2 handler for Google and Apple sign-in
 pub struct OAuth2Handler {

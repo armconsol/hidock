@@ -1,0 +1,25 @@
+.notes-view {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+}
+
+.notes-view-sidebar {
+  width: 360px;
+  flex-shrink: 0;
+}
+
+.notes-view-content {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .notes-view-sidebar {
+    width: 100%;
+  }
+
+  .notes-view-content {
+    display: none;
+  }
+}

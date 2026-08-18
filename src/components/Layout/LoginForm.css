@@ -1,0 +1,158 @@
+.login-form-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 24px;
+}
+
+.login-form-card {
+  background-color: var(--color-bg-1);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  padding: 48px;
+  width: 100%;
+  max-width: 440px;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.login-title {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--color-text-1);
+}
+
+.login-subtitle {
+  font-size: 14px;
+  color: var(--color-text-3);
+  margin: 0;
+}
+
+.login-oauth-buttons {
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.oauth-button {
+  height: 48px !important;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.google-button {
+  border-color: var(--color-border-2);
+}
+
+.google-button:hover {
+  border-color: #4285f4;
+  color: #4285f4;
+}
+
+.apple-button {
+  border-color: var(--color-border-2);
+}
+
+.apple-button:hover {
+  border-color: #000;
+  color: #000;
+}
+
+body[arco-theme='dark'] .apple-button:hover {
+  border-color: #fff;
+  color: #fff;
+}
+
+.apple-icon {
+  font-size: 20px;
+}
+
+.login-divider {
+  margin: 24px 0;
+}
+
+.divider-text {
+  color: var(--color-text-3);
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.login-error {
+  background-color: var(--color-danger-light-1);
+  border: 1px solid var(--color-danger-light-3);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  color: var(--color-danger-6);
+  font-size: 14px;
+}
+
+.login-form .arco-form-item {
+  margin-bottom: 20px;
+}
+
+.login-form .arco-form-item-label-col label {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.submit-button {
+  height: 48px !important;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border-1);
+}
+
+.footer-text {
+  color: var(--color-text-2);
+  font-size: 14px;
+  margin-right: 8px;
+}
+
+.toggle-mode-button {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .login-form-card {
+    padding: 32px 24px;
+  }
+
+  .login-title {
+    font-size: 24px;
+  }
+}
+
+/* Dark mode adjustments */
+body[arco-theme='dark'] .login-form-container {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+body[arco-theme='dark'] .login-form-card {
+  background-color: var(--color-bg-2);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+body[arco-theme='dark'] .login-error {
+  background-color: rgba(var(--danger-6), 0.1);
+  border-color: var(--color-danger-6);
+}

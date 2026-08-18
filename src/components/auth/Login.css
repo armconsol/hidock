@@ -1,0 +1,81 @@
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 40px 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.login-header .arco-typography {
+  margin-bottom: 8px;
+}
+
+.oauth-button {
+  height: 48px;
+  font-weight: 500;
+}
+
+.oauth-button-google {
+  background: #4285f4;
+  border-color: #4285f4;
+}
+
+.oauth-button-google:hover {
+  background: #357ae8;
+  border-color: #357ae8;
+}
+
+.oauth-button-apple {
+  background: #000;
+  border-color: #000;
+}
+
+.oauth-button-apple:hover {
+  background: #333;
+  border-color: #333;
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border-2);
+}
+
+/* Form styling */
+.arco-form-item {
+  margin-bottom: 20px;
+}
+
+.arco-input-wrapper {
+  height: 48px;
+}
+
+.arco-divider {
+  margin: 24px 0;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .login-container {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  }
+
+  .login-card {
+    background: var(--color-bg-2);
+  }
+}

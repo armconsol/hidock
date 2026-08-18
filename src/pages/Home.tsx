@@ -1,9 +1,16 @@
+import { CalendarWidget } from '../components/Calendar/CalendarWidget';
+import './Home.css';
+
 export function HomePage() {
   return (
     <div className="home-page">
       <h1>Home Dashboard</h1>
-      {/* Dashboard widgets will be rendered here */}
-      <p>Dashboard implementation in progress...</p>
+      <div className="dashboard-widgets">
+        <div className="widget-container">
+          <CalendarWidget />
+        </div>
+        {/* Additional widgets can be added here */}
+      </div>
     </div>
   );
 }
