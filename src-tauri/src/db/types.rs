@@ -66,6 +66,23 @@ pub struct Todo {
     pub synced_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InsertTodo {
+    pub id: String,
+    pub description: String,
+    pub due_date: Option<DateTime<Utc>>,
+    pub state: TodoState,
+    pub smart_label: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateTodo {
+    pub description: Option<String>,
+    pub due_date: Option<DateTime<Utc>>,
+    pub state: Option<TodoState>,
+    pub smart_label: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum TodoState {
@@ -136,4 +153,26 @@ pub struct Template {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub synced_at: Option<DateTime<Utc>>,
+}
+
+// Pagination parameters
+#[derive(Debug, Clone)]
+pub struct PaginationParams {
+    pub limit: i64,
+    pub offset: i64,
+}
+
+impl Default for PaginationParams {
+    fn default() -> Self {
+        Self {
+            limit: 20,
+            offset: 0,
+        }
+    }
+}
+
+impl PaginationParams {
+    pub fn new(limit: i64, offset: i64) -> Self {
+        Self { limit, offset }
+    }
 }
