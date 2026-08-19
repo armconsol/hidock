@@ -1,6 +1,6 @@
 [package]
 name = "hinotes-desktop"
-version = "1.0.0-alpha"
+version = "0.1.0"
 description = "Cross-platform desktop app for HiNotes with offline-first architecture"
 authors = ["Shaun Arman"]
 edition = "2021"
