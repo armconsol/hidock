@@ -4222,7 +4222,10 @@ mod tests {
             end_time: now + chrono::Duration::hours(hours_from_now + 1),
             source: EventSource::GoogleCalendar,
             meeting_url: Some("https://meet.google.com/test".to_string()),
+            google_event_id: Some("google-123".to_string()),
+            sync_status: SyncStatus::Synced,
             created_at: now,
+            updated_at: now,
             synced_at: None,
         }
     }

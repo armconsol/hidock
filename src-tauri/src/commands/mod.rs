@@ -469,7 +469,10 @@ mod tests {
             end_time: now + Duration::hours(hours_from_now + 1),
             source: EventSource::Hinotes,
             meeting_url: None,
+            google_event_id: None,
+            sync_status: crate::db::types::SyncStatus::Synced,
             created_at: now,
+            updated_at: now,
             synced_at: None,
         }
     }
@@ -534,7 +537,10 @@ mod tests {
             end_time: now + Duration::hours(1),
             source: EventSource::GoogleCalendar,
             meeting_url: Some("https://meet.google.com/test".to_string()),
+            google_event_id: Some("google-123".to_string()),
+            sync_status: crate::db::types::SyncStatus::Synced,
             created_at: now,
+            updated_at: now,
             synced_at: None,
         };
 
@@ -545,7 +551,10 @@ mod tests {
             end_time: now + Duration::hours(1),
             source: EventSource::Hinotes,
             meeting_url: None,
+            google_event_id: None,
+            sync_status: crate::db::types::SyncStatus::Synced,
             created_at: now,
+            updated_at: now,
             synced_at: None,
         };
 

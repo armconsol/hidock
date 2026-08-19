@@ -152,9 +152,11 @@ mod tests {
     #[tokio::test]
     async fn test_list_rewards_empty() {
         let state = create_test_state();
-        let state_wrapper = State::from(&state);
+        let db = state.db.lock().unwrap();
+        let db_path = db.get_db_path();
+        let manager = RewardsManager::new(db_path.to_str().unwrap());
 
-        let result = list_rewards(None, state_wrapper).await;
+        let result = manager.list_rewards(None);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().len(), 0);
     }
@@ -162,23 +164,19 @@ mod tests {
     #[tokio::test]
     async fn test_add_and_list_rewards() {
         let state = create_test_state();
+        let db = state.db.lock().unwrap();
+        let db_path = db.get_db_path();
+        let manager = RewardsManager::new(db_path.to_str().unwrap());
 
         // Initialize rewards database
-        {
-            let db = state.db.lock().unwrap();
-            let db_path = db.get_db_path();
-            let manager = RewardsManager::new(db_path.to_str().unwrap());
-            manager.init_database().unwrap();
-        }
+        manager.init_database().unwrap();
 
         // Add a reward
         let reward = create_test_reward("reward-1");
-        let state_wrapper = State::from(&state);
-        add_reward(reward.clone(), state_wrapper).await.unwrap();
+        manager.add_reward(&reward).unwrap();
 
         // List rewards
-        let state_wrapper2 = State::from(&state);
-        let result = list_rewards(None, state_wrapper2).await;
+        let result = manager.list_rewards(None);
         assert!(result.is_ok());
 
         let rewards = result.unwrap();
@@ -189,21 +187,17 @@ mod tests {
     #[tokio::test]
     async fn test_redeem_reward() {
         let state = create_test_state();
+        let db = state.db.lock().unwrap();
+        let db_path = db.get_db_path();
+        let manager = RewardsManager::new(db_path.to_str().unwrap());
 
         // Initialize and add reward
-        {
-            let db = state.db.lock().unwrap();
-            let db_path = db.get_db_path();
-            let manager = RewardsManager::new(db_path.to_str().unwrap());
-            manager.init_database().unwrap();
-
-            let reward = create_test_reward("reward-1");
-            manager.add_reward(&reward).unwrap();
-        }
+        manager.init_database().unwrap();
+        let reward = create_test_reward("reward-1");
+        manager.add_reward(&reward).unwrap();
 
         // Redeem the reward
-        let state_wrapper = State::from(&state);
-        let result = redeem_reward("reward-1".to_string(), 100.0, state_wrapper).await;
+        let result = manager.redeem_reward("reward-1", 100.0);
 
         assert!(result.is_ok());
         let history = result.unwrap();
@@ -214,17 +208,14 @@ mod tests {
     #[tokio::test]
     async fn test_get_reward_history_empty() {
         let state = create_test_state();
+        let db = state.db.lock().unwrap();
+        let db_path = db.get_db_path();
+        let manager = RewardsManager::new(db_path.to_str().unwrap());
 
         // Initialize database
-        {
-            let db = state.db.lock().unwrap();
-            let db_path = db.get_db_path();
-            let manager = RewardsManager::new(db_path.to_str().unwrap());
-            manager.init_database().unwrap();
-        }
+        manager.init_database().unwrap();
 
-        let state_wrapper = State::from(&state);
-        let result = get_reward_history(None, None, state_wrapper).await;
+        let result = manager.get_reward_history(None, None);
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap().len(), 0);

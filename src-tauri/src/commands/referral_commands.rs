@@ -119,9 +119,11 @@ mod tests {
     #[tokio::test]
     async fn test_create_referral_code() {
         let state = create_test_state();
-        let state_wrapper = State::from(&state);
+        let db = state.db.lock().unwrap();
+        let db_path = db.get_db_path();
+        let manager = ReferralManager::new(db_path.to_str().unwrap());
 
-        let result = create_referral_code("user-123".to_string(), None, state_wrapper).await;
+        let result = manager.create_referral_code("user-123", None);
 
         assert!(result.is_ok());
         let code = result.unwrap();
@@ -132,9 +134,11 @@ mod tests {
     #[tokio::test]
     async fn test_get_referral_stats_empty() {
         let state = create_test_state();
-        let state_wrapper = State::from(&state);
+        let db = state.db.lock().unwrap();
+        let db_path = db.get_db_path();
+        let manager = ReferralManager::new(db_path.to_str().unwrap());
 
-        let result = get_referral_stats("user-123".to_string(), state_wrapper).await;
+        let result = manager.get_referral_stats("user-123");
 
         assert!(result.is_ok());
         let stats = result.unwrap();
@@ -145,18 +149,15 @@ mod tests {
     #[tokio::test]
     async fn test_validate_referral_code() {
         let state = create_test_state();
-        let state_wrapper = State::from(&state);
+        let db = state.db.lock().unwrap();
+        let db_path = db.get_db_path();
+        let manager = ReferralManager::new(db_path.to_str().unwrap());
 
         // Create a code first
-        let code_result = create_referral_code("user-123".to_string(), None, state_wrapper)
-            .await
-            .unwrap();
+        let code_result = manager.create_referral_code("user-123", None).unwrap();
 
         // Validate it
-        let state_wrapper2 = State::from(&state);
-        let is_valid = validate_referral_code(code_result.code.clone(), state_wrapper2)
-            .await
-            .unwrap();
+        let is_valid = manager.validate_referral_code(&code_result.code).unwrap();
 
         assert!(is_valid);
     }
