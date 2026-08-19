@@ -288,6 +288,9 @@ mod tests {
 
         let result = client.get_auth_header().await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Not authenticated"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Not authenticated"));
     }
 }

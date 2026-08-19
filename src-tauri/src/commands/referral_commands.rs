@@ -121,12 +121,7 @@ mod tests {
         let state = create_test_state();
         let state_wrapper = State::from(&state);
 
-        let result = create_referral_code(
-            "user-123".to_string(),
-            None,
-            state_wrapper,
-        )
-        .await;
+        let result = create_referral_code("user-123".to_string(), None, state_wrapper).await;
 
         assert!(result.is_ok());
         let code = result.unwrap();
@@ -153,13 +148,9 @@ mod tests {
         let state_wrapper = State::from(&state);
 
         // Create a code first
-        let code_result = create_referral_code(
-            "user-123".to_string(),
-            None,
-            state_wrapper,
-        )
-        .await
-        .unwrap();
+        let code_result = create_referral_code("user-123".to_string(), None, state_wrapper)
+            .await
+            .unwrap();
 
         // Validate it
         let state_wrapper2 = State::from(&state);

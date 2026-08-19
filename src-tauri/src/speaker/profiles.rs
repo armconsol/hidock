@@ -1,11 +1,14 @@
 // Speaker profile management for cross-session speaker recognition
 
-use crate::db::types::{InsertSpeaker, InsertSpeakerSegment, Speaker, SpeakerSegment, UpdateSpeaker};
+use crate::db::types::{
+    InsertSpeaker, InsertSpeakerSegment, Speaker, SpeakerSegment, UpdateSpeaker,
+};
 use crate::db::Database;
 use anyhow::{Context, Result};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
 
 /// History entry for speaker merge operations (for undo capability)
@@ -24,6 +27,8 @@ pub struct SpeakerMergeHistory {
 pub struct SpeakerProfileManager {
     /// In-memory cache of merge history for undo capability
     merge_history: Vec<SpeakerMergeHistory>,
+    /// API client for voice signature matching
+    api_client: Option<Arc<crate::api::client::HiNotesClient>>,
 }
 
 impl SpeakerProfileManager {
@@ -31,16 +36,34 @@ impl SpeakerProfileManager {
     pub fn new() -> Self {
         Self {
             merge_history: Vec::new(),
+            api_client: None,
+        }
+    }
+
+    /// Create a new speaker profile manager with API client for voice matching
+    pub fn with_api_client(api_client: Arc<crate::api::client::HiNotesClient>) -> Self {
+        Self {
+            merge_history: Vec::new(),
+            api_client: Some(api_client),
         }
     }
 
     /// Get speaker segments for a note
-    pub fn get_speakers_for_note(&self, db: &Database, note_id: &str) -> Result<Vec<SpeakerSegment>> {
+    pub fn get_speakers_for_note(
+        &self,
+        db: &Database,
+        note_id: &str,
+    ) -> Result<Vec<SpeakerSegment>> {
         db.list_speaker_segments_for_note(note_id)
     }
 
     /// Update speaker label/name
-    pub fn update_speaker_label(&self, db: &Database, speaker_id: &str, new_name: &str) -> Result<Speaker> {
+    pub fn update_speaker_label(
+        &self,
+        db: &Database,
+        speaker_id: &str,
+        new_name: &str,
+    ) -> Result<Speaker> {
         let update = UpdateSpeaker {
             name: Some(new_name.to_string()),
             voice_signature: None,
@@ -65,7 +88,9 @@ impl SpeakerProfileManager {
         let all_segments = self.get_speakers_for_note(db, note_id)?;
         let affected_segments: Vec<SpeakerSegment> = all_segments
             .iter()
-            .filter(|s| source_speaker_ids.contains(&s.speaker_id) || s.speaker_id == target_speaker_id)
+            .filter(|s| {
+                source_speaker_ids.contains(&s.speaker_id) || s.speaker_id == target_speaker_id
+            })
             .cloned()
             .collect();
 
@@ -83,7 +108,12 @@ impl SpeakerProfileManager {
         // Step 3: Update segments to point to target speaker
         for source_id in source_speaker_ids {
             db.update_segment_speaker(note_id, source_id, target_speaker_id)
-                .with_context(|| format!("Failed to update segments from {} to {}", source_id, target_speaker_id))?;
+                .with_context(|| {
+                    format!(
+                        "Failed to update segments from {} to {}",
+                        source_id, target_speaker_id
+                    )
+                })?;
         }
 
         // Step 4: Delete source speaker profiles (only if no other notes use them)
@@ -209,16 +239,75 @@ impl SpeakerProfileManager {
 
     /// Match a voice signature against known speakers
     ///
-    /// This would use acoustic features to identify if a speaker has been
-    /// seen in previous recordings. Returns speaker IDs ranked by similarity.
-    pub fn match_voice_signature(
+    /// This uses the HiNotes API to perform acoustic feature matching
+    /// against known speaker profiles. Returns speaker IDs ranked by similarity.
+    ///
+    /// # Arguments
+    /// * `db` - Database containing speaker profiles
+    /// * `signature_id` - Voice signature ID to match
+    /// * `threshold` - Optional similarity threshold (0.0-1.0), defaults to 0.7
+    ///
+    /// # Returns
+    /// * `Ok(Vec<(speaker_id, similarity_score)>)` - Matched speakers ranked by similarity
+    /// * Empty vector if no API client configured or no matches found
+    pub async fn match_voice_signature(
         &self,
-        _db: &Database,
-        _voice_signature: &str,
+        db: &Database,
+        signature_id: &str,
+        threshold: Option<f64>,
     ) -> Result<Vec<(String, f64)>> {
-        // TODO: Implement actual voice matching algorithm
-        // For now, return empty results
-        Ok(vec![])
+        // Check if we have an API client
+        let client = if let Some(ref api_client) = self.api_client {
+            api_client.clone()
+        } else {
+            log::warn!("No API client configured for voice matching");
+            return Ok(vec![]);
+        };
+
+        // Check if authenticated
+        if !client.is_authenticated().await {
+            log::warn!("Not authenticated, skipping voice matching");
+            return Ok(vec![]);
+        }
+
+        // Get all known speakers from database
+        let all_speakers = db.list_speakers()?;
+        if all_speakers.is_empty() {
+            log::debug!("No known speakers to match against");
+            return Ok(vec![]);
+        }
+
+        let candidate_ids: Vec<String> = all_speakers.iter().map(|s| s.id.clone()).collect();
+
+        log::info!(
+            "Matching voice signature {} against {} known speakers",
+            signature_id,
+            candidate_ids.len()
+        );
+
+        // Call API to match speaker
+        match client
+            .match_speaker(signature_id, candidate_ids, threshold)
+            .await
+        {
+            Ok(response) => {
+                if let Some(matched_id) = response.matched_speaker_id {
+                    log::info!(
+                        "Successfully matched speaker: {} with confidence {}",
+                        matched_id,
+                        response.confidence
+                    );
+                    Ok(vec![(matched_id, response.confidence)])
+                } else {
+                    log::debug!("No speaker match found above threshold");
+                    Ok(vec![])
+                }
+            }
+            Err(e) => {
+                log::warn!("Failed to match speaker via API: {}", e);
+                Ok(vec![]) // Return empty on error instead of failing
+            }
+        }
     }
 
     /// Generate statistics for speakers in a note
@@ -386,9 +475,7 @@ mod tests {
         let segment = create_test_segment(&db, "note-1", "speaker-1", 0.0, 10.0);
 
         // Split at 5 seconds
-        let (first, second) = manager
-            .split_segment(&db, &segment.id, 5.0, None)
-            .unwrap();
+        let (first, second) = manager.split_segment(&db, &segment.id, 5.0, None).unwrap();
 
         assert_eq!(first.start_time, 0.0);
         assert_eq!(first.end_time, 5.0);

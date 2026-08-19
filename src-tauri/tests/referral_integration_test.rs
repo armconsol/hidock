@@ -46,7 +46,10 @@ fn test_self_referral_prevention() {
     let result = db.apply_referral_code(user_id, &code.code, &RewardConfig::default());
 
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("cannot refer yourself"));
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("cannot refer yourself"));
 
     println!("✓ Self-referral prevention test passed");
 }

@@ -110,10 +110,7 @@ pub async fn expire_rewards(state: State<'_, AppState>) -> Result<usize, String>
 
 /// Add a reward (for admin/testing purposes)
 #[tauri::command]
-pub async fn add_reward(
-    reward: Reward,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn add_reward(reward: Reward, state: State<'_, AppState>) -> Result<(), String> {
     let db = state
         .db
         .lock()

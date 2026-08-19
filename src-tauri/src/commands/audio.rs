@@ -153,7 +153,9 @@ pub async fn save_audio_as_new(
 
 /// Extract/trim audio to a specific time range
 #[tauri::command]
-pub async fn extract_audio_segment(request: AudioTrimRequest) -> Result<AudioOperationResult, String> {
+pub async fn extract_audio_segment(
+    request: AudioTrimRequest,
+) -> Result<AudioOperationResult, String> {
     let processor = AudioProcessor::new().map_err(|e| format!("{}", e))?;
     let input = PathBuf::from(&request.input_path);
 
@@ -213,9 +215,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_merge_audio_validation() {
-        let request = AudioMergeRequest {
-            file_paths: vec![],
-        };
+        let request = AudioMergeRequest { file_paths: vec![] };
 
         let result = merge_audio_files(request).await;
         assert!(result.is_ok());

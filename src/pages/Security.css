@@ -1,0 +1,121 @@
+.security-page {
+  padding: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.security-page h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  color: var(--color-text-1);
+}
+
+.security-card {
+  margin-bottom: 24px;
+}
+
+.password-form {
+  max-width: 500px;
+}
+
+.email-verification-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.verification-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.verification-status .email {
+  font-weight: 500;
+  color: var(--color-text-1);
+}
+
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-success-6);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 4px 12px;
+  background: var(--color-success-light-1);
+  border-radius: 4px;
+}
+
+.unverified-badge {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-warning-6);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 4px 12px;
+  background: var(--color-warning-light-1);
+  border-radius: 4px;
+}
+
+.verification-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.verification-actions p {
+  margin: 0;
+  color: var(--color-text-2);
+}
+
+.verification-code-input {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.verification-code-input p {
+  margin: 0;
+  color: var(--color-text-2);
+}
+
+.danger-card {
+  border: 1px solid var(--color-danger-light-3);
+}
+
+.danger-text {
+  color: var(--color-text-2);
+  margin-bottom: 16px;
+}
+
+.delete-modal .confirm-instruction {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  color: var(--color-text-2);
+}
+
+.delete-modal .confirm-instruction strong {
+  color: var(--color-danger-6);
+  font-weight: 600;
+}
+
+.delete-list {
+  margin: 12px 0;
+  padding-left: 24px;
+  color: var(--color-text-2);
+}
+
+.delete-list li {
+  margin-bottom: 8px;
+}
+
+@media (max-width: 768px) {
+  .security-page {
+    padding: 16px;
+  }
+
+  .password-form {
+    max-width: 100%;
+  }
+}

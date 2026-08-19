@@ -13,9 +13,13 @@ pub mod usb;
 
 use api::client::HiNotesClient;
 use auth::oauth::OAuth2Handler;
-use commands::{auth_commands::AuthState, speaker_commands::SpeakerState, AppState, FFmpegState};
+use commands::{
+    auth_commands::AuthState, calendar_sync_commands::CalendarSyncState,
+    speaker_commands::SpeakerState, AppState, FFmpegState,
+};
 use db::Database;
 use std::sync::{Arc, Mutex};
+use sync::CalendarSync;
 use tokio::sync::{Mutex as TokioMutex, RwLock};
 use translation::cache::TranslationCache;
 
@@ -43,7 +47,12 @@ pub fn run() {
 
     let db = Database::new(&db_path).expect("Failed to initialize database");
 
-    let app_state = AppState { db: Mutex::new(db) };
+    let db_arc = Arc::new(TokioMutex::new(db));
+    let app_state = AppState {
+        db: Mutex::new(
+            Database::new(&db_path).expect("Failed to initialize database for AppState"),
+        ),
+    };
     let ffmpeg_state = FFmpegState::new();
     let speaker_state = SpeakerState::default();
 
@@ -54,12 +63,19 @@ pub fn run() {
 
     // Initialize API client and OAuth handler
     // Uses HINOTES_API_URL environment variable or defaults to production
-    let api_client = HiNotesClient::new();
-    let oauth_handler = OAuth2Handler::from_env().expect("Failed to initialize OAuth2Handler - ensure GOOGLE_CLIENT_ID is set");
+    let api_client = Arc::new(HiNotesClient::new());
+    let oauth_handler = OAuth2Handler::from_env()
+        .expect("Failed to initialize OAuth2Handler - ensure GOOGLE_CLIENT_ID is set");
 
     let auth_state = AuthState {
-        api_client: Arc::new(RwLock::new(api_client)),
+        api_client: Arc::new(RwLock::new(HiNotesClient::new())),
         oauth_handler: Arc::new(oauth_handler),
+    };
+
+    // Initialize calendar sync worker
+    let calendar_sync = CalendarSync::new(api_client.clone(), db_arc.clone());
+    let calendar_sync_state = CalendarSyncState {
+        worker: Arc::new(TokioMutex::new(Some(calendar_sync))),
     };
 
     tauri::Builder::default()
@@ -68,6 +84,7 @@ pub fn run() {
         .manage(speaker_state)
         .manage(translation_cache_state)
         .manage(auth_state)
+        .manage(calendar_sync_state)
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
@@ -76,6 +93,26 @@ pub fn run() {
             commands::auth_commands::authenticate_with_credentials,
             commands::auth_commands::authenticate_google,
             commands::auth_commands::authenticate_apple,
+            // User profile commands
+            commands::user_commands::get_user_profile,
+            commands::user_commands::update_user_name,
+            commands::user_commands::update_user_region,
+            commands::user_commands::upload_user_avatar,
+            // Password and security commands
+            commands::user_commands::change_password,
+            commands::user_commands::delete_user_account,
+            commands::user_commands::send_email_verification,
+            commands::user_commands::verify_email_code,
+            commands::user_commands::send_password_reset,
+            commands::user_commands::verify_reset_code,
+            commands::user_commands::save_new_password,
+            // Settings commands
+            commands::settings_commands::get_user_setting,
+            commands::settings_commands::set_user_setting,
+            commands::settings_commands::list_user_settings,
+            commands::settings_commands::get_ai_engines,
+            commands::settings_commands::sync_settings_with_cloud,
+            commands::settings_commands::auto_sync_settings,
             // FFmpeg commands
             commands::ffmpeg_validate,
             commands::ffmpeg_binary_path,
@@ -89,6 +126,15 @@ pub fn run() {
             commands::create_calendar_event,
             commands::update_calendar_event,
             commands::delete_calendar_event,
+            // Calendar sync commands
+            commands::start_calendar_sync,
+            commands::stop_calendar_sync,
+            commands::get_calendar_sync_status,
+            commands::set_calendar_google_token,
+            commands::clear_calendar_google_token,
+            commands::set_calendar_id,
+            commands::sync_calendar_now,
+            commands::get_calendar_last_sync,
             // Template commands
             commands::list_templates,
             commands::get_template,
@@ -141,6 +187,11 @@ pub fn run() {
             commands::unbind_device,
             commands::update_device_status,
             commands::update_device_last_sync,
+            // Device file commands
+            commands::list_device_files,
+            commands::download_device_file,
+            commands::upload_device_file,
+            commands::sync_all_device_files,
             // USB commands
             commands::usb_init,
             commands::usb_scan_devices,

@@ -33,6 +33,83 @@ pub struct RegisterResponse {
     pub message: Option<String>,
 }
 
+// Password and Security Types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdatePasswordRequest {
+    #[serde(rename = "currentPassword")]
+    pub current_password: String,
+    #[serde(rename = "newPassword")]
+    pub new_password: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdatePasswordResponse {
+    pub success: bool,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteUserResponse {
+    pub success: bool,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SendEmailVerificationRequest {
+    pub email: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SendEmailVerificationResponse {
+    pub success: bool,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VerifyEmailRequest {
+    pub code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VerifyEmailResponse {
+    pub success: bool,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SendPasswordResetRequest {
+    pub email: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SendPasswordResetResponse {
+    pub success: bool,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VerifyResetCodeRequest {
+    pub code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VerifyResetCodeResponse {
+    pub success: bool,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaveNewPasswordRequest {
+    pub code: String,
+    pub password: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaveNewPasswordResponse {
+    pub success: bool,
+    pub message: Option<String>,
+}
+
 // Google Calendar Types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GoogleCalendarEvent {
@@ -44,6 +121,7 @@ pub struct GoogleCalendarEvent {
     pub html_link: Option<String>,
     #[serde(rename = "hangoutLink")]
     pub hangout_link: Option<String>,
+    pub updated: Option<String>, // RFC3339 timestamp of last modification
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -62,6 +140,13 @@ pub struct CalendarEventsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateEventRequest {
+    pub summary: String,
+    pub start: EventDateTime,
+    pub end: EventDateTime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateEventRequest {
     pub summary: String,
     pub start: EventDateTime,
     pub end: EventDateTime,
@@ -162,6 +247,63 @@ pub struct FindSpeakersResponse {
     pub note_id: String,
     pub speakers: Vec<SpeakerProfile>,
     pub segments: Vec<SpeakerSegment>,
+}
+
+/// Audio segment for voice signature extraction
+#[derive(Debug, Clone)]
+pub struct AudioSegment {
+    pub data: Vec<u8>,
+    pub start_time: f64,
+    pub end_time: f64,
+    pub sample_rate: u32,
+    pub channels: u16,
+}
+
+/// Voice signature for speaker matching
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct VoiceSignature {
+    /// Unique identifier for the voice signature
+    pub id: String,
+    /// Associated speaker ID (if matched)
+    pub speaker_id: Option<String>,
+    /// Acoustic feature vector (e.g., MFCCs, i-vectors, x-vectors)
+    pub features: Vec<f32>,
+    /// Confidence score for this signature (0.0-1.0)
+    pub confidence: f64,
+    /// Timestamp when signature was created
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtractVoiceSignatureRequest {
+    pub note_id: String,
+    pub start_time: f64,
+    pub end_time: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtractVoiceSignatureResponse {
+    pub signature: VoiceSignature,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MatchSpeakerRequest {
+    pub signature_id: String,
+    pub candidate_speaker_ids: Vec<String>,
+    pub threshold: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MatchSpeakerResponse {
+    pub matched_speaker_id: Option<String>,
+    pub confidence: f64,
+    pub similarity_scores: Vec<SpeakerSimilarity>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SpeakerSimilarity {
+    pub speaker_id: String,
+    pub similarity_score: f64,
 }
 
 // Subscription & RevenueCat Types
@@ -355,4 +497,105 @@ pub struct ClaimTrialResponse {
     pub subscription: Option<Subscription>,
     pub expires_at: Option<String>,
     pub message: String,
+}
+
+// Device File Types
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DeviceFile {
+    pub file_id: String,
+    pub name: String,
+    pub size: i64,
+    pub date: String,
+    pub duration: Option<f64>,
+    pub already_synced: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceFileListRequest {
+    pub device_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceFileListResponse {
+    pub files: Vec<DeviceFile>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceFileGetRequest {
+    pub device_id: String,
+    pub file_id: String,
+}
+
+// Settings Types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetSettingRequest {
+    pub key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetSettingResponse {
+    pub key: String,
+    pub value: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SettingsListResponse {
+    pub settings: std::collections::HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaveSettingRequest {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaveSettingResponse {
+    pub success: bool,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AIEngine {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub capabilities: Vec<String>,
+    #[serde(default)]
+    pub is_default: bool,
+    #[serde(default)]
+    pub requires_subscription: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AIEngineListResponse {
+    pub engines: Vec<AIEngine>,
+}
+
+// User Profile Types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserProfileResponse {
+    pub user: UserInfo,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RenameUserRequest {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RenameUserResponse {
+    pub success: bool,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateRegionRequest {
+    pub region: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateRegionResponse {
+    pub success: bool,
+    pub message: Option<String>,
 }

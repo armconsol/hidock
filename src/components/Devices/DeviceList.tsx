@@ -5,7 +5,11 @@ import { useDevicesStore } from '../../store/devicesStore';
 import type { Device } from '../../types/devices';
 import './DeviceList.css';
 
-export function DeviceList() {
+interface DeviceListProps {
+  onDeviceSelect?: (deviceId: string) => void;
+}
+
+export function DeviceList({ onDeviceSelect }: DeviceListProps) {
   const { devices, loading, error, fetchDevices, unbindDevice } = useDevicesStore();
 
   useEffect(() => {
@@ -88,7 +92,15 @@ export function DeviceList() {
       <Space direction="vertical" size="medium" className="device-list">
         {devices.map((device) => (
           <Card key={device.id} className="device-card" bordered>
-            <div className="device-card-content">
+            <div
+              className="device-card-content"
+              onClick={() => {
+                if (device.status === 'connected' && onDeviceSelect) {
+                  onDeviceSelect(device.id);
+                }
+              }}
+              style={{ cursor: device.status === 'connected' ? 'pointer' : 'default' }}
+            >
               <div className="device-icon">{getStatusIcon(device.status)}</div>
               <div className="device-info">
                 <div className="device-header">
@@ -102,8 +114,11 @@ export function DeviceList() {
                     Last sync: {formatLastSync(device.last_sync)}
                   </span>
                 </div>
+                {device.status === 'connected' && onDeviceSelect && (
+                  <p className="device-hint">Click to view files</p>
+                )}
               </div>
-              <div className="device-actions">
+              <div className="device-actions" onClick={(e) => e.stopPropagation()}>
                 <Popconfirm
                   title="Unbind Device"
                   content={`Are you sure you want to unbind ${device.name}? This will remove all device settings.`}

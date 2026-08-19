@@ -100,7 +100,9 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");
         let cache = TranslationCache::new(db_path.to_str().unwrap()).unwrap();
-        let client = Arc::new(HiNotesClient::with_base_url("http://localhost:3001/v1".to_string()));
+        let client = Arc::new(HiNotesClient::with_base_url(
+            "http://localhost:3001/v1".to_string(),
+        ));
         let service = TranslationService::new(client, cache);
         (service, temp_dir)
     }

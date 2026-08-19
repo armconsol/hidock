@@ -123,7 +123,10 @@ pub struct CalendarEvent {
     pub source: EventSource,
     pub meeting_url: Option<String>,
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub synced_at: Option<DateTime<Utc>>,
+    pub google_event_id: Option<String>,
+    pub sync_status: SyncStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -146,6 +149,33 @@ impl EventSource {
             "google_calendar" => Ok(EventSource::GoogleCalendar),
             "hinotes" => Ok(EventSource::Hinotes),
             _ => Err(format!("Invalid event source: {}", s)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum SyncStatus {
+    Synced,
+    PendingPush,
+    Conflict,
+}
+
+impl SyncStatus {
+    pub fn as_str(&self) -> &str {
+        match self {
+            SyncStatus::Synced => "synced",
+            SyncStatus::PendingPush => "pending_push",
+            SyncStatus::Conflict => "conflict",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "synced" => Ok(SyncStatus::Synced),
+            "pending_push" => Ok(SyncStatus::PendingPush),
+            "conflict" => Ok(SyncStatus::Conflict),
+            _ => Err(format!("Invalid sync status: {}", s)),
         }
     }
 }

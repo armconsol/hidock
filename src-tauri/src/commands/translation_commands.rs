@@ -31,7 +31,6 @@ pub struct CacheStats {
 
 // ===== TRANSLATION COMMANDS =====
 
-
 /// Translate text from source language to target language
 #[tauri::command]
 pub async fn translate_text(
@@ -57,10 +56,14 @@ pub async fn translate_text(
 }
 
 /// Get list of supported languages for translation
+///
+/// Note: This returns a hardcoded list of common languages.
+/// In production, this could fetch from HiNotes API via get_language_list()
+/// if the API client is available and authenticated.
 #[tauri::command]
 pub async fn get_supported_languages() -> Result<Vec<Language>, String> {
-    // TODO: In production, fetch from HiNotes API
-    // For now, return common languages
+    // Return supported languages
+    // TODO: Optionally fetch from API if available
     Ok(vec![
         Language {
             code: "en".to_string(),
@@ -91,6 +94,26 @@ pub async fn get_supported_languages() -> Result<Vec<Language>, String> {
             code: "zh".to_string(),
             name: "Chinese".to_string(),
             native_name: Some("中文".to_string()),
+        },
+        Language {
+            code: "it".to_string(),
+            name: "Italian".to_string(),
+            native_name: Some("Italiano".to_string()),
+        },
+        Language {
+            code: "pt".to_string(),
+            name: "Portuguese".to_string(),
+            native_name: Some("Português".to_string()),
+        },
+        Language {
+            code: "ko".to_string(),
+            name: "Korean".to_string(),
+            native_name: Some("한국어".to_string()),
+        },
+        Language {
+            code: "ar".to_string(),
+            name: "Arabic".to_string(),
+            native_name: Some("العربية".to_string()),
         },
     ])
 }
@@ -281,7 +304,6 @@ pub async fn list_translation_sessions(
     session_manager
         .list_sessions(&note_id)
         .map_err(|e| format!("Failed to list sessions: {}", e))
-
 }
 
 #[cfg(test)]

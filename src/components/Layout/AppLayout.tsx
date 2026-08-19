@@ -7,6 +7,7 @@ import {
   IconCheckSquare,
   IconSettings,
   IconUser,
+  IconSafe,
 } from '@arco-design/web-react/icon';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '../ThemeProvider';
@@ -91,17 +92,31 @@ export function AppLayout() {
             <div className="sidebar-footer">
               <div
                 className="footer-button"
-                onClick={() => navigate('/subscription')}
+                onClick={() => navigate('/profile')}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
-                    navigate('/subscription');
+                    navigate('/profile');
                   }
                 }}
               >
                 <IconUser />
-                <span className="menu-item-label">Subscription</span>
+                <span className="menu-item-label">Profile</span>
+              </div>
+              <div
+                className="footer-button"
+                onClick={() => navigate('/security')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    navigate('/security');
+                  }
+                }}
+              >
+                <IconSafe />
+                <span className="menu-item-label">Security</span>
               </div>
               <div
                 className="footer-button"

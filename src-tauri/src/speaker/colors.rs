@@ -52,7 +52,8 @@ impl SpeakerColorAssigner {
             index,
         };
 
-        self.assignments.insert(speaker_id.to_string(), color.clone());
+        self.assignments
+            .insert(speaker_id.to_string(), color.clone());
         self.next_index += 1;
 
         color
@@ -177,7 +178,10 @@ mod tests {
         assigner.assign_color("speaker-3");
 
         // Merge speaker-2 and speaker-3 into speaker-1
-        assigner.merge_speakers("speaker-1", &["speaker-2".to_string(), "speaker-3".to_string()]);
+        assigner.merge_speakers(
+            "speaker-1",
+            &["speaker-2".to_string(), "speaker-3".to_string()],
+        );
 
         // speaker-1 should still have its color
         assert!(assigner.get_color("speaker-1").is_some());
@@ -195,7 +199,10 @@ mod tests {
         assigner.assign_color("speaker-2");
 
         // Merge into speaker-3 which has no color yet
-        assigner.merge_speakers("speaker-3", &["speaker-1".to_string(), "speaker-2".to_string()]);
+        assigner.merge_speakers(
+            "speaker-3",
+            &["speaker-1".to_string(), "speaker-2".to_string()],
+        );
 
         // speaker-3 should now have speaker-1's color
         let color = assigner.get_color("speaker-3");

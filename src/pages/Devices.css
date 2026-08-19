@@ -25,6 +25,24 @@
   color: var(--color-text-3);
 }
 
+.devices-tabs {
+  margin-top: 16px;
+}
+
+.device-files-empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  padding: 40px;
+  text-align: center;
+}
+
+.device-files-empty p {
+  font-size: 16px;
+  color: var(--color-text-3);
+}
+
 @media (max-width: 768px) {
   .devices-page {
     padding: 16px;

@@ -55,8 +55,7 @@ pub struct AudioFileMetadata {
 pub async fn usb_init() -> Result<(), String> {
     info!("Initializing USB subsystem");
 
-    usb::init()
-        .map_err(|e| format!("Failed to initialize USB: {}", e))
+    usb::init().map_err(|e| format!("Failed to initialize USB: {}", e))
 }
 
 /// Scan for connected HiDoc P1 devices
@@ -66,8 +65,7 @@ pub async fn usb_init() -> Result<(), String> {
 pub async fn usb_scan_devices() -> Result<UsbScanResult, String> {
     info!("Scanning for USB devices");
 
-    let devices = usb::scan_devices()
-        .map_err(|e| format!("Failed to scan devices: {}", e))?;
+    let devices = usb::scan_devices().map_err(|e| format!("Failed to scan devices: {}", e))?;
 
     let audio_interfaces = devices.iter().filter(|d| d.is_audio_interface()).count();
     let control_interfaces = devices.iter().filter(|d| d.is_control_interface()).count();
@@ -100,18 +98,16 @@ pub async fn usb_scan_mass_storage() -> Result<MassStorageScanResult, String> {
         let importer = usb::mass_storage::MassStorageImporter::new(path);
 
         // Get mount info
-        let mount_info = importer.get_mount_info()
-            .map_err(|e| {
-                error!("Failed to get mount info: {}", e);
-                format!("Failed to get mount info: {}", e)
-            })?;
+        let mount_info = importer.get_mount_info().map_err(|e| {
+            error!("Failed to get mount info: {}", e);
+            format!("Failed to get mount info: {}", e)
+        })?;
 
         // Scan for audio files
-        let audio_files_raw = importer.scan_for_audio()
-            .map_err(|e| {
-                error!("Failed to scan for audio files: {}", e);
-                format!("Failed to scan for audio files: {}", e)
-            })?;
+        let audio_files_raw = importer.scan_for_audio().map_err(|e| {
+            error!("Failed to scan for audio files: {}", e);
+            format!("Failed to scan for audio files: {}", e)
+        })?;
 
         // Convert to serializable format
         let audio_files = audio_files_raw
@@ -126,7 +122,8 @@ pub async fn usb_scan_mass_storage() -> Result<MassStorageScanResult, String> {
                         .ok()
                         .map(|d| d.as_secs() as i64)
                 }),
-                modified: f.modified
+                modified: f
+                    .modified
                     .duration_since(std::time::UNIX_EPOCH)
                     .map(|d| d.as_secs() as i64)
                     .unwrap_or(0),
@@ -165,7 +162,8 @@ pub async fn usb_import_audio_file(
     let importer = usb::mass_storage::MassStorageImporter::new(mount_point);
 
     // Scan for audio files to get metadata
-    let audio_files = importer.scan_for_audio()
+    let audio_files = importer
+        .scan_for_audio()
         .map_err(|e| format!("Failed to scan for audio files: {}", e))?;
 
     // Find the file to import
@@ -192,7 +190,8 @@ pub async fn usb_delete_audio_file(file_path: PathBuf) -> Result<(), String> {
     let importer = usb::mass_storage::MassStorageImporter::new(mount_point);
 
     // Scan for audio files to get metadata
-    let audio_files = importer.scan_for_audio()
+    let audio_files = importer
+        .scan_for_audio()
         .map_err(|e| format!("Failed to scan for audio files: {}", e))?;
 
     // Find the file to delete

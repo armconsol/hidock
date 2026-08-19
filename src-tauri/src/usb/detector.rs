@@ -7,8 +7,8 @@
 //! - Control/Storage interface: VID 0x1395, PID 0x005d (Solid State System)
 
 use super::{
-    DeviceInfo, DeviceState, UsbError, USB_TIMEOUT_MS, HIDOC_P1_AUDIO_PID, HIDOC_P1_AUDIO_VID,
-    HIDOC_P1_CONTROL_PID, HIDOC_P1_CONTROL_VID, HIDOC_MANUFACTURER,
+    DeviceInfo, DeviceState, UsbError, HIDOC_MANUFACTURER, HIDOC_P1_AUDIO_PID, HIDOC_P1_AUDIO_VID,
+    HIDOC_P1_CONTROL_PID, HIDOC_P1_CONTROL_VID, USB_TIMEOUT_MS,
 };
 use anyhow::Result;
 use log::{info, warn};
@@ -23,8 +23,8 @@ pub struct DeviceDetector {
 impl DeviceDetector {
     /// Create a new device detector
     pub fn new() -> Result<Self> {
-        let context = rusb::Context::new()
-            .map_err(|e| UsbError::DeviceOpenFailed(e.to_string()))?;
+        let context =
+            rusb::Context::new().map_err(|e| UsbError::DeviceOpenFailed(e.to_string()))?;
 
         Ok(Self { context })
     }
@@ -98,13 +98,16 @@ impl DeviceDetector {
     pub fn list_devices(&self) -> Result<Vec<DeviceInfo>, UsbError> {
         info!("Enumerating USB devices for HiDoc P1 (checking both interfaces)");
 
-        let devices = self.context.devices()
+        let devices = self
+            .context
+            .devices()
             .map_err(|e| UsbError::DeviceOpenFailed(e.to_string()))?;
 
         let mut hidoc_devices = Vec::new();
 
         for device in devices.iter() {
-            let desc = device.device_descriptor()
+            let desc = device
+                .device_descriptor()
                 .map_err(|_| UsbError::InvalidDescriptor)?;
 
             let vid = desc.vendor_id();
@@ -121,7 +124,8 @@ impl DeviceDetector {
                         if let Some(ref mfg) = info.manufacturer {
                             if !mfg.contains(HIDOC_MANUFACTURER)
                                 && !mfg.contains("Actions Semiconductor")
-                                && !mfg.contains("Solid State System") {
+                                && !mfg.contains("Solid State System")
+                            {
                                 warn!(
                                     "Device VID:PID {:04x}:{:04x} matches but manufacturer '{}' unexpected",
                                     vid, pid, mfg
@@ -139,7 +143,10 @@ impl DeviceDetector {
                         hidoc_devices.push(info);
                     }
                     Err(e) => {
-                        warn!("Failed to get device info for {:04x}:{:04x}: {}", vid, pid, e);
+                        warn!(
+                            "Failed to get device info for {:04x}:{:04x}: {}",
+                            vid, pid, e
+                        );
                     }
                 }
             }
@@ -169,15 +176,18 @@ impl DeviceDetector {
                 let (manufacturer, product, serial_number) = match handle.read_languages(timeout) {
                     Ok(langs) if !langs.is_empty() => {
                         let lang = langs[0];
-                        let mfg = desc.manufacturer_string_index()
-                            .and_then(|_| handle.read_manufacturer_string(lang, desc, timeout).ok());
-                        let prod = desc.product_string_index()
+                        let mfg = desc.manufacturer_string_index().and_then(|_| {
+                            handle.read_manufacturer_string(lang, desc, timeout).ok()
+                        });
+                        let prod = desc
+                            .product_string_index()
                             .and_then(|_| handle.read_product_string(lang, desc, timeout).ok());
-                        let serial = desc.serial_number_string_index()
-                            .and_then(|_| handle.read_serial_number_string(lang, desc, timeout).ok());
+                        let serial = desc.serial_number_string_index().and_then(|_| {
+                            handle.read_serial_number_string(lang, desc, timeout).ok()
+                        });
                         (mfg, prod, serial)
                     }
-                    _ => (None, None, None)
+                    _ => (None, None, None),
                 };
 
                 (manufacturer, product, serial_number)
@@ -205,15 +215,16 @@ impl DeviceDetector {
 
     /// Check if device supports mass storage class
     pub fn is_mass_storage_device(&self, info: &DeviceInfo) -> Result<bool, UsbError> {
-        let devices = self.context.devices()
+        let devices = self
+            .context
+            .devices()
             .map_err(|e| UsbError::DeviceOpenFailed(e.to_string()))?;
 
         // Find the device by bus and address
         for device in devices.iter() {
-            if device.bus_number() == info.bus_number
-                && device.address() == info.device_address {
-
-                let config = device.active_config_descriptor()
+            if device.bus_number() == info.bus_number && device.address() == info.device_address {
+                let config = device
+                    .active_config_descriptor()
                     .map_err(|_| UsbError::InvalidDescriptor)?;
 
                 for interface in config.interfaces() {
@@ -232,7 +243,7 @@ impl DeviceDetector {
 
         Err(UsbError::DeviceNotFound {
             vid: info.vendor_id,
-            pid: info.product_id
+            pid: info.product_id,
         })
     }
 }

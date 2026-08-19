@@ -378,6 +378,31 @@ class HiNotesClient:
             'endTime': end_time.strftime('%Y-%m-%d %H:%M:%S')
         })
 
+    def notify_recording_status(
+        self,
+        event_id: str,
+        is_recording: bool
+    ) -> Dict[str, Any]:
+        """
+        Notify HiNotes calendar of device recording state
+
+        This updates the calendar event to indicate that a recording is in progress
+        or has completed. The server typically updates the event notes with
+        "Recording in progress..." while active, and may add a transcription link
+        when the recording is finished.
+
+        Args:
+            event_id: Google Calendar event ID
+            is_recording: True if recording is active, False if stopped
+
+        Returns:
+            Response from server confirming the notification
+        """
+        return self._request('POST', '/calendar/event/device_state/notice', json={
+            'eventId': event_id,
+            'isRecording': is_recording
+        })
+
     # Settings
 
     def get_settings(self) -> Dict[str, Any]:

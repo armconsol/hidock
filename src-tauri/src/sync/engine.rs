@@ -541,7 +541,9 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         Database::new(&db_path).unwrap(); // Initialize database
 
-        let client = Arc::new(HiNotesClient::with_base_url("http://localhost:3001/v1".to_string()));
+        let client = Arc::new(HiNotesClient::with_base_url(
+            "http://localhost:3001/v1".to_string(),
+        ));
 
         let engine = SyncEngine::new(db_path, client);
         let state = engine.get_state().await;
@@ -557,7 +559,9 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         Database::new(&db_path).unwrap(); // Initialize database
 
-        let client = Arc::new(HiNotesClient::with_base_url("http://localhost:3001/v1".to_string()));
+        let client = Arc::new(HiNotesClient::with_base_url(
+            "http://localhost:3001/v1".to_string(),
+        ));
 
         let engine = SyncEngine::new(db_path, client);
 
@@ -579,7 +583,9 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         Database::new(&db_path).unwrap(); // Initialize database
 
-        let client = Arc::new(HiNotesClient::with_base_url("http://localhost:3001/v1".to_string()));
+        let client = Arc::new(HiNotesClient::with_base_url(
+            "http://localhost:3001/v1".to_string(),
+        ));
 
         let engine = SyncEngine::new(db_path, client);
         let ops = engine.get_pending_operations().unwrap();

@@ -61,7 +61,10 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     source TEXT CHECK(source IN ('google_calendar', 'hinotes')) NOT NULL,
     meeting_url TEXT,
     created_at DATETIME NOT NULL,
-    synced_at DATETIME
+    updated_at DATETIME NOT NULL,
+    synced_at DATETIME,
+    google_event_id TEXT,
+    sync_status TEXT CHECK(sync_status IN ('synced', 'pending_push', 'conflict')) NOT NULL DEFAULT 'synced'
 );
 
 -- Devices (HiDoc P1)

@@ -286,7 +286,10 @@ mod tests {
         };
 
         let created = db.create_whisper_note(&whisper).unwrap();
-        assert_eq!(created.audio_url, Some("https://example.com/audio.mp3".to_string()));
+        assert_eq!(
+            created.audio_url,
+            Some("https://example.com/audio.mp3".to_string())
+        );
     }
 
     #[test]

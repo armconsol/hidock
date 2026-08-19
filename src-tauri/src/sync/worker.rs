@@ -138,7 +138,11 @@ impl SyncWorker {
                 // Remove the permanently failed operation
                 let db_lock = db.lock().await;
                 if let Err(e) = db_lock.remove_pending_operation(op.id) {
-                    log::error!("Failed to remove permanently failed operation {}: {}", op.id, e);
+                    log::error!(
+                        "Failed to remove permanently failed operation {}: {}",
+                        op.id,
+                        e
+                    );
                 }
                 continue;
             }
@@ -173,15 +177,16 @@ impl SyncWorker {
                     // Increment retry count with exponential backoff
                     let db_lock = db.lock().await;
                     if let Err(e) = db_lock.increment_pending_operation_retry(op.id) {
-                        log::error!("Failed to increment retry count for operation {}: {}", op.id, e);
+                        log::error!(
+                            "Failed to increment retry count for operation {}: {}",
+                            op.id,
+                            e
+                        );
                     }
 
                     // Calculate exponential backoff delay
                     let backoff_secs = 2u64.pow(op.retry_count as u32);
-                    log::debug!(
-                        "Backing off for {} seconds before next retry",
-                        backoff_secs
-                    );
+                    log::debug!("Backing off for {} seconds before next retry", backoff_secs);
                     sleep(Duration::from_secs(backoff_secs)).await;
                 }
             }
@@ -293,7 +298,9 @@ mod tests {
     #[tokio::test]
     async fn test_sync_worker_lifecycle() {
         let db = Arc::new(Mutex::new(Database::new_in_memory().unwrap()));
-        let client = Arc::new(HiNotesClient::with_base_url("https://hinotes.hidock.com/v1".to_string()));
+        let client = Arc::new(HiNotesClient::with_base_url(
+            "https://hinotes.hidock.com/v1".to_string(),
+        ));
         let worker = SyncWorker::new(db, client);
 
         // Initially not running
@@ -320,7 +327,9 @@ mod tests {
     #[tokio::test]
     async fn test_process_pending_operations_empty() {
         let db = Arc::new(Mutex::new(Database::new_in_memory().unwrap()));
-        let client = Arc::new(HiNotesClient::with_base_url("https://hinotes.hidock.com/v1".to_string()));
+        let client = Arc::new(HiNotesClient::with_base_url(
+            "https://hinotes.hidock.com/v1".to_string(),
+        ));
 
         let result = SyncWorker::process_pending_operations(&db, &client).await;
         assert!(result.is_ok());
@@ -330,18 +339,15 @@ mod tests {
     #[tokio::test]
     async fn test_max_retries_exceeded() {
         let db = Arc::new(Mutex::new(Database::new_in_memory().unwrap()));
-        let client = Arc::new(HiNotesClient::with_base_url("https://hinotes.hidock.com/v1".to_string()));
+        let client = Arc::new(HiNotesClient::with_base_url(
+            "https://hinotes.hidock.com/v1".to_string(),
+        ));
 
         // Add a pending operation
         let operation_id = {
             let db_lock = db.lock().await;
             db_lock
-                .add_pending_operation(
-                    "create",
-                    "note",
-                    "test-note-id",
-                    r#"{"title":"Test Note"}"#,
-                )
+                .add_pending_operation("create", "note", "test-note-id", r#"{"title":"Test Note"}"#)
                 .unwrap()
         };
 

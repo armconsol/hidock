@@ -8,8 +8,8 @@ use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 
 pub mod detector;
-pub mod protocol;
 pub mod mass_storage;
+pub mod protocol;
 
 // ============================================================================
 // Device Constants
@@ -160,17 +160,22 @@ impl DeviceInfo {
                 || mfg.contains("Actions Semiconductor")
                 || mfg.contains("Solid State System");
             if !valid_mfg {
-                warn!("Device VID {:04x} PID {:04x} matches but manufacturer '{}' unexpected",
-                    self.vendor_id, self.product_id, mfg);
+                warn!(
+                    "Device VID {:04x} PID {:04x} matches but manufacturer '{}' unexpected",
+                    self.vendor_id, self.product_id, mfg
+                );
             }
         }
 
         if let Some(ref prod) = self.product {
             // Accept product name variations
-            let valid_prod = prod.contains("HiDock") || prod.contains("HiDoc") || prod.contains(HIDOC_PRODUCT);
+            let valid_prod =
+                prod.contains("HiDock") || prod.contains("HiDoc") || prod.contains(HIDOC_PRODUCT);
             if !valid_prod {
-                warn!("Device VID {:04x} PID {:04x} matches but product '{}' unexpected",
-                    self.vendor_id, self.product_id, prod);
+                warn!(
+                    "Device VID {:04x} PID {:04x} matches but product '{}' unexpected",
+                    self.vendor_id, self.product_id, prod
+                );
             }
         }
 
@@ -267,7 +272,8 @@ pub fn scan_devices() -> Result<Vec<DeviceInfo>> {
     let detector = detector::DeviceDetector::new()
         .map_err(|e| anyhow::anyhow!("Failed to create device detector: {}", e))?;
 
-    let devices = detector.list_devices()
+    let devices = detector
+        .list_devices()
         .map_err(|e| anyhow::anyhow!("Failed to list devices: {}", e))?;
 
     if devices.is_empty() {

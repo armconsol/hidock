@@ -1,0 +1,156 @@
+.device-files-container {
+  width: 100%;
+  padding: 16px;
+}
+
+.device-info-card {
+  margin-bottom: 24px;
+}
+
+.device-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.device-info-section {
+  flex: 1;
+  min-width: 200px;
+}
+
+.device-info-section h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-1);
+}
+
+.device-info-label {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-2);
+}
+
+.device-info-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-3);
+}
+
+.device-files-card {
+  width: 100%;
+}
+
+.device-files-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.upload-drag-area {
+  padding: 32px 16px;
+  text-align: center;
+  background: var(--color-fill-2);
+  border: 2px dashed var(--color-border-2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 300px;
+}
+
+.upload-drag-area:hover {
+  background: var(--color-fill-3);
+  border-color: var(--color-primary-6);
+}
+
+.upload-drag-text {
+  margin: 8px 0 0 0;
+  font-size: 14px;
+  color: var(--color-text-3);
+}
+
+.device-files-table {
+  margin-top: 16px;
+}
+
+.transfer-status-bar {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-border-2);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-width: 400px;
+}
+
+.transfer-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.transfer-item span {
+  font-size: 14px;
+  color: var(--color-text-2);
+  min-width: 100px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .device-files-container {
+    padding: 8px;
+  }
+
+  .device-info-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .device-info-section {
+    width: 100%;
+  }
+
+  .device-files-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .upload-drag-area {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .transfer-status-bar {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    max-width: none;
+  }
+}
+
+/* Dark mode adjustments */
+[data-theme='dark'] .upload-drag-area {
+  background: var(--color-fill-2);
+  border-color: var(--color-border-2);
+}
+
+[data-theme='dark'] .upload-drag-area:hover {
+  background: var(--color-fill-3);
+  border-color: var(--color-primary-6);
+}
+
+[data-theme='dark'] .transfer-status-bar {
+  background: var(--color-bg-3);
+  border-color: var(--color-border-3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}

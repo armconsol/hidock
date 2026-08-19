@@ -130,7 +130,7 @@ describe('AppLayout', () => {
 
     const settingsButton = screen
       .getByText('Settings')
-      .closest('.settings-button');
+      .closest('.footer-button');
     expect(settingsButton).toBeInTheDocument();
 
     if (settingsButton) {
@@ -149,7 +149,7 @@ describe('AppLayout', () => {
 
     const settingsButton = screen
       .getByText('Settings')
-      .closest('.settings-button');
+      .closest('.footer-button');
 
     if (settingsButton) {
       settingsButton.focus();
@@ -166,7 +166,7 @@ describe('AppLayout', () => {
 
     const settingsButton = screen
       .getByText('Settings')
-      .closest('.settings-button');
+      .closest('.footer-button');
     expect(settingsButton).toHaveAttribute('role', 'button');
     expect(settingsButton).toHaveAttribute('tabIndex', '0');
   });

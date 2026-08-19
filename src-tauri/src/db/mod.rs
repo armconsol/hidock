@@ -11,7 +11,7 @@ use types::{
     InsertShareLink, InsertSmartLabel, InsertSpeaker, InsertSpeakerSegment, InsertSubscription,
     InsertSubscriptionEvent, InsertTodo, InsertVocabulary, InsertWhisperNote, Note,
     PaginationParams, ShareLink, SmartLabel, Speaker, SpeakerSegment, SubscriptionEvent,
-    SubscriptionEventType, SubscriptionStatus, Template, Todo, TodoState, UpdateNote,
+    SubscriptionEventType, SubscriptionStatus, SyncStatus, Template, Todo, TodoState, UpdateNote,
     UpdateSmartLabel, UpdateSpeaker, UpdateSubscription, UpdateTodo, Vocabulary, WhisperNote,
 };
 
@@ -623,7 +623,11 @@ impl Database {
     }
 
     /// Convert a whisper note to a regular note
-    pub fn convert_whisper_to_note(&self, whisper_id: &str, folder_id: Option<String>) -> Result<Note> {
+    pub fn convert_whisper_to_note(
+        &self,
+        whisper_id: &str,
+        folder_id: Option<String>,
+    ) -> Result<Note> {
         // Get the whisper note
         let whisper = self
             .get_whisper_note(whisper_id)?
@@ -941,8 +945,8 @@ impl Database {
     /// Insert a new calendar event
     pub fn insert_calendar_event(&self, event: &CalendarEvent) -> Result<CalendarEvent> {
         self.conn.execute(
-            "INSERT INTO calendar_events (id, title, start_time, end_time, source, meeting_url, created_at, synced_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT INTO calendar_events (id, title, start_time, end_time, source, meeting_url, created_at, updated_at, synced_at, google_event_id, sync_status)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 &event.id,
                 &event.title,
@@ -951,7 +955,10 @@ impl Database {
                 event.source.as_str(),
                 &event.meeting_url,
                 event.created_at.to_rfc3339(),
+                event.updated_at.to_rfc3339(),
                 event.synced_at.as_ref().map(|dt| dt.to_rfc3339()),
+                &event.google_event_id,
+                event.sync_status.as_str(),
             ],
         )?;
 
@@ -964,7 +971,7 @@ impl Database {
         let event = self
             .conn
             .query_row(
-                "SELECT id, title, start_time, end_time, source, meeting_url, created_at, synced_at
+                "SELECT id, title, start_time, end_time, source, meeting_url, created_at, updated_at, synced_at, google_event_id, sync_status
                  FROM calendar_events WHERE id = ?1",
                 params![id],
                 |row| {
@@ -976,25 +983,41 @@ impl Database {
                         row.get::<_, String>(4)?,
                         row.get::<_, Option<String>>(5)?,
                         row.get::<_, String>(6)?,
-                        row.get::<_, Option<String>>(7)?,
+                        row.get::<_, String>(7)?,
+                        row.get::<_, Option<String>>(8)?,
+                        row.get::<_, Option<String>>(9)?,
+                        row.get::<_, String>(10)?,
                     ))
                 },
             )
             .optional()?;
 
         match event {
-            Some((id, title, start_time, end_time, source, meeting_url, created_at, synced_at)) => {
-                Ok(Some(CalendarEvent {
-                    id,
-                    title,
-                    start_time: parse_datetime(start_time)?,
-                    end_time: parse_datetime(end_time)?,
-                    source: EventSource::from_str(&source).map_err(|e| anyhow::anyhow!(e))?,
-                    meeting_url,
-                    created_at: parse_datetime(created_at)?,
-                    synced_at: parse_datetime_opt(synced_at)?,
-                }))
-            }
+            Some((
+                id,
+                title,
+                start_time,
+                end_time,
+                source,
+                meeting_url,
+                created_at,
+                updated_at,
+                synced_at,
+                google_event_id,
+                sync_status,
+            )) => Ok(Some(CalendarEvent {
+                id,
+                title,
+                start_time: parse_datetime(start_time)?,
+                end_time: parse_datetime(end_time)?,
+                source: EventSource::from_str(&source).map_err(|e| anyhow::anyhow!(e))?,
+                meeting_url,
+                created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
+                synced_at: parse_datetime_opt(synced_at)?,
+                google_event_id,
+                sync_status: SyncStatus::from_str(&sync_status).map_err(|e| anyhow::anyhow!(e))?,
+            })),
             None => Ok(None),
         }
     }
@@ -1002,7 +1025,7 @@ impl Database {
     /// List calendar events with pagination
     pub fn list_calendar_events(&self, limit: i64, offset: i64) -> Result<Vec<CalendarEvent>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, title, start_time, end_time, source, meeting_url, created_at, synced_at
+            "SELECT id, title, start_time, end_time, source, meeting_url, created_at, updated_at, synced_at, google_event_id, sync_status
              FROM calendar_events
              ORDER BY start_time ASC
              LIMIT ?1 OFFSET ?2",
@@ -1017,14 +1040,28 @@ impl Database {
                 row.get::<_, String>(4)?,
                 row.get::<_, Option<String>>(5)?,
                 row.get::<_, String>(6)?,
-                row.get::<_, Option<String>>(7)?,
+                row.get::<_, String>(7)?,
+                row.get::<_, Option<String>>(8)?,
+                row.get::<_, Option<String>>(9)?,
+                row.get::<_, String>(10)?,
             ))
         })?;
 
         let mut events = Vec::new();
         for row in rows {
-            let (id, title, start_time, end_time, source, meeting_url, created_at, synced_at) =
-                row?;
+            let (
+                id,
+                title,
+                start_time,
+                end_time,
+                source,
+                meeting_url,
+                created_at,
+                updated_at,
+                synced_at,
+                google_event_id,
+                sync_status,
+            ) = row?;
             events.push(CalendarEvent {
                 id,
                 title,
@@ -1033,7 +1070,10 @@ impl Database {
                 source: EventSource::from_str(&source).map_err(|e| anyhow::anyhow!(e))?,
                 meeting_url,
                 created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
                 synced_at: parse_datetime_opt(synced_at)?,
+                google_event_id,
+                sync_status: SyncStatus::from_str(&sync_status).map_err(|e| anyhow::anyhow!(e))?,
             });
         }
 
@@ -1056,7 +1096,7 @@ impl Database {
         end: DateTime<Utc>,
     ) -> Result<Vec<CalendarEvent>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, title, start_time, end_time, source, meeting_url, created_at, synced_at
+            "SELECT id, title, start_time, end_time, source, meeting_url, created_at, updated_at, synced_at, google_event_id, sync_status
              FROM calendar_events
              WHERE start_time >= ?1 AND start_time < ?2
              ORDER BY start_time ASC",
@@ -1071,14 +1111,28 @@ impl Database {
                 row.get::<_, String>(4)?,
                 row.get::<_, Option<String>>(5)?,
                 row.get::<_, String>(6)?,
-                row.get::<_, Option<String>>(7)?,
+                row.get::<_, String>(7)?,
+                row.get::<_, Option<String>>(8)?,
+                row.get::<_, Option<String>>(9)?,
+                row.get::<_, String>(10)?,
             ))
         })?;
 
         let mut events = Vec::new();
         for row in rows {
-            let (id, title, start_time, end_time, source, meeting_url, created_at, synced_at) =
-                row?;
+            let (
+                id,
+                title,
+                start_time,
+                end_time,
+                source,
+                meeting_url,
+                created_at,
+                updated_at,
+                synced_at,
+                google_event_id,
+                sync_status,
+            ) = row?;
             events.push(CalendarEvent {
                 id,
                 title,
@@ -1087,7 +1141,10 @@ impl Database {
                 source: EventSource::from_str(&source).map_err(|e| anyhow::anyhow!(e))?,
                 meeting_url,
                 created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
                 synced_at: parse_datetime_opt(synced_at)?,
+                google_event_id,
+                sync_status: SyncStatus::from_str(&sync_status).map_err(|e| anyhow::anyhow!(e))?,
             });
         }
 
@@ -1097,15 +1154,18 @@ impl Database {
     /// Update a calendar event
     pub fn update_calendar_event(&self, event: &CalendarEvent) -> Result<CalendarEvent> {
         let updated = self.conn.execute(
-            "UPDATE calendar_events SET title = ?1, start_time = ?2, end_time = ?3, source = ?4, meeting_url = ?5, synced_at = ?6
-             WHERE id = ?7",
+            "UPDATE calendar_events SET title = ?1, start_time = ?2, end_time = ?3, source = ?4, meeting_url = ?5, updated_at = ?6, synced_at = ?7, google_event_id = ?8, sync_status = ?9
+             WHERE id = ?10",
             params![
                 &event.title,
                 event.start_time.to_rfc3339(),
                 event.end_time.to_rfc3339(),
                 event.source.as_str(),
                 &event.meeting_url,
+                event.updated_at.to_rfc3339(),
                 event.synced_at.as_ref().map(|dt| dt.to_rfc3339()),
+                &event.google_event_id,
+                event.sync_status.as_str(),
                 &event.id,
             ],
         )?;
@@ -1144,8 +1204,8 @@ impl Database {
         let now = Utc::now();
 
         let updated = self.conn.execute(
-            "UPDATE calendar_events SET synced_at = ?1 WHERE id = ?2",
-            params![now.to_rfc3339(), id],
+            "UPDATE calendar_events SET synced_at = ?1, sync_status = ?2 WHERE id = ?3",
+            params![now.to_rfc3339(), SyncStatus::Synced.as_str(), id],
         )?;
 
         if updated == 0 {
@@ -1153,6 +1213,139 @@ impl Database {
         }
 
         Ok(())
+    }
+
+    /// Get calendar events that need to be pushed to Google
+    pub fn get_pending_push_events(&self) -> Result<Vec<CalendarEvent>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, title, start_time, end_time, source, meeting_url, created_at, updated_at, synced_at, google_event_id, sync_status
+             FROM calendar_events
+             WHERE sync_status = ?1
+             ORDER BY updated_at ASC",
+        )?;
+
+        let rows = stmt.query_map(params![SyncStatus::PendingPush.as_str()], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, Option<String>>(5)?,
+                row.get::<_, String>(6)?,
+                row.get::<_, String>(7)?,
+                row.get::<_, Option<String>>(8)?,
+                row.get::<_, Option<String>>(9)?,
+                row.get::<_, String>(10)?,
+            ))
+        })?;
+
+        let mut events = Vec::new();
+        for row in rows {
+            let (
+                id,
+                title,
+                start_time,
+                end_time,
+                source,
+                meeting_url,
+                created_at,
+                updated_at,
+                synced_at,
+                google_event_id,
+                sync_status,
+            ) = row?;
+            events.push(CalendarEvent {
+                id,
+                title,
+                start_time: parse_datetime(start_time)?,
+                end_time: parse_datetime(end_time)?,
+                source: EventSource::from_str(&source).map_err(|e| anyhow::anyhow!(e))?,
+                meeting_url,
+                created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
+                synced_at: parse_datetime_opt(synced_at)?,
+                google_event_id,
+                sync_status: SyncStatus::from_str(&sync_status).map_err(|e| anyhow::anyhow!(e))?,
+            });
+        }
+
+        Ok(events)
+    }
+
+    /// Update sync status for a calendar event
+    pub fn update_calendar_event_sync_status(&self, id: &str, status: SyncStatus) -> Result<()> {
+        let now = Utc::now();
+
+        let updated = self.conn.execute(
+            "UPDATE calendar_events SET sync_status = ?1, updated_at = ?2 WHERE id = ?3",
+            params![status.as_str(), now.to_rfc3339(), id],
+        )?;
+
+        if updated == 0 {
+            anyhow::bail!("Calendar event not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    /// Get calendar event by Google event ID
+    pub fn get_calendar_event_by_google_id(
+        &self,
+        google_event_id: &str,
+    ) -> Result<Option<CalendarEvent>> {
+        let event = self
+            .conn
+            .query_row(
+                "SELECT id, title, start_time, end_time, source, meeting_url, created_at, updated_at, synced_at, google_event_id, sync_status
+                 FROM calendar_events WHERE google_event_id = ?1",
+                params![google_event_id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                        row.get::<_, String>(6)?,
+                        row.get::<_, String>(7)?,
+                        row.get::<_, Option<String>>(8)?,
+                        row.get::<_, Option<String>>(9)?,
+                        row.get::<_, String>(10)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match event {
+            Some((
+                id,
+                title,
+                start_time,
+                end_time,
+                source,
+                meeting_url,
+                created_at,
+                updated_at,
+                synced_at,
+                google_event_id,
+                sync_status,
+            )) => Ok(Some(CalendarEvent {
+                id,
+                title,
+                start_time: parse_datetime(start_time)?,
+                end_time: parse_datetime(end_time)?,
+                source: EventSource::from_str(&source).map_err(|e| anyhow::anyhow!(e))?,
+                meeting_url,
+                created_at: parse_datetime(created_at)?,
+                updated_at: parse_datetime(updated_at)?,
+                synced_at: parse_datetime_opt(synced_at)?,
+                google_event_id,
+                sync_status: SyncStatus::from_str(&sync_status).map_err(|e| anyhow::anyhow!(e))?,
+            })),
+            None => Ok(None),
+        }
     }
 
     // ===== TEMPLATE CRUD OPERATIONS =====
@@ -1879,11 +2072,7 @@ impl Database {
     }
 
     /// Update device status
-    pub fn update_device_status(
-        &self,
-        device_id: &str,
-        status: DeviceStatus,
-    ) -> Result<Device> {
+    pub fn update_device_status(&self, device_id: &str, status: DeviceStatus) -> Result<Device> {
         let updated = self.conn.execute(
             "UPDATE devices SET status = ?1 WHERE id = ?2",
             params![status.as_str(), device_id],
@@ -2056,8 +2245,7 @@ impl Database {
 
         let mut shares = Vec::new();
         for row in rows {
-            let (id, note_id, token, expires_at, created_at, last_accessed_at, access_count) =
-                row?;
+            let (id, note_id, token, expires_at, created_at, last_accessed_at, access_count) = row?;
             shares.push(ShareLink {
                 id,
                 note_id,
@@ -2222,7 +2410,10 @@ impl Database {
         params_vec.push(Box::new(now.to_rfc3339()));
         params_vec.push(Box::new(id.to_string()));
 
-        let sql = format!("UPDATE speakers SET {} WHERE id = ?", update_parts.join(", "));
+        let sql = format!(
+            "UPDATE speakers SET {} WHERE id = ?",
+            update_parts.join(", ")
+        );
 
         let params_refs: Vec<&dyn rusqlite::ToSql> =
             params_vec.iter().map(|b| b.as_ref()).collect();
@@ -2358,7 +2549,10 @@ impl Database {
     }
 
     /// List all speaker segments for a specific speaker
-    pub fn list_speaker_segments_by_speaker(&self, speaker_id: &str) -> Result<Vec<SpeakerSegment>> {
+    pub fn list_speaker_segments_by_speaker(
+        &self,
+        speaker_id: &str,
+    ) -> Result<Vec<SpeakerSegment>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, note_id, speaker_id, start_time, end_time, confidence, created_at
              FROM speaker_segments
@@ -2420,11 +2614,11 @@ impl Database {
 
     /// Count total speaker segments
     pub fn count_speaker_segments(&self) -> Result<i64> {
-        let count: i64 = self.conn.query_row(
-            "SELECT COUNT(*) FROM speaker_segments",
-            [],
-            |row| row.get(0),
-        )?;
+        let count: i64 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM speaker_segments", [], |row| {
+                    row.get(0)
+                })?;
         Ok(count)
     }
 
@@ -2465,7 +2659,11 @@ impl Database {
     }
 
     /// Update speaker assignment for a segment
-    pub fn assign_speaker_to_segment(&self, segment_id: &str, speaker_id: &str) -> Result<SpeakerSegment> {
+    pub fn assign_speaker_to_segment(
+        &self,
+        segment_id: &str,
+        speaker_id: &str,
+    ) -> Result<SpeakerSegment> {
         // Verify speaker exists
         self.get_speaker(speaker_id)?
             .ok_or_else(|| anyhow::anyhow!("Speaker not found: {}", speaker_id))?;
@@ -2487,7 +2685,11 @@ impl Database {
     /// Returns None if either signature is None
     /// Currently uses simple string comparison - in production this would use
     /// acoustic feature comparison (MFCCs, spectrograms, embeddings, etc.)
-    pub fn compare_voice_signatures(&self, signature1: Option<&str>, signature2: Option<&str>) -> Option<f64> {
+    pub fn compare_voice_signatures(
+        &self,
+        signature1: Option<&str>,
+        signature2: Option<&str>,
+    ) -> Option<f64> {
         match (signature1, signature2) {
             (Some(sig1), Some(sig2)) => {
                 // Simple placeholder implementation - string similarity
@@ -2535,7 +2737,11 @@ impl Database {
 
         for i in 1..=len1 {
             for j in 1..=len2 {
-                let cost = if s1_chars[i - 1] == s2_chars[j - 1] { 0 } else { 1 };
+                let cost = if s1_chars[i - 1] == s2_chars[j - 1] {
+                    0
+                } else {
+                    1
+                };
                 matrix[i][j] = (matrix[i - 1][j] + 1)
                     .min(matrix[i][j - 1] + 1)
                     .min(matrix[i - 1][j - 1] + cost);
@@ -2547,16 +2753,19 @@ impl Database {
 
     /// Find the best matching speaker for a given voice signature
     /// Returns (speaker_id, similarity_score) if a match above threshold is found
-    pub fn find_matching_speaker(&self, voice_signature: &str, threshold: f64) -> Result<Option<(String, f64)>> {
+    pub fn find_matching_speaker(
+        &self,
+        voice_signature: &str,
+        threshold: f64,
+    ) -> Result<Option<(String, f64)>> {
         let speakers = self.list_speakers()?;
 
         let mut best_match: Option<(String, f64)> = None;
 
         for speaker in speakers {
-            if let Some(similarity) = self.compare_voice_signatures(
-                Some(voice_signature),
-                speaker.voice_signature.as_deref(),
-            ) {
+            if let Some(similarity) = self
+                .compare_voice_signatures(Some(voice_signature), speaker.voice_signature.as_deref())
+            {
                 if similarity >= threshold {
                     match best_match {
                         Some((_, best_score)) if similarity > best_score => {
@@ -2585,8 +2794,13 @@ impl Database {
         let mut assigned_count = 0;
 
         for (segment_id, voice_signature) in signature_map {
-            if let Some((speaker_id, _similarity)) = self.find_matching_speaker(voice_signature, threshold)? {
-                if self.assign_speaker_to_segment(segment_id, &speaker_id).is_ok() {
+            if let Some((speaker_id, _similarity)) =
+                self.find_matching_speaker(voice_signature, threshold)?
+            {
+                if self
+                    .assign_speaker_to_segment(segment_id, &speaker_id)
+                    .is_ok()
+                {
                     assigned_count += 1;
                 }
             }
@@ -2627,7 +2841,11 @@ impl Database {
     }
 
     /// Update the end time of a speaker segment
-    pub fn update_segment_end_time(&self, segment_id: &str, end_time: f64) -> Result<SpeakerSegment> {
+    pub fn update_segment_end_time(
+        &self,
+        segment_id: &str,
+        end_time: f64,
+    ) -> Result<SpeakerSegment> {
         let updated = self.conn.execute(
             "UPDATE speaker_segments SET end_time = ?1 WHERE id = ?2",
             params![end_time, segment_id],
@@ -3031,7 +3249,10 @@ impl Database {
     }
 
     /// Get referral code details by code string
-    fn get_referral_code_by_code(&self, code: &str) -> Result<Option<crate::referral::ReferralCode>> {
+    fn get_referral_code_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<crate::referral::ReferralCode>> {
         let result = self
             .conn
             .query_row(
@@ -3052,13 +3273,15 @@ impl Database {
             .optional()?;
 
         match result {
-            Some((id, user_id, code, created_at, expires_at)) => Ok(Some(crate::referral::ReferralCode {
-                id,
-                user_id,
-                code,
-                created_at: parse_datetime(created_at)?,
-                expires_at: parse_datetime_opt(expires_at)?,
-            })),
+            Some((id, user_id, code, created_at, expires_at)) => {
+                Ok(Some(crate::referral::ReferralCode {
+                    id,
+                    user_id,
+                    code,
+                    created_at: parse_datetime(created_at)?,
+                    expires_at: parse_datetime_opt(expires_at)?,
+                }))
+            }
             None => Ok(None),
         }
     }
@@ -3140,9 +3363,8 @@ impl Database {
         )?;
 
         // Get aggregated rewards
-        let (total_points, total_credits, total_days): (Option<i64>, Option<i64>, Option<i64>) = self
-            .conn
-            .query_row(
+        let (total_points, total_credits, total_days): (Option<i64>, Option<i64>, Option<i64>) =
+            self.conn.query_row(
                 "SELECT
                     COALESCE(SUM(reward_points), 0),
                     COALESCE(SUM(reward_credits), 0),
@@ -3176,7 +3398,10 @@ impl Database {
     }
 
     /// List all referral codes for a user
-    pub fn list_user_referral_codes(&self, user_id: &str) -> Result<Vec<crate::referral::ReferralCode>> {
+    pub fn list_user_referral_codes(
+        &self,
+        user_id: &str,
+    ) -> Result<Vec<crate::referral::ReferralCode>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, user_id, code, created_at, expires_at
              FROM referral_codes
@@ -4958,10 +5183,7 @@ mod tests {
 
         let result = db.update_device_status("nonexistent", DeviceStatus::Connected);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Device not found"));
+        assert!(result.unwrap_err().to_string().contains("Device not found"));
     }
 
     #[test]
@@ -4982,10 +5204,7 @@ mod tests {
 
         let result = db.delete_device("nonexistent");
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Device not found"));
+        assert!(result.unwrap_err().to_string().contains("Device not found"));
     }
 
     #[test]
@@ -5009,10 +5228,7 @@ mod tests {
 
         let result = db.update_device_last_sync("nonexistent");
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Device not found"));
+        assert!(result.unwrap_err().to_string().contains("Device not found"));
     }
 
     #[test]
@@ -5500,7 +5716,9 @@ mod tests {
         assert_eq!(segment.speaker_id, "speaker-1");
 
         // Reassign to speaker-2
-        let updated = db.assign_speaker_to_segment(&segment_id, "speaker-2").unwrap();
+        let updated = db
+            .assign_speaker_to_segment(&segment_id, "speaker-2")
+            .unwrap();
         assert_eq!(updated.speaker_id, "speaker-2");
         assert_eq!(updated.id, segment_id);
     }
@@ -5530,7 +5748,10 @@ mod tests {
         // Try to assign to non-existent speaker
         let result = db.assign_speaker_to_segment(&segment_id, "nonexistent");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Speaker not found"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Speaker not found"));
     }
 
     #[test]
@@ -5542,7 +5763,10 @@ mod tests {
 
         let result = db.assign_speaker_to_segment("nonexistent-segment", "speaker-1");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Speaker segment not found"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Speaker segment not found"));
     }
 
     #[test]
@@ -5733,7 +5957,9 @@ mod tests {
             (segment2_id.clone(), "voice_bob_456".to_string()),
         ];
 
-        let assigned_count = db.auto_assign_speakers_to_segments("note-1", &signature_map, 0.9).unwrap();
+        let assigned_count = db
+            .auto_assign_speakers_to_segments("note-1", &signature_map, 0.9)
+            .unwrap();
         assert_eq!(assigned_count, 2);
 
         // Verify assignments
@@ -5778,10 +6004,15 @@ mod tests {
         // One matching, one non-matching
         let signature_map = vec![
             (segment1_id.clone(), "voice_alice_123".to_string()),
-            (segment2_id.clone(), "completely_different_voice".to_string()),
+            (
+                segment2_id.clone(),
+                "completely_different_voice".to_string(),
+            ),
         ];
 
-        let assigned_count = db.auto_assign_speakers_to_segments("note-1", &signature_map, 0.9).unwrap();
+        let assigned_count = db
+            .auto_assign_speakers_to_segments("note-1", &signature_map, 0.9)
+            .unwrap();
         assert_eq!(assigned_count, 1); // Only one should match
 
         // Verify only segment1 was reassigned
@@ -5819,11 +6050,11 @@ mod tests {
         db.insert_speaker_segment(&segment).unwrap();
 
         // No matching signatures
-        let signature_map = vec![
-            (segment_id.clone(), "completely_different_voice".to_string()),
-        ];
+        let signature_map = vec![(segment_id.clone(), "completely_different_voice".to_string())];
 
-        let assigned_count = db.auto_assign_speakers_to_segments("note-1", &signature_map, 0.9).unwrap();
+        let assigned_count = db
+            .auto_assign_speakers_to_segments("note-1", &signature_map, 0.9)
+            .unwrap();
         assert_eq!(assigned_count, 0);
 
         // Verify segment unchanged
@@ -5833,7 +6064,11 @@ mod tests {
 
     // ===== WHISPER NOTES TESTS =====
 
-    fn create_test_whisper_note(id: &str, content: &str, audio_url: Option<String>) -> InsertWhisperNote {
+    fn create_test_whisper_note(
+        id: &str,
+        content: &str,
+        audio_url: Option<String>,
+    ) -> InsertWhisperNote {
         InsertWhisperNote {
             id: id.to_string(),
             content: content.to_string(),
@@ -6011,7 +6246,9 @@ mod tests {
         let whisper = create_test_whisper_note("whisper-1", "Content", None);
         db.create_whisper_note(&whisper).unwrap();
 
-        let result = db.convert_whisper_to_note("whisper-1", Some("folder-1".to_string())).unwrap();
+        let result = db
+            .convert_whisper_to_note("whisper-1", Some("folder-1".to_string()))
+            .unwrap();
 
         assert_eq!(result.folder_id, Some("folder-1".to_string()));
     }

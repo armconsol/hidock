@@ -70,15 +70,15 @@ struct AppleTokenResponse {
 /// Decoded Apple ID token claims
 #[derive(Debug, Deserialize)]
 struct AppleIdTokenClaims {
-    iss: String,        // Issuer (https://appleid.apple.com)
-    sub: String,        // Subject (unique user identifier)
-    aud: String,        // Audience (your client ID)
-    iat: u64,           // Issued at timestamp
-    exp: u64,           // Expiration timestamp
+    iss: String,           // Issuer (https://appleid.apple.com)
+    sub: String,           // Subject (unique user identifier)
+    aud: String,           // Audience (your client ID)
+    iat: u64,              // Issued at timestamp
+    exp: u64,              // Expiration timestamp
     email: Option<String>, // User's email (only on first auth)
     email_verified: Option<bool>,
     is_private_email: Option<bool>, // True if using Apple's email relay
-    real_user_status: Option<u8>, // 0=unsupported, 1=unknown, 2=likely real
+    real_user_status: Option<u8>,   // 0=unsupported, 1=unknown, 2=likely real
 }
 
 /// Apple user information from first-time authorization
@@ -133,9 +133,7 @@ impl OAuth2Handler {
     /// - GOOGLE_CLIENT_SECRET (optional)
     pub fn from_env() -> Result<Self, OAuth2Error> {
         let client_id = std::env::var("GOOGLE_CLIENT_ID").map_err(|_| {
-            OAuth2Error::ServerError(
-                "GOOGLE_CLIENT_ID environment variable not set".to_string(),
-            )
+            OAuth2Error::ServerError("GOOGLE_CLIENT_ID environment variable not set".to_string())
         })?;
 
         let client_secret = std::env::var("GOOGLE_CLIENT_SECRET").ok();
@@ -405,10 +403,7 @@ impl OAuth2Handler {
         }
 
         response.json::<AppleTokenResponse>().await.map_err(|e| {
-            OAuth2Error::TokenExchangeFailed(format!(
-                "Failed to parse Apple token response: {}",
-                e
-            ))
+            OAuth2Error::TokenExchangeFailed(format!("Failed to parse Apple token response: {}", e))
         })
     }
 
@@ -424,9 +419,9 @@ impl OAuth2Handler {
         }
 
         // Decode the payload (second part)
-        let payload_bytes = URL_SAFE_NO_PAD
-            .decode(parts[1])
-            .map_err(|e| OAuth2Error::TokenExchangeFailed(format!("Failed to decode JWT: {}", e)))?;
+        let payload_bytes = URL_SAFE_NO_PAD.decode(parts[1]).map_err(|e| {
+            OAuth2Error::TokenExchangeFailed(format!("Failed to decode JWT: {}", e))
+        })?;
 
         let claims: AppleIdTokenClaims = serde_json::from_slice(&payload_bytes).map_err(|e| {
             OAuth2Error::TokenExchangeFailed(format!("Failed to parse JWT claims: {}", e))
@@ -519,10 +514,7 @@ impl OAuth2Handler {
 
     /// Refresh Apple access token using refresh token
     /// NOTE: Apple refresh tokens are single-use and a new refresh token is issued with each refresh
-    pub async fn refresh_apple_token(
-        &self,
-        refresh_token: &str,
-    ) -> Result<TokenData, OAuth2Error> {
+    pub async fn refresh_apple_token(&self, refresh_token: &str) -> Result<TokenData, OAuth2Error> {
         let mut params = HashMap::new();
         params.insert("refresh_token", refresh_token);
         params.insert("client_id", &self.client_id);
@@ -668,10 +660,7 @@ impl OAuth2Handler {
             .send()
             .await
             .map_err(|e| {
-                OAuth2Error::NetworkError(format!(
-                    "HiNotes Apple token exchange failed: {}",
-                    e
-                ))
+                OAuth2Error::NetworkError(format!("HiNotes Apple token exchange failed: {}", e))
             })?;
 
         if !response.status().is_success() {

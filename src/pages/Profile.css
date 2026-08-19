@@ -1,0 +1,93 @@
+.profile-page {
+  padding: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.profile-page.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.profile-page h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  color: var(--color-text-1);
+}
+
+.profile-card {
+  padding: 32px;
+}
+
+.profile-avatar-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.profile-form {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.verified-badge {
+  color: var(--color-success-6);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.unverified-badge {
+  color: var(--color-warning-6);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-start;
+  margin-top: 24px;
+}
+
+.profile-meta {
+  display: flex;
+  gap: 48px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meta-item label {
+  font-size: 12px;
+  color: var(--color-text-3);
+  font-weight: 500;
+}
+
+.meta-item span {
+  font-size: 14px;
+  color: var(--color-text-1);
+}
+
+@media (max-width: 768px) {
+  .profile-page {
+    padding: 16px;
+  }
+
+  .profile-card {
+    padding: 20px;
+  }
+
+  .profile-meta {
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+}

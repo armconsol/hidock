@@ -2245,14 +2245,8 @@ mod tests {
     #[test]
     fn test_parse_timestamp_hhmmss() {
         // HH:MM:SS format
-        assert_eq!(
-            AudioProcessor::parse_timestamp("00:00:01").unwrap(),
-            1000
-        );
-        assert_eq!(
-            AudioProcessor::parse_timestamp("00:01:00").unwrap(),
-            60000
-        );
+        assert_eq!(AudioProcessor::parse_timestamp("00:00:01").unwrap(), 1000);
+        assert_eq!(AudioProcessor::parse_timestamp("00:01:00").unwrap(), 60000);
         assert_eq!(
             AudioProcessor::parse_timestamp("01:00:00").unwrap(),
             3600000
@@ -2280,10 +2274,7 @@ mod tests {
         );
 
         // Partial milliseconds (should be padded)
-        assert_eq!(
-            AudioProcessor::parse_timestamp("00:00:01.5").unwrap(),
-            1500
-        );
+        assert_eq!(AudioProcessor::parse_timestamp("00:00:01.5").unwrap(), 1500);
         assert_eq!(
             AudioProcessor::parse_timestamp("00:00:01.05").unwrap(),
             1050
@@ -2296,10 +2287,7 @@ mod tests {
         assert_eq!(AudioProcessor::parse_timestamp("0").unwrap(), 0);
         assert_eq!(AudioProcessor::parse_timestamp("0ms").unwrap(), 0);
         assert_eq!(AudioProcessor::parse_timestamp("0s").unwrap(), 0);
-        assert_eq!(
-            AudioProcessor::parse_timestamp("00:00:00").unwrap(),
-            0
-        );
+        assert_eq!(AudioProcessor::parse_timestamp("00:00:00").unwrap(), 0);
 
         // Whitespace handling
         assert_eq!(AudioProcessor::parse_timestamp(" 1234 ").unwrap(), 1234);
@@ -2627,7 +2615,9 @@ mod tests {
         create_test_wav_file(&file1).unwrap();
         create_test_wav_file(&file2).unwrap();
 
-        let result = processor.needs_re_encode(&[file1.clone(), file2.clone()]).await;
+        let result = processor
+            .needs_re_encode(&[file1.clone(), file2.clone()])
+            .await;
 
         assert!(result.is_ok());
         assert_eq!(
@@ -2784,7 +2774,10 @@ mod tests {
                 .extract_segment(&merged_path, 500, Some(1000))
                 .await;
 
-            assert!(extract_result.is_ok(), "Should extract segment successfully");
+            assert!(
+                extract_result.is_ok(),
+                "Should extract segment successfully"
+            );
 
             if let Ok(extracted_path) = extract_result {
                 assert!(extracted_path.exists());
@@ -2871,7 +2864,9 @@ mod tests {
         create_test_wav_file(&wav_file).unwrap();
 
         // Convert WAV -> MP3
-        let mp3_result = processor.convert_format(&wav_file, "mp3", Some("192k")).await;
+        let mp3_result = processor
+            .convert_format(&wav_file, "mp3", Some("192k"))
+            .await;
 
         assert!(mp3_result.is_ok(), "WAV to MP3 conversion should succeed");
 

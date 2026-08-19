@@ -4,7 +4,7 @@ use crate::commands::AppState;
 use crate::db::types::{Speaker, SpeakerSegment};
 use crate::speaker::{
     profiles::SpeakerProfileManager, DiarizationEngine, DiarizationOptions, MergeSpeakersRequest,
-    SplitSegmentRequest, SpeakerColorAssigner, SpeakerOperationResponse,
+    SpeakerColorAssigner, SpeakerOperationResponse, SplitSegmentRequest,
 };
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -27,7 +27,10 @@ impl Default for SpeakerState {
 
 /// Get speaker segments for a note
 #[tauri::command]
-pub async fn get_speakers(note_id: String, state: State<'_, AppState>) -> Result<Vec<SpeakerSegment>, String> {
+pub async fn get_speakers(
+    note_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<SpeakerSegment>, String> {
     let db = state
         .db
         .lock()
@@ -51,7 +54,10 @@ pub async fn list_all_speakers(state: State<'_, AppState>) -> Result<Vec<Speaker
 
 /// Get a specific speaker profile
 #[tauri::command]
-pub async fn get_speaker(speaker_id: String, state: State<'_, AppState>) -> Result<Option<Speaker>, String> {
+pub async fn get_speaker(
+    speaker_id: String,
+    state: State<'_, AppState>,
+) -> Result<Option<Speaker>, String> {
     let db = state
         .db
         .lock()
@@ -148,7 +154,12 @@ pub async fn split_segment(
         .map_err(|e| format!("Profile manager lock error: {}", e))?;
 
     let (first, second) = manager
-        .split_segment(&db, &request.segment_id, request.split_time, request.new_speaker_id)
+        .split_segment(
+            &db,
+            &request.segment_id,
+            request.split_time,
+            request.new_speaker_id,
+        )
         .map_err(|e| format!("Failed to split segment: {}", e))?;
 
     Ok(SpeakerOperationResponse {
@@ -230,10 +241,7 @@ pub async fn get_speaker_colors(
         .map_err(|e| format!("Failed to get speaker segments: {}", e))?;
 
     // Assign colors for each unique speaker
-    let mut speaker_ids: Vec<String> = segments
-        .iter()
-        .map(|s| s.speaker_id.clone())
-        .collect();
+    let mut speaker_ids: Vec<String> = segments.iter().map(|s| s.speaker_id.clone()).collect();
     speaker_ids.sort();
     speaker_ids.dedup();
 
@@ -285,10 +293,7 @@ pub async fn delete_speaker_segment(
 
 /// Delete a speaker profile (and all associated segments)
 #[tauri::command]
-pub async fn delete_speaker(
-    speaker_id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn delete_speaker(speaker_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let db = state
         .db
         .lock()
@@ -305,9 +310,7 @@ mod tests {
 
     fn setup_test_state() -> AppState {
         let db = Database::new_in_memory().expect("Failed to create test database");
-        AppState {
-            db: Mutex::new(db),
-        }
+        AppState { db: Mutex::new(db) }
     }
 
     fn setup_speaker_state() -> SpeakerState {
