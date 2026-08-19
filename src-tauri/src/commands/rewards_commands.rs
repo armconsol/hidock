@@ -132,9 +132,11 @@ mod tests {
     use chrono::Utc;
     use std::sync::Mutex;
 
-    fn create_test_state() -> AppState {
-        let db = Database::new_in_memory().expect("Failed to create test database");
-        AppState { db: Mutex::new(db) }
+    fn create_test_state() -> (AppState, tempfile::TempDir) {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp directory");
+        let db_path = temp_dir.path().join("test.db");
+        let db = Database::new(db_path.to_str().unwrap()).expect("Failed to create test database");
+        (AppState { db: Mutex::new(db) }, temp_dir)
     }
 
     fn create_test_reward(id: &str) -> Reward {
@@ -151,7 +153,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_rewards_empty() {
-        let state = create_test_state();
+        let (state, _temp_dir) = create_test_state();
         let db = state.db.lock().unwrap();
         let db_path = db.get_db_path();
         let manager = RewardsManager::new(db_path.to_str().unwrap());
@@ -166,7 +168,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_and_list_rewards() {
-        let state = create_test_state();
+        let (state, _temp_dir) = create_test_state();
         let db = state.db.lock().unwrap();
         let db_path = db.get_db_path();
         let manager = RewardsManager::new(db_path.to_str().unwrap());
@@ -189,7 +191,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_redeem_reward() {
-        let state = create_test_state();
+        let (state, _temp_dir) = create_test_state();
         let db = state.db.lock().unwrap();
         let db_path = db.get_db_path();
         let manager = RewardsManager::new(db_path.to_str().unwrap());
@@ -210,7 +212,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_reward_history_empty() {
-        let state = create_test_state();
+        let (state, _temp_dir) = create_test_state();
         let db = state.db.lock().unwrap();
         let db_path = db.get_db_path();
         let manager = RewardsManager::new(db_path.to_str().unwrap());
