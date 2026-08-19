@@ -156,6 +156,9 @@ mod tests {
         let db_path = db.get_db_path();
         let manager = RewardsManager::new(db_path.to_str().unwrap());
 
+        // Initialize database
+        manager.init_database().unwrap();
+
         let result = manager.list_rewards(None);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().len(), 0);

@@ -120,10 +120,8 @@ mod tests {
     async fn test_create_referral_code() {
         let state = create_test_state();
         let db = state.db.lock().unwrap();
-        let db_path = db.get_db_path();
-        let manager = ReferralManager::new(db_path.to_str().unwrap());
 
-        let result = manager.create_referral_code("user-123", None);
+        let result = db.generate_referral_code_with_expiry("user-123", None);
 
         assert!(result.is_ok());
         let code = result.unwrap();
@@ -135,10 +133,8 @@ mod tests {
     async fn test_get_referral_stats_empty() {
         let state = create_test_state();
         let db = state.db.lock().unwrap();
-        let db_path = db.get_db_path();
-        let manager = ReferralManager::new(db_path.to_str().unwrap());
 
-        let result = manager.get_referral_stats("user-123");
+        let result = db.get_referral_stats("user-123");
 
         assert!(result.is_ok());
         let stats = result.unwrap();
@@ -150,14 +146,12 @@ mod tests {
     async fn test_validate_referral_code() {
         let state = create_test_state();
         let db = state.db.lock().unwrap();
-        let db_path = db.get_db_path();
-        let manager = ReferralManager::new(db_path.to_str().unwrap());
 
         // Create a code first
-        let code_result = manager.create_referral_code("user-123", None).unwrap();
+        let code_result = db.generate_referral_code_with_expiry("user-123", None).unwrap();
 
         // Validate it
-        let is_valid = manager.validate_referral_code(&code_result.code).unwrap();
+        let is_valid = db.validate_referral_code(&code_result.code).unwrap();
 
         assert!(is_valid);
     }
