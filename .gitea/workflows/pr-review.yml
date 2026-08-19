@@ -11,23 +11,35 @@ jobs:
   code-quality:
     name: Code Quality Checks
     runs-on: ubuntu-latest
+    container:
+      image: rustlang/rust:nightly
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        env:
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          git init
+          git remote add origin "https://x-access-token:${GITEA_TOKEN}@gogs.tftsr.com/sarman/hinotes.git"
+          if [ -n "${GITHUB_SHA:-}" ] && git fetch --depth=1 origin "$GITHUB_SHA"; then
+            echo "Fetched commit SHA: $GITHUB_SHA"
+          elif [ -n "${GITHUB_REF_NAME:-}" ] && git fetch --depth=1 origin "$GITHUB_REF_NAME"; then
+            echo "Fetched ref name: $GITHUB_REF_NAME"
+          else
+            git fetch --depth=1 origin main
+            echo "Fetched fallback ref: main"
+          fi
+          git checkout FETCH_HEAD
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
+      - name: Install system dependencies and Node.js
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl
+          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          apt-get install -y nodejs
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+      - name: Install Rust components
+        run: rustup component add rustfmt clippy
 
       - name: Install dependencies
         run: npm ci
@@ -62,24 +74,29 @@ jobs:
   backend-tests:
     name: Backend Tests (Rust)
     runs-on: ubuntu-latest
+    container:
+      image: rustlang/rust:nightly
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        env:
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          git init
+          git remote add origin "https://x-access-token:${GITEA_TOKEN}@gogs.tftsr.com/sarman/hinotes.git"
+          if [ -n "${GITHUB_SHA:-}" ] && git fetch --depth=1 origin "$GITHUB_SHA"; then
+            echo "Fetched commit SHA: $GITHUB_SHA"
+          elif [ -n "${GITHUB_REF_NAME:-}" ] && git fetch --depth=1 origin "$GITHUB_REF_NAME"; then
+            echo "Fetched ref name: $GITHUB_REF_NAME"
+          else
+            git fetch --depth=1 origin main
+            echo "Fetched fallback ref: main"
+          fi
+          git checkout FETCH_HEAD
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            src-tauri/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install system dependencies
+        run: apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev
 
       - name: Run backend tests
         working-directory: src-tauri
@@ -92,16 +109,27 @@ jobs:
   frontend-tests:
     name: Frontend Tests (React)
     runs-on: ubuntu-latest
+    container:
+      image: node:20
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
+        env:
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          apt-get update && apt-get install -y --no-install-recommends git
+          git init
+          git remote add origin "https://x-access-token:${GITEA_TOKEN}@gogs.tftsr.com/sarman/hinotes.git"
+          if [ -n "${GITHUB_SHA:-}" ] && git fetch --depth=1 origin "$GITHUB_SHA"; then
+            echo "Fetched commit SHA: $GITHUB_SHA"
+          elif [ -n "${GITHUB_REF_NAME:-}" ] && git fetch --depth=1 origin "$GITHUB_REF_NAME"; then
+            echo "Fetched ref name: $GITHUB_REF_NAME"
+          else
+            git fetch --depth=1 origin main
+            echo "Fetched fallback ref: main"
+          fi
+          git checkout FETCH_HEAD
 
       - name: Install dependencies
         run: npm ci
@@ -116,28 +144,41 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     needs: [backend-tests, frontend-tests]
+    container:
+      image: rustlang/rust:nightly
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        env:
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          git init
+          git remote add origin "https://x-access-token:${GITEA_TOKEN}@gogs.tftsr.com/sarman/hinotes.git"
+          if [ -n "${GITHUB_SHA:-}" ] && git fetch --depth=1 origin "$GITHUB_SHA"; then
+            echo "Fetched commit SHA: $GITHUB_SHA"
+          elif [ -n "${GITHUB_REF_NAME:-}" ] && git fetch --depth=1 origin "$GITHUB_REF_NAME"; then
+            echo "Fetched ref name: $GITHUB_REF_NAME"
+          else
+            git fetch --depth=1 origin main
+            echo "Fetched fallback ref: main"
+          fi
+          git checkout FETCH_HEAD
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          apt-get update
+          apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev \
             libappindicator3-dev \
             librsvg2-dev \
-            patchelf
+            patchelf \
+            curl
+
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          apt-get install -y nodejs
 
       - name: Install dependencies
         run: npm ci
@@ -157,18 +198,32 @@ jobs:
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    container:
+      image: rustlang/rust:nightly
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        env:
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          git init
+          git remote add origin "https://x-access-token:${GITEA_TOKEN}@gogs.tftsr.com/sarman/hinotes.git"
+          if [ -n "${GITHUB_SHA:-}" ] && git fetch --depth=1 origin "$GITHUB_SHA"; then
+            echo "Fetched commit SHA: $GITHUB_SHA"
+          elif [ -n "${GITHUB_REF_NAME:-}" ] && git fetch --depth=1 origin "$GITHUB_REF_NAME"; then
+            echo "Fetched ref name: $GITHUB_REF_NAME"
+          else
+            git fetch --depth=1 origin main
+            echo "Fetched fallback ref: main"
+          fi
+          git checkout FETCH_HEAD
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install system dependencies and Node.js
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends curl
+          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          apt-get install -y nodejs
 
       - name: Install cargo-audit
         run: cargo install cargo-audit
@@ -185,11 +240,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [code-quality, backend-tests, frontend-tests, integration-tests, security-audit]
     if: always()
+    container:
+      image: alpine:latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Generate summary
         run: |
           echo "## PR Review Summary" >> $GITHUB_STEP_SUMMARY
@@ -203,10 +257,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Overall status
-          if [[ "${{ needs.code-quality.result }}" == "success" ]] && \
-             [[ "${{ needs.backend-tests.result }}" == "success" ]] && \
-             [[ "${{ needs.frontend-tests.result }}" == "success" ]] && \
-             [[ "${{ needs.integration-tests.result }}" == "success" ]]; then
+          if [ "${{ needs.code-quality.result }}" = "success" ] && \
+             [ "${{ needs.backend-tests.result }}" = "success" ] && \
+             [ "${{ needs.frontend-tests.result }}" = "success" ] && \
+             [ "${{ needs.integration-tests.result }}" = "success" ]; then
             echo "### ✅ All checks passed! PR is ready for review." >> $GITHUB_STEP_SUMMARY
           else
             echo "### ❌ Some checks failed. Please review the logs above." >> $GITHUB_STEP_SUMMARY

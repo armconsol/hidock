@@ -6,28 +6,26 @@ This document describes how to build HiNotes Desktop for all supported platforms
 
 ### Automated Builds (Gitea Actions)
 
-The easiest way to build installers is through Gitea Actions:
+**Status:** CI/CD workflows are configured for testing only. Native installer builds must be done locally.
 
-**Trigger via Tag:**
-```bash
-git tag v1.0.0-beta
-git push origin v1.0.0-beta
-```
-
-**Manual Trigger:**
-1. Go to https://gogs.tftsr.com/sarman/hinotes/actions
-2. Click "Build Native Installers"
-3. Click "Run workflow"
-4. Select platform (all/macos/linux/windows)
+**Available Workflows:**
+1. **Test Workflow** (`.gitea/workflows/test.yml`) - Runs on every push to main and PRs
+   - Backend tests (Rust)
+   - Frontend tests (React/Vitest)
+   
+2. **PR Review Workflow** (`.gitea/workflows/pr-review.yml`) - Runs on all PRs
+   - Code quality checks (rustfmt, clippy)
+   - Backend tests
+   - Frontend tests
+   - Integration tests (full Tauri build)
+   - Security audit (cargo-audit, npm audit)
 
 **Monitor Progress:**
 - https://gogs.tftsr.com/sarman/hinotes/actions
 
-**Download Artifacts:**
-Artifacts are available after build completes:
-- macOS: `HiNotes-Desktop_{version}_universal.dmg`
-- Linux: AppImage, deb, rpm packages
-- Windows: `HiNotes-Desktop_{version}_x64.msi`
+**Note:** Native installer builds require either:
+- Self-hosted Gitea runners with macOS/Windows/Linux environments
+- Manual local builds (see Local Builds section below)
 
 ---
 
@@ -275,27 +273,36 @@ upx --best src-tauri/target/release/hinotes-desktop
 
 ### Gitea Actions
 
-The project includes two workflows:
+The project includes two workflows that run on `ubuntu-latest` runners with Docker containers:
 
-**1. Build Workflow (`.gitea/workflows/build.yml`)**
-- Triggers on tags (`v*`) and manual dispatch
-- Builds for macOS, Linux, Windows
-- Creates GitHub/Gitea releases
-- Uploads artifacts
+**1. Test Workflow (`.gitea/workflows/test.yml`)**
+- Triggers on push to main and pull requests
+- Uses rustlang/rust:nightly and node:20 containers
+- Runs backend (cargo test) and frontend (npm test) tests
+- Manual git checkout pattern with GITHUB_TOKEN authentication
 
 **2. PR Review Workflow (`.gitea/workflows/pr-review.yml`)**
 - Triggers on all PRs to main/develop
-- Runs: code quality, tests, security audits
-- Provides aggregated summary
+- Comprehensive validation:
+  - Code quality (rustfmt, clippy, placeholder check)
+  - Backend tests (Rust)
+  - Frontend tests (React/Vitest)
+  - Integration tests (full Tauri build)
+  - Security audit (cargo-audit, npm audit)
+- Generates summary report
+
+**Workflow Pattern:**
+- Uses public container images (rustlang/rust:nightly, node:20, alpine)
+- Manual git checkout with token authentication
+- No dependency on GitHub Actions marketplace actions
+- Compatible with self-hosted Gitea Actions runners
 
 ### GitHub Actions
 
-The build workflow is compatible with GitHub Actions. To use:
-```bash
-mkdir -p .github/workflows
-cp .gitea/workflows/* .github/workflows/
-# Adjust for GitHub-specific actions if needed
-```
+These workflows are **NOT** compatible with GitHub Actions due to Gitea-specific patterns. To use on GitHub:
+1. Replace manual git checkout with `actions/checkout@v4`
+2. Replace container-based jobs with `actions/setup-node` and `actions/setup-rust`
+3. Update repository URLs from gogs.tftsr.com to github.com
 
 ---
 
