@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Button, Space, Tabs } from '@arco-design/web-react';
+import { useState } from 'react';
+import { Button, Tabs } from '@arco-design/web-react';
 import { IconPlus, IconList, IconFolder } from '@arco-design/web-react/icon';
 import { DeviceList } from '../components/Devices/DeviceList';
 import { DeviceFiles } from '../components/Devices/DeviceFiles';

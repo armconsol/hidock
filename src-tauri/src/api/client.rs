@@ -14,17 +14,17 @@ use super::types::{
     DeviceFileGetRequest, DeviceFileListRequest, DeviceFileListResponse,
     ExtractVoiceSignatureRequest, ExtractVoiceSignatureResponse, FindSpeakersRequest,
     FindSpeakersResponse, GetSettingRequest, GetSettingResponse, GoogleCalendarEvent, Language,
-    LanguageListResponse, LoginRequest, MatchSpeakerRequest, MatchSpeakerResponse, PayoutRequest,
-    PayoutResponse, Receipt, ReceiptsResponse, RedeemRewardRequest, RedeemRewardResponse,
-    ReferralInfo, ReferralOverviewResponse, RegisterRequest, RegisterResponse, RenameUserRequest,
-    RenameUserResponse, RewardsListResponse, SaveNewPasswordRequest, SaveNewPasswordResponse,
-    SaveSettingRequest, SaveSettingResponse, SendEmailVerificationRequest,
-    SendEmailVerificationResponse, SendPasswordResetRequest, SendPasswordResetResponse,
-    SettingsListResponse, SpeakerSegment, Subscription, SubscriptionResponse, SubscriptionStatus,
-    TranslationRequest, TranslationResponse, TrialEligibility, UpdateEventRequest,
-    UpdatePasswordRequest, UpdatePasswordResponse, UpdateRegionRequest, UpdateRegionResponse,
-    UserInfo, UserProfileResponse, VerifyEmailRequest, VerifyEmailResponse, VerifyResetCodeRequest,
-    VerifyResetCodeResponse, VoiceSignature,
+    LanguageListResponse, LoginRequest, MatchSpeakerRequest, MatchSpeakerResponse,
+    NotifyRecordingStatusResponse, PayoutRequest, PayoutResponse, Receipt, ReceiptsResponse,
+    RedeemRewardRequest, RedeemRewardResponse, ReferralInfo, ReferralOverviewResponse,
+    RegisterRequest, RegisterResponse, RenameUserRequest, RenameUserResponse, RewardsListResponse,
+    SaveNewPasswordRequest, SaveNewPasswordResponse, SaveSettingRequest, SaveSettingResponse,
+    SendEmailVerificationRequest, SendEmailVerificationResponse, SendPasswordResetRequest,
+    SendPasswordResetResponse, SettingsListResponse, SpeakerSegment, Subscription,
+    SubscriptionResponse, SubscriptionStatus, TranslationRequest, TranslationResponse,
+    TrialEligibility, UpdateEventRequest, UpdatePasswordRequest, UpdatePasswordResponse,
+    UpdateRegionRequest, UpdateRegionResponse, UserInfo, UserProfileResponse, VerifyEmailRequest,
+    VerifyEmailResponse, VerifyResetCodeRequest, VerifyResetCodeResponse, VoiceSignature,
 };
 
 /// Cached subscription data with timestamp
@@ -473,6 +473,53 @@ impl HiNotesClient {
         }
 
         Ok(())
+    }
+
+    /// Notify HiNotes calendar of device recording state
+    ///
+    /// Updates a Google Calendar event to indicate that a recording is in progress
+    /// or has completed. The server typically updates the event description with
+    /// "Recording in progress..." while active, and may add a transcription link
+    /// when the recording is finished.
+    ///
+    /// # Arguments
+    /// * `event_id` - Google Calendar event ID
+    /// * `is_recording` - True if recording is active, False if stopped
+    pub async fn notify_recording_status(
+        &self,
+        event_id: &str,
+        is_recording: bool,
+    ) -> Result<NotifyRecordingStatusResponse> {
+        use super::types::NotifyRecordingStatusRequest;
+
+        log::info!(
+            "Notifying recording status for event {}: {}",
+            event_id,
+            if is_recording { "started" } else { "stopped" }
+        );
+
+        let request_body = NotifyRecordingStatusRequest {
+            event_id: event_id.to_string(),
+            is_recording,
+        };
+
+        let url = format!("{}/calendar/event/device_state/notice", self.base_url);
+        let client = &self.http_client;
+        let token = self.get_token().await;
+
+        let response: NotifyRecordingStatusResponse = self
+            .request_with_retry("notify_recording_status", || async {
+                let mut request = client.post(&url).json(&request_body);
+
+                if let Some(ref token) = token {
+                    request = request.bearer_auth(token);
+                }
+
+                Ok(request.send().await?)
+            })
+            .await?;
+
+        Ok(response)
     }
 
     /// Get subscription status from HiNotes API (with caching)

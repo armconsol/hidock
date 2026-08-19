@@ -135,6 +135,7 @@ pub fn run() {
             commands::set_calendar_id,
             commands::sync_calendar_now,
             commands::get_calendar_last_sync,
+            commands::notify_calendar_recording,
             // Template commands
             commands::list_templates,
             commands::get_template,

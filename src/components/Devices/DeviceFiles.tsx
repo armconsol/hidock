@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Table,
   Button,
@@ -458,7 +458,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
               <Progress
                 percent={storagePercent}
                 style={{ width: 200 }}
-                status={storagePercent > 90 ? 'danger' : undefined}
+                status={storagePercent > 90 ? 'error' : undefined}
               />
               <p className="device-info-text">
                 {formatFileSize(deviceInfo.storage_used)} /{' '}

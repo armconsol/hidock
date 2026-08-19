@@ -186,3 +186,45 @@ pub async fn get_calendar_last_sync(
         Err("Calendar sync worker not initialized".to_string())
     }
 }
+
+/// Notify HiNotes calendar of recording status for a specific event
+///
+/// This command notifies the HiNotes API that a recording has started or stopped
+/// for a specific calendar event. The server typically updates the Google Calendar
+/// event description with "Recording in progress..." while active, and may add a
+/// transcription link when the recording is finished.
+///
+/// # Arguments
+/// * `event_id` - Google Calendar event ID
+/// * `is_recording` - True if recording started, False if recording stopped
+///
+/// # Returns
+/// Success message or error
+#[tauri::command]
+pub async fn notify_calendar_recording(
+    event_id: String,
+    is_recording: bool,
+    state: State<'_, CalendarSyncState>,
+) -> Result<String, String> {
+    let worker_guard = state.worker.lock().await;
+
+    if let Some(ref worker) = *worker_guard {
+        worker
+            .notify_recording_status(&event_id, is_recording)
+            .await
+            .map_err(|e| format!("Failed to notify recording status: {}", e))?;
+
+        let status_msg = if is_recording {
+            "started"
+        } else {
+            "stopped"
+        };
+
+        Ok(format!(
+            "Successfully notified that recording {} for event {}",
+            status_msg, event_id
+        ))
+    } else {
+        Err("Calendar sync worker not initialized".to_string())
+    }
+}

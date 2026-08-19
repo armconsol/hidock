@@ -189,6 +189,30 @@ impl CalendarSync {
         Self::sync_events_internal(&self.api_client, &self.db, &cal_id, &self.last_sync).await
     }
 
+    /// Notify HiNotes calendar of device recording state
+    ///
+    /// Updates a Google Calendar event to indicate that a recording is in progress
+    /// or has completed. The server typically updates the event description with
+    /// "Recording in progress..." while active, and may add a transcription link
+    /// when the recording is finished.
+    ///
+    /// # Arguments
+    /// * `event_id` - Google Calendar event ID
+    /// * `is_recording` - True if recording is active, False if stopped
+    pub async fn notify_recording_status(&self, event_id: &str, is_recording: bool) -> Result<()> {
+        self.api_client
+            .notify_recording_status(event_id, is_recording)
+            .await?;
+
+        log::info!(
+            "Notified recording status for event {}: {}",
+            event_id,
+            if is_recording { "recording" } else { "stopped" }
+        );
+
+        Ok(())
+    }
+
     /// Internal sync implementation - bidirectional sync
     async fn sync_events_internal(
         api_client: &Arc<HiNotesClient>,

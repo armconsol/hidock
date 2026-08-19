@@ -152,6 +152,20 @@ pub struct UpdateEventRequest {
     pub end: EventDateTime,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotifyRecordingStatusRequest {
+    #[serde(rename = "eventId")]
+    pub event_id: String,
+    #[serde(rename = "isRecording")]
+    pub is_recording: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NotifyRecordingStatusResponse {
+    pub success: bool,
+    pub message: Option<String>,
+}
+
 // Translation Types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TranslationRequest {
