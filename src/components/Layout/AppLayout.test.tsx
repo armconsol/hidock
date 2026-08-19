@@ -22,6 +22,7 @@ vi.mock('@arco-design/web-react/icon', () => ({
   ),
   IconSettings: () => <div data-testid="icon-settings">Settings Icon</div>,
   IconUser: () => <div data-testid="icon-user">User Icon</div>,
+  IconSafe: () => <div data-testid="icon-safe">Safe Icon</div>,
 }));
 
 describe('AppLayout', () => {
