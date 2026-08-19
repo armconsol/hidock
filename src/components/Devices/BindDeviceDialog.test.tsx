@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { BindDeviceDialog } from './BindDeviceDialog';
 import { useDevicesStore } from '../../store/devicesStore';
+import { Message } from '@arco-design/web-react';
 
 // Mock the store
 vi.mock('../../store/devicesStore');
@@ -12,6 +13,17 @@ vi.mock('../../store/devicesStore');
 vi.mock('@arco-design/web-react/icon', () => ({
   IconPlus: () => <div>Plus Icon</div>,
 }));
+
+/**
+ * React 19 Compatibility Note:
+ *
+ * These tests use React 18+ patterns with @testing-library/react, which
+ * internally uses createRoot() instead of the deprecated ReactDOM.render().
+ *
+ * The Arco Design Message component is mocked in src/test/setup.ts because
+ * Arco Design @2.66.16 still uses ReactDOM.render() which was removed in React 19.
+ * The mock provides test-compatible implementations that avoid DOM rendering errors.
+ */
 
 describe('BindDeviceDialog', () => {
   const mockBindDevice = vi.fn();
@@ -116,6 +128,11 @@ describe('BindDeviceDialog', () => {
       });
     });
 
+    // Verify success message is displayed via mocked Message component
+    await waitFor(() => {
+      expect(Message.success).toHaveBeenCalledWith('Device bound successfully');
+    });
+
     await waitFor(() => {
       expect(mockOnClose).toHaveBeenCalled();
     });
@@ -139,6 +156,14 @@ describe('BindDeviceDialog', () => {
 
     await waitFor(() => {
       expect(mockBindDevice).toHaveBeenCalled();
+    });
+
+    // Verify error message is displayed via mocked Message component
+    // (Message.error is mocked in setup.ts for React 19 compatibility)
+    await waitFor(() => {
+      expect(Message.error).toHaveBeenCalledWith(
+        expect.stringContaining(errorMessage)
+      );
     });
 
     // Should not close dialog on error

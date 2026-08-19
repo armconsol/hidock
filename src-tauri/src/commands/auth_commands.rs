@@ -64,10 +64,12 @@ pub async fn authenticate_with_credentials(
 pub async fn authenticate_google(state: State<'_, AuthState>) -> Result<String, String> {
     let oauth = &state.oauth_handler;
 
-    oauth
+    let token_data = oauth
         .authenticate_google()
         .await
-        .map_err(|e| format!("Google authentication failed: {}", e))
+        .map_err(|e| format!("Google authentication failed: {}", e))?;
+
+    Ok(token_data.access_token)
 }
 
 /// Authenticate with Apple OAuth2
@@ -84,10 +86,12 @@ pub async fn authenticate_google(state: State<'_, AuthState>) -> Result<String, 
 pub async fn authenticate_apple(state: State<'_, AuthState>) -> Result<String, String> {
     let oauth = &state.oauth_handler;
 
-    oauth
+    let token_data = oauth
         .authenticate_apple()
         .await
-        .map_err(|e| format!("Apple authentication failed: {}", e))
+        .map_err(|e| format!("Apple authentication failed: {}", e))?;
+
+    Ok(token_data.access_token)
 }
 
 #[cfg(test)]
@@ -123,34 +127,34 @@ mod tests {
     #[tokio::test]
     async fn test_oauth_google_flow() {
         // Test the OAuth2 handler for Google
-        let oauth = OAuth2Handler::new("test-client-id");
+        let oauth = OAuth2Handler::new("test-client-id", None);
         let result = oauth.authenticate_google().await;
 
         // In test mode, should return mock token
         assert!(result.is_ok());
         let token = result.unwrap();
-        assert!(!token.is_empty());
-        assert!(token.contains("google") || token.contains("mock"));
+        assert!(!token.access_token.is_empty());
+        assert!(token.access_token.contains("google") || token.access_token.contains("mock"));
     }
 
     #[tokio::test]
     async fn test_oauth_apple_flow() {
         // Test the OAuth2 handler for Apple
-        let oauth = OAuth2Handler::new("test-client-id");
+        let oauth = OAuth2Handler::new("test-client-id", None);
         let result = oauth.authenticate_apple().await;
 
         // In test mode, should return mock token
         assert!(result.is_ok());
         let token = result.unwrap();
-        assert!(!token.is_empty());
-        assert!(token.contains("apple") || token.contains("mock"));
+        assert!(!token.access_token.is_empty());
+        assert!(token.access_token.contains("apple") || token.access_token.contains("mock"));
     }
 
     #[tokio::test]
     async fn test_auth_state_initialization() {
         // Test that AuthState can be properly initialized
         let client = HiNotesClient::new("http://localhost:3001/v1");
-        let oauth = OAuth2Handler::new("test-client-id");
+        let oauth = OAuth2Handler::new("test-client-id", None);
 
         let state = AuthState {
             api_client: Arc::new(RwLock::new(client)),

@@ -1,5 +1,9 @@
 pub mod cache;
+pub mod client;
 pub mod engine;
+pub mod live_session;
+pub mod segmentation;
+pub mod streaming;
 pub mod types;
 
 use anyhow::Result;
@@ -9,11 +13,15 @@ use crate::api::client::HiNotesClient;
 use crate::api::types::{Language, TranslationRequest, TranslationResponse};
 use cache::TranslationCache;
 
+pub use client::TranslationClient;
 pub use engine::{
     BatchTranslationResult, QualityScore, StreamingChunk, SupportedLanguage, TranslationEngine,
     TranslationWithMetadata,
 };
-pub use types::{CachedTranslation, LiveTranslationSession, RateTranslationRequest};
+pub use live_session::{LiveSessionManager, LiveTranslationSession, TranslationSegment};
+pub use segmentation::TextSegmenter;
+pub use streaming::{TranslationEvent, TranslationStreamer};
+pub use types::{CachedTranslation, RateTranslationRequest};
 
 /// Translation service that handles language detection, translation, and caching
 pub struct TranslationService {

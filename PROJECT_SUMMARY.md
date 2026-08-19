@@ -59,13 +59,18 @@ Building a cross-platform native desktop application (Mac/Linux/Windows) using T
 - [ ] Calendar OAuth2 production integration (pending)
 - [ ] Live sync between Google Calendar and local DB (pending)
 
-### Phase 4: Advanced Features 🔄 (20% Complete)
+### Phase 4: Advanced Features 🔄 (25% Complete)
 - [x] USB device database operations (20 tests passing)
 - [x] USB protocol foundation (detector, protocol handler)
 - [x] Mass storage fallback implementation
 - [x] Device management UI (bind/unbind devices)
 - [x] USB_INTEGRATION.md comprehensive documentation
-- [ ] HiDoc P1 USB protocol reverse engineering (needs physical device)
+- [x] HiDoc P1 device identifiers discovered and confirmed
+  - Audio Interface: VID=0x10d6, PID=0xb00e (Actions Semiconductor)
+  - Control Interface: VID=0x1395, PID=0x005d (Solid State System)
+  - Audio specs: 48kHz, 16-bit PCM, Mono input, Stereo output
+- [ ] WebUSB protocol capture (device detected, capture session pending)
+- [ ] USB protocol implementation (awaiting capture data)
 - [ ] FFmpeg audio editing (merge, replace, save-as-new)
 - [ ] Live translation feature
 - [ ] Speaker identification
@@ -210,11 +215,13 @@ Building a cross-platform native desktop application (Mac/Linux/Windows) using T
 ### Backend Testing
 - [ ] **OAuth2 Production Flow:** Test Google and Apple OAuth2 with actual credentials
 - [ ] **Google Calendar Sync:** Test bidirectional sync with real Google Calendar account
-- [ ] **USB Device Integration:** Requires physical HiDoc P1 device
-  - Capture USB packets during operation
-  - Update VID/PID constants (currently placeholders: 0x0000)
-  - Test protocol commands (initialize, start_recording, stop_recording, read_audio_chunk)
-  - Verify mass storage fallback on unsupported systems
+- [ ] **USB Device Integration:** Physical HiDoc P1 device confirmed
+  - ✅ VID/PID constants updated with actual device identifiers
+  - ✅ Audio specifications confirmed (48kHz, 16-bit PCM)
+  - [ ] Capture WebUSB protocol via Chrome DevTools
+  - [ ] Implement protocol commands (initialize, list_files, transfer, delete)
+  - [ ] Test protocol commands with real device
+  - [ ] Verify mass storage fallback on unsupported systems
 - [ ] **Audio Cache LRU:** Test eviction with large audio files (500MB+ total)
 - [ ] **Sync Engine:** Test offline queue, conflict resolution, network failures
 - [ ] **FFmpeg Integration:** Test audio merge, replace, format conversion

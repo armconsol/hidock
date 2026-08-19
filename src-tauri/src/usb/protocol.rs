@@ -5,10 +5,9 @@
 //! NOTE: This module contains placeholder implementations until the protocol
 //! is reverse-engineered through packet capture and analysis.
 
-use super::{DeviceInfo, DeviceState, UsbError, USB_TIMEOUT_MS};
+use super::{DeviceInfo, DeviceState, UsbError};
 use anyhow::Result;
-use log::{debug, error, info, warn};
-use std::time::Duration;
+use log::{debug, info};
 
 // ============================================================================
 // Protocol Constants
@@ -242,7 +241,7 @@ impl ProtocolHandler {
         );
 
         let packet = CommandPacket::new(command, payload);
-        let bytes = packet.to_bytes();
+        let _bytes = packet.to_bytes();
 
         // TODO: Implement actual USB transfer
         /*

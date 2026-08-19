@@ -1,7 +1,40 @@
 # HiDoc P1 USB Protocol Analysis
 
-**Status:** In Progress  
-**Last Updated:** 2026-08-18
+**Status:** WebUSB Monitoring Tools Ready - Awaiting Manual Capture  
+**Last Updated:** 2026-08-18 (15:30 CDT)
+
+---
+
+## Executive Summary
+
+### What We Know (Confirmed ✅)
+1. **Device has dual USB interfaces:**
+   - **Audio Interface:** VID=0x10d6, PID=0xb00e (Actions Semiconductor) - Standard USB Audio Class
+   - **Control Interface:** VID=0x1395, PID=0x005d (Solid State System) - Custom protocol
+2. **Audio specifications:** 48kHz, 16-bit PCM, mono input, stereo output
+3. **WebUSB access:** HiNotes webapp uses Chrome WebUSB API (exclusive access)
+4. **USB speed:** 480 Mb/s (USB 2.0 High Speed) for audio, 12 Mb/s (USB 1.1 Full Speed) for control
+
+### What We've Built (Ready ✅)
+1. **Complete WebUSB monitoring toolkit** - Intercepts all USB API calls in Chrome
+2. **Three capture guides** - Quick start, detailed walkthrough, and instructions
+3. **Data logging infrastructure** - Timestamps, hex dumps, auto-save, export helpers
+
+### What We Need (Blocked ⏳)
+1. **Manual capture session** - Requires physical HiDoc P1 device access (30-60 min)
+2. **Protocol analysis** - After capture data available (2-4 hours)
+3. **Rust implementation** - After protocol documented (4-8 hours)
+4. **Integration & testing** - After implementation complete (4-6 hours)
+
+### Critical Path
+```
+Physical Device Access → Capture Session (1 hr) → Protocol Analysis (4 hr) → 
+Rust Implementation (8 hr) → Testing (6 hr) = ~19 hours total
+```
+
+**Current Blocker:** Manual capture session requires user with physical HiDoc P1 device access.
+
+---
 
 ## Device Specifications (Confirmed)
 
@@ -24,7 +57,7 @@
 
 ## Current Findings
 
-### 1. WebUSB Compatibility
+### 1. WebUSB Compatibility ✅
 **CRITICAL DISCOVERY:** Chrome has exclusive USB access!
 
 ```
@@ -36,13 +69,48 @@
 - We can inspect WebUSB API calls in Chrome DevTools
 - Protocol is accessible via JavaScript (easier reverse engineering!)
 
-### 2. Audio Interface Discovery
+### 2. Audio Interface Discovery ✅
 The device appears in macOS as:
 - Default Input Device (microphone)
 - Default Output Device (speakers)
 - Manufacturer: Solid State System Co.,Ltd.
 
 This suggests **standard USB Audio Class (UAC)** compliance for audio I/O.
+
+### 3. WebUSB Monitoring Tools Created ✅
+**Commit:** 6ce85b6 (2026-08-18)
+
+Created comprehensive WebUSB monitoring toolkit:
+
+#### `/scripts/webusb_monitor.js` - Complete USB Interceptor
+- Hooks ALL WebUSB API calls (requestDevice, open, close, claimInterface)
+- Captures controlTransferIn/Out with setup packets and data
+- Captures transferIn/Out with endpoint numbers and payloads
+- Color-coded console output for easy debugging
+- Automatic logging to `window.hidocProtocolLog` array
+- Export helper: `exportHidocLog()` copies JSON to clipboard
+- Auto-save to localStorage on tab blur/close
+- Hex dump formatting for binary data analysis
+
+#### Supporting Documentation
+- `USB_CAPTURE_INSTRUCTIONS.md` - Detailed step-by-step guide
+- `USB_CAPTURE_SESSION.md` - Complete session walkthrough
+- `WEBUSB_CAPTURE_STEPS.md` - Quick reference
+
+**Tools Status:** ✅ Ready for use - awaiting manual capture session
+
+### 4. WebUSB Capture Results
+**Status:** ⏳ Pending - Manual operation required
+
+**Required Actions:**
+1. ✅ WebUSB monitor script created (`scripts/webusb_monitor.js`)
+2. ✅ Capture instructions documented
+3. ⏳ Actual capture session with HiDoc P1 device (requires physical device access)
+4. ⏳ Protocol data analysis
+5. ⏳ Command structure documentation
+6. ⏳ Rust implementation
+
+**Blockers:** None - toolkit ready, awaiting user with physical HiDoc P1 device access
 
 ## Reverse Engineering Strategy
 
@@ -214,54 +282,131 @@ struct ResponsePacket {
 
 ## Implementation Plan
 
-### Step 1: WebUSB Protocol Capture (CURRENT)
-- [ ] Open HiNotes webapp with DevTools
-- [ ] Install WebUSB monitoring hooks
-- [ ] Perform all device operations
-- [ ] Export protocol log
+### Step 1: WebUSB Protocol Capture (CURRENT - Awaiting Manual Execution)
+- [x] ~~Open HiNotes webapp with DevTools~~ (Instructions ready)
+- [x] ~~Install WebUSB monitoring hooks~~ (Script ready: `scripts/webusb_monitor.js`)
+- [ ] **Perform all device operations** ⏳ REQUIRES PHYSICAL DEVICE
+  - [ ] Connect HiDoc P1 via USB
+  - [ ] Device enumeration/initialization
+  - [ ] List files on device
+  - [ ] Start/stop recording
+  - [ ] Play audio
+  - [ ] Transfer file from device
+  - [ ] Delete file from device
+  - [ ] Change device settings (if available)
+- [ ] Export protocol log (via `exportHidocLog()`)
+- [ ] Save to `usb_captures/hidoc_webusb_YYYYMMDD_HHMMSS.json`
 - [ ] Analyze command/response patterns
 
-### Step 2: Protocol Documentation
+**Capture Guide:** See `WEBUSB_CAPTURE_STEPS.md` for quick start or `USB_CAPTURE_SESSION.md` for detailed walkthrough
+
+### Step 2: Protocol Documentation (BLOCKED - Awaiting Capture Data)
 - [ ] Document all discovered commands
 - [ ] Map command IDs to operations
-- [ ] Document packet structures
+- [ ] Identify control vs. bulk vs. interrupt endpoints
+- [ ] Document packet structures (headers, magic bytes, checksums)
+- [ ] Map USB setup packet fields to operations
+- [ ] Document error codes and status values
 - [ ] Create protocol specification document
 
-### Step 3: Rust Implementation
+### Step 3: Rust Implementation (BLOCKED - Awaiting Protocol Docs)
 - [ ] Update `src-tauri/src/usb/protocol.rs` with actual structures
-- [ ] Implement command builders
+- [ ] Implement command builders (based on captured packets)
 - [ ] Implement response parsers
 - [ ] Add protocol tests with captured data
+- [ ] Implement checksum/CRC validation (if present)
 
-### Step 4: Device Communication
+### Step 4: Device Communication (BLOCKED - Awaiting Rust Implementation)
 - [ ] Implement `rusb` device handle acquisition
-- [ ] Claim USB interface
+- [ ] Claim USB control interface (VID=0x1395, PID=0x005d)
 - [ ] Send test commands
 - [ ] Verify responses match webapp behavior
+- [ ] Implement retry logic and error handling
 
-### Step 5: Integration
+### Step 5: Integration (BLOCKED - Awaiting Device Communication)
 - [ ] Integrate with Tauri commands
 - [ ] Add UI for device operations
 - [ ] Test full workflow: list files → transfer → delete
+- [ ] Handle device hotplug events
+- [ ] Add device status monitoring
 
 ## Tools and Scripts
 
-### Device Enumeration
+### Created Tools (Ready for Use) ✅
+
+#### 1. WebUSB Monitor Script
+**File:** `scripts/webusb_monitor.js`  
+**Purpose:** Comprehensive WebUSB API interceptor for Chrome DevTools
+
+**Features:**
+- Hooks all USB operations: `requestDevice`, `open`, `close`, `claimInterface`, `selectConfiguration`
+- Captures control transfers: `controlTransferIn`, `controlTransferOut`
+- Captures bulk/interrupt transfers: `transferIn`, `transferOut`
+- Color-coded console output (blue=request, green=response, red=error)
+- Automatic logging to `window.hidocProtocolLog` array with timestamps
+- Hex dump formatting for binary data
+- Export helper: `exportHidocLog()` copies to clipboard
+- Auto-save to localStorage on tab blur
+- Restores previous session on page reload
+
+**Usage:**
+```bash
+# Copy to clipboard
+cat scripts/webusb_monitor.js | pbcopy
+
+# Then paste in Chrome DevTools Console
+# See WEBUSB_CAPTURE_STEPS.md for details
+```
+
+#### 2. Capture Documentation
+**Files:**
+- `WEBUSB_CAPTURE_STEPS.md` - Quick 5-minute guide
+- `USB_CAPTURE_SESSION.md` - Detailed walkthrough with explanations
+- `USB_CAPTURE_INSTRUCTIONS.md` - Step-by-step procedures
+
+**Contents:**
+- Prerequisites and setup
+- Browser configuration (WebUSB flags)
+- Monitor installation steps
+- Operations to capture (connect, record, play, transfer, delete)
+- Export and analysis procedures
+- Troubleshooting common issues
+
+#### 3. Capture Storage
+**Directory:** `usb_captures/`  
+**Format:** JSON files with naming: `hidoc_webusb_YYYYMMDD_HHMMSS.json`
+
+**Structure:**
+```json
+[
+  {
+    "index": 0,
+    "timestamp": 1692345678901,
+    "time": "2026-08-18T15:30:00.000Z",
+    "type": "requestDevice",
+    "args": [...]
+  },
+  {
+    "index": 1,
+    "type": "controlTransferOut",
+    "setup": {...},
+    "data": [0x01, 0x02, 0x03],
+    "hex": "01 02 03"
+  }
+]
+```
+
+### Legacy Tools (Optional)
+
+#### Device Enumeration
 ```bash
 ./scripts/enumerate_hidoc.sh
 ```
 
-### USB Packet Capture
+#### USB Packet Capture (Wireshark - if WebUSB insufficient)
 ```bash
 ./scripts/capture_usb_hidoc.sh
 ```
-
-### WebUSB Monitoring
-1. Open: https://hinotes.hidock.com
-2. DevTools → Console
-3. Paste monitoring hooks (see Phase 1)
-4. Perform operations
-5. Export logs
 
 ## Resources
 
@@ -273,13 +418,15 @@ struct ResponsePacket {
 
 ## Progress Tracking
 
-- [x] Device VID/PID identified
+- [x] Device VID/PID identified (Audio: 0x10d6:0xb00e, Control: 0x1395:0x005d)
 - [x] Audio specifications confirmed (48kHz, 16-bit, mono in, stereo out)
 - [x] WebUSB usage discovered (Chrome exclusive access)
-- [ ] WebUSB protocol captured
-- [ ] Command structures documented
-- [ ] Rust implementation created
-- [ ] End-to-end testing completed
+- [x] WebUSB monitoring toolkit created (scripts/webusb_monitor.js)
+- [x] Capture instructions documented (3 guides created)
+- [ ] **WebUSB protocol captured** ⏳ AWAITING MANUAL SESSION WITH PHYSICAL DEVICE
+- [ ] Command structures documented (blocked by capture)
+- [ ] Rust implementation created (blocked by protocol docs)
+- [ ] End-to-end testing completed (blocked by implementation)
 
 ## Notes
 
@@ -288,13 +435,49 @@ struct ResponsePacket {
 2. **Standard UAC for audio** - Use existing audio APIs, not custom protocol.
 3. **Chrome has exclusive access** - Webapp must release device before Rust app can claim it.
 4. **Dual interfaces** - Separate audio (UAC) from control (custom protocol).
+5. **Monitoring toolkit complete** - All infrastructure ready for capture session.
 
-### Next Immediate Step:
-**Open HiNotes webapp in Chrome DevTools and capture WebUSB calls!**
+### Next Immediate Steps:
 
-This will give us the complete protocol in minutes, compared to hours/days of USB packet analysis.
+#### For User with Physical HiDoc P1 Device Access:
+1. **Read Quick Start Guide:** Open `WEBUSB_CAPTURE_STEPS.md` for 5-minute quickstart
+2. **Or Follow Detailed Guide:** Open `USB_CAPTURE_SESSION.md` for complete walkthrough
+3. **Execute Capture:**
+   ```bash
+   # Copy monitor script to clipboard
+   cat scripts/webusb_monitor.js | pbcopy
+   
+   # Open HiNotes in Chrome
+   open -a "Google Chrome" https://hinotes.hidock.com
+   
+   # Then:
+   # - Open DevTools (Cmd+Option+I)
+   # - Paste script in Console
+   # - Refresh page
+   # - Perform device operations
+   # - Run: exportHidocLog()
+   # - Save: pbpaste > usb_captures/hidoc_webusb_$(date +%Y%m%d_%H%M%S).json
+   ```
+
+#### After Capture Data Available:
+1. **Analyze Captured Protocol** (automated analysis script TBD)
+2. **Document Command Structures** (create USB_PROTOCOL_SPEC.md)
+3. **Implement in Rust** (update src-tauri/src/usb/protocol.rs)
+4. **Test with Real Device** (verify Rust implementation matches webapp)
+
+### Estimated Effort Remaining:
+- **Manual capture session:** 30-60 minutes (requires physical device)
+- **Protocol analysis:** 2-4 hours (after capture data available)
+- **Rust implementation:** 4-8 hours (after protocol documented)
+- **Testing & integration:** 4-6 hours (after implementation)
+
+**Total:** ~10-18 hours of development after initial capture session
+
+### Current Blocker:
+**Physical HiDoc P1 device access required for capture session.** All infrastructure and tooling ready.
 
 ---
 
-**Last Updated:** 2026-08-18  
-**Contributor:** Claude Sonnet 4.5 + Shaun Arman
+**Last Updated:** 2026-08-18 (15:30 CDT)  
+**Monitoring Tools:** Commit 6ce85b6 (2026-08-18)  
+**Contributors:** Claude Sonnet 4.5 + Shaun Arman

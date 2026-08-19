@@ -79,12 +79,15 @@ describe('TemplatesList', () => {
     expect(mockStore.setFilter).toHaveBeenCalledWith({ searchQuery: 'meeting' });
   });
 
-  it('should handle sort change', () => {
+  it('should render sort select with current value', () => {
     render(<TemplatesList />);
 
-    // Verify sort select exists - Arco Select doesn't expose value as HTML attribute
+    // Verify the sort select is rendered
     const sortSelect = screen.getByPlaceholderText('Sort by');
     expect(sortSelect).toBeInTheDocument();
+
+    // Verify the current sort value is displayed
+    expect(screen.getByText('Last Modified (Newest)')).toBeInTheDocument();
   });
 
   it('should toggle favorite filter', () => {
@@ -169,5 +172,28 @@ describe('TemplatesList', () => {
     fireEvent.click(newButton);
 
     expect(mockStore.selectTemplate).toHaveBeenCalledWith('new');
+  });
+
+  it('should set template as default', async () => {
+    mockStore.setAsDefault.mockResolvedValue(undefined);
+    render(<TemplatesList />);
+
+    // Find the non-default template (Daily Standup)
+    const dailyStandupCard = screen.getByText('Daily Standup').closest('.template-card');
+    expect(dailyStandupCard).toBeInTheDocument();
+
+    // Find the "Set as Default" button (IconCheck button)
+    const setDefaultButtons = screen.getAllByRole('button').filter((btn) =>
+      btn.querySelector('.arco-icon-check')
+    );
+
+    expect(setDefaultButtons.length).toBeGreaterThan(0);
+
+    // Click the set default button
+    fireEvent.click(setDefaultButtons[0]);
+
+    await waitFor(() => {
+      expect(mockStore.setAsDefault).toHaveBeenCalledWith('template-2');
+    });
   });
 });

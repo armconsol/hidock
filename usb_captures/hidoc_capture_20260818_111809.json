@@ -1,0 +1,1 @@
+pbpaste > ~/Documents/GitHub/hidoc/usb_captures/hidoc_capture_$(date +%Y%m%d_%H%M%S).json

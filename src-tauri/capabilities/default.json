@@ -1,10 +1,57 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
+  "description": "Capabilities for HiNotes Desktop - USB device access, file system operations, network communication, and notifications",
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default"
-  ]
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-title",
+    "core:path:default",
+    "core:path:allow-resolve-directory",
+    "core:path:allow-resolve",
+    "core:event:default",
+    "core:event:allow-listen",
+    "core:event:allow-emit",
+    "opener:default",
+    "updater:default",
+    "updater:allow-check",
+    "updater:allow-download",
+    "updater:allow-install"
+  ],
+  "scope": {
+    "allow": [
+      {
+        "path": "$APPDATA/**"
+      },
+      {
+        "path": "$APPLOCALDATA/**"
+      },
+      {
+        "path": "$APPCONFIG/**"
+      },
+      {
+        "path": "$APPLOG/**"
+      },
+      {
+        "path": "$APPCACHE/**"
+      },
+      {
+        "path": "$AUDIO/**"
+      },
+      {
+        "path": "$DOCUMENT/**"
+      },
+      {
+        "path": "$DOWNLOAD/**"
+      },
+      {
+        "path": "$TEMP/**"
+      }
+    ]
+  }
 }

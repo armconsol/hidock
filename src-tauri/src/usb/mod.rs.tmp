@@ -3,13 +3,14 @@
 //! This module handles communication with the HiDoc P1 USB audio transcription device.
 //! It provides both direct USB protocol communication and a mass storage fallback mode.
 
-use anyhow::Result;
-use log::{debug, info, warn};
+use anyhow::{Context, Result};
+use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 pub mod detector;
-pub mod protocol;
 pub mod mass_storage;
+pub mod protocol;
 
 // ============================================================================
 // Device Constants
@@ -68,6 +69,23 @@ pub const AUDIO_INPUT_CHANNELS: u16 = 1; // Mono input (confirmed)
 
 /// Number of output audio channels (playback)
 pub const AUDIO_OUTPUT_CHANNELS: u16 = 2; // Stereo output (confirmed)
+
+// ============================================================================
+// Interface Type
+// ============================================================================
+
+/// HiDoc P1 USB Interface Type
+///
+/// The HiDoc P1 exposes two separate USB interfaces with different VID/PID pairs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum InterfaceType {
+    /// Audio interface (VID=0x10d6, PID=0xb00e, Actions Semiconductor)
+    /// Handles audio capture/playback at 48kHz, 16-bit PCM
+    Audio,
+    /// Control/Storage interface (VID=0x1395, PID=0x005d, Solid State System)
+    /// Handles device control, configuration, and file storage
+    Control,
+}
 
 // ============================================================================
 // Device State
@@ -130,19 +148,39 @@ pub struct DeviceInfo {
 }
 
 impl DeviceInfo {
-    /// Check if this is a HiDoc P1 device (either interface) based on VID/PID
+    /// Check if this is a HiDoc P1 device based on VID/PID
+    ///
+    /// The HiDoc P1 has TWO USB interfaces with different VID/PID combinations:
+    /// - Audio Interface: VID=0x10d6, PID=0xb00e (Actions Semiconductor)
+    /// - Control/Storage Interface: VID=0x1395, PID=0x005d (Solid State System)
     pub fn is_hidoc_p1(&self) -> bool {
-        self.is_audio_interface() || self.is_control_interface()
+        // Check for either interface
+        let is_audio =
+            self.vendor_id == HIDOC_P1_AUDIO_VID && self.product_id == HIDOC_P1_AUDIO_PID;
+        let is_control =
+            self.vendor_id == HIDOC_P1_CONTROL_VID && self.product_id == HIDOC_P1_CONTROL_PID;
+
+        is_audio || is_control
     }
 
-    /// Check if this is the audio interface (Actions Semiconductor)
-    /// VID: 0x10d6, PID: 0xb00e
+    /// Determine which interface type this device represents
+    pub fn interface_type(&self) -> Option<InterfaceType> {
+        if self.vendor_id == HIDOC_P1_AUDIO_VID && self.product_id == HIDOC_P1_AUDIO_PID {
+            Some(InterfaceType::Audio)
+        } else if self.vendor_id == HIDOC_P1_CONTROL_VID && self.product_id == HIDOC_P1_CONTROL_PID
+        {
+            Some(InterfaceType::Control)
+        } else {
+            None
+        }
+    }
+
+    /// Check if this is the audio interface specifically
     pub fn is_audio_interface(&self) -> bool {
         self.vendor_id == HIDOC_P1_AUDIO_VID && self.product_id == HIDOC_P1_AUDIO_PID
     }
 
-    /// Check if this is the control/storage interface (Solid State System)
-    /// VID: 0x1395, PID: 0x005d
+    /// Check if this is the control/storage interface specifically
     pub fn is_control_interface(&self) -> bool {
         self.vendor_id == HIDOC_P1_CONTROL_VID && self.product_id == HIDOC_P1_CONTROL_PID
     }
@@ -153,24 +191,29 @@ impl DeviceInfo {
             return false;
         }
 
-        // Also check manufacturer/product strings if available
+        // Check manufacturer/product strings if available
+        // Accept multiple manufacturer variations since device has two different chips
         if let Some(ref mfg) = self.manufacturer {
-            // Accept manufacturer strings from either chip
             let valid_mfg = mfg.contains(HIDOC_MANUFACTURER)
                 || mfg.contains("Actions Semiconductor")
                 || mfg.contains("Solid State System");
             if !valid_mfg {
-                warn!("Device VID {:04x} PID {:04x} matches but manufacturer '{}' unexpected",
-                    self.vendor_id, self.product_id, mfg);
+                warn!(
+                    "Device VID/PID matches but manufacturer string unexpected: '{}' (expected 'HiDock', 'Actions Semiconductor', or 'Solid State System')",
+                    mfg
+                );
             }
         }
 
+        // Accept product name variations
         if let Some(ref prod) = self.product {
-            // Accept product name variations
-            let valid_prod = prod.contains("HiDock") || prod.contains("HiDoc") || prod.contains(HIDOC_PRODUCT);
+            let valid_prod =
+                prod.contains("HiDock") || prod.contains("HiDoc") || prod.contains(HIDOC_PRODUCT);
             if !valid_prod {
-                warn!("Device VID {:04x} PID {:04x} matches but product '{}' unexpected",
-                    self.vendor_id, self.product_id, prod);
+                warn!(
+                    "Device VID/PID matches but product string does not: '{}' (expected to contain 'HiDock', 'HiDoc', or 'P1')",
+                    prod
+                );
             }
         }
 
@@ -178,32 +221,35 @@ impl DeviceInfo {
     }
 }
 
-// ============================================================================
-// Device Mode
-// ============================================================================
+        // Also check manufacturer/product strings if available
+        if let Some(ref mfg) = self.manufacturer {
+            // Accept manufacturer strings from either chip
+            let valid_mfg = mfg.contains(HIDOC_MANUFACTURER)
+                         || mfg.contains("Actions Semiconductor")
+                         || mfg.contains("Solid State System");
+            if !valid_mfg {
+                warn!(
+                    "Device VID/PID matches but manufacturer string unexpected: {}",
+                    mfg
+                );
+            }
+        }
 
-/// Operating mode for HiDoc P1 communication
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum DeviceMode {
-    /// Direct USB protocol communication
-    DirectUsb,
-    /// Mass storage device mode (fallback)
-    MassStorage,
-    /// Automatic detection and mode selection
-    Auto,
-}
+        if let Some(ref prod) = self.product {
+            // Accept product string variations
+            let valid_prod = prod.contains("HiDock") || prod.contains("HiDoc");
+            if !valid_prod {
+                warn!(
+                    "Device VID/PID matches but product string does not: {}",
+                    prod
+                );
+            }
+        }
 
-impl Default for DeviceMode {
-    fn default() -> Self {
-        Self::Auto
+        true
     }
 }
 
-// ============================================================================
-// Error Types
-// ============================================================================
-
-/// USB-specific error types
 #[derive(Debug, thiserror::Error)]
 pub enum UsbError {
     #[error("Device not found (VID: {vid:#06x}, PID: {pid:#06x})")]
@@ -260,10 +306,16 @@ pub fn init() -> Result<()> {
 /// Scan for connected HiDoc P1 devices
 ///
 /// Returns a list of all detected devices matching the HiDoc P1 VID/PID.
+/// Scans for both interfaces:
+/// - Audio Interface: VID 0x10d6, PID 0xb00e (Actions Semiconductor)
+/// - Control/Storage Interface: VID 0x1395, PID 0x005d (Solid State System)
 pub fn scan_devices() -> Result<Vec<DeviceInfo>> {
-    info!("Scanning for HiDoc P1 devices");
+    info!("Scanning for HiDoc P1 devices (both audio and control interfaces)");
 
     // TODO: Implement actual device scanning with rusb
+    // When implementing, scan for BOTH interfaces:
+    // 1. Audio Interface: VID=0x10d6, PID=0xb00e
+    // 2. Control/Storage Interface: VID=0x1395, PID=0x005d
     // This is a placeholder implementation
     let devices = Vec::new();
 
@@ -292,13 +344,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_device_info_validation() {
+    fn test_device_info_validation_control() {
+        // Test control interface (VID=0x1395, PID=0x005d)
         let mut info = DeviceInfo {
-            vendor_id: HIDOC_P1_VID,
-            product_id: HIDOC_P1_PID,
-            serial_number: None,
-            manufacturer: Some(HIDOC_MANUFACTURER.to_string()),
-            product: Some(HIDOC_PRODUCT.to_string()),
+            vendor_id: HIDOC_P1_CONTROL_VID,
+            product_id: HIDOC_P1_CONTROL_PID,
+            serial_number: Some("ACTIONS-BOS-002".to_string()),
+            manufacturer: Some("Solid State System Co.,Ltd.".to_string()),
+            product: Some("HiDock P1".to_string()),
             bus_number: 1,
             device_address: 2,
             state: DeviceState::Connected,
@@ -307,15 +360,39 @@ mod tests {
             storage_total: None,
         };
 
-        // Note: With placeholder VID/PID (0x0000), this will pass
-        // but should be updated when real values are known
         assert!(info.is_hidoc_p1());
+        assert!(info.is_control_interface());
+        assert!(!info.is_audio_interface());
+        assert_eq!(info.interface_type(), Some(InterfaceType::Control));
         assert!(info.validate());
 
         // Test with wrong VID
         info.vendor_id = 0xFFFF;
         assert!(!info.is_hidoc_p1());
         assert!(!info.validate());
+    }
+
+    #[test]
+    fn test_device_info_validation_audio() {
+        // Test audio interface (VID=0x10d6, PID=0xb00e)
+        let info = DeviceInfo {
+            vendor_id: HIDOC_P1_AUDIO_VID,
+            product_id: HIDOC_P1_AUDIO_PID,
+            serial_number: Some("ACTIONS-BOS-002".to_string()),
+            manufacturer: Some("Actions Semiconductor Co., Ltd.".to_string()),
+            product: Some("HiDock_P1".to_string()),
+            bus_number: 1,
+            device_address: 3,
+            state: DeviceState::Connected,
+            firmware_version: None,
+            storage_available: None,
+            storage_total: None,
+        };
+
+        assert!(info.is_hidoc_p1());
+        assert!(info.is_audio_interface());
+        assert!(!info.is_control_interface());
+        assert!(info.validate());
     }
 
     #[test]

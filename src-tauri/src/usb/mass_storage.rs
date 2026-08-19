@@ -4,7 +4,7 @@
 //! or the device operates in mass storage mode.
 
 use anyhow::{Context, Result};
-use log::{debug, error, info, warn};
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -174,7 +174,7 @@ impl MassStorageImporter {
 
     /// Get mount information
     pub fn get_mount_info(&self) -> Result<MountInfo> {
-        let metadata =
+        let _metadata =
             fs::metadata(&self.mount_point).context("Failed to read mount point metadata")?;
 
         // Get filesystem stats (platform-specific)
@@ -190,11 +190,9 @@ impl MassStorageImporter {
 
     #[cfg(unix)]
     fn get_filesystem_stats(&self) -> Result<(u64, u64)> {
-        use std::os::unix::fs::MetadataExt;
-
         // Use statvfs for accurate filesystem information
         // This is a simplified version; consider using nix crate for full statvfs
-        let metadata = fs::metadata(&self.mount_point)?;
+        let _metadata = fs::metadata(&self.mount_point)?;
 
         // Placeholder values
         // TODO: Use nix::sys::statvfs::statvfs for actual values

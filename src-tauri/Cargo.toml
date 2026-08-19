@@ -15,6 +15,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1.36", features = ["full"] }
@@ -29,7 +30,12 @@ tiny_http = "0.12.0"
 open = "5.4.1"
 dirs = "5.0"
 uuid = { version = "1.11", features = ["v4", "serde"] }
+url = "2.5"
+form_urlencoded = "1.2"
+base64 = "0.22"
+sha2 = "0.10"
 rand = "0.8"
+keyring = { version = "2.3", features = ["platform-macos", "platform-windows", "platform-linux"] }
 
 # USB device communication
 rusb = "0.9"

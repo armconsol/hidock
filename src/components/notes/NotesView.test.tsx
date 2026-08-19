@@ -23,19 +23,8 @@ vi.mock('@arco-design/web-react/icon', () => ({
   IconSave: () => <span>Save Icon</span>,
 }));
 
-// Mock Arco Design Message component
-vi.mock('@arco-design/web-react', async () => {
-  const actual = await vi.importActual('@arco-design/web-react');
-  return {
-    ...actual,
-    Message: {
-      success: vi.fn(),
-      error: vi.fn(),
-      info: vi.fn(),
-      warning: vi.fn(),
-    },
-  };
-});
+// Note: Message component mock is handled globally in src/test/setup.ts
+// to prevent ReactDOM.render() errors in React 19
 
 describe('NoteCard', () => {
   const mockNote: Note = {
@@ -273,11 +262,16 @@ describe('NoteDetail', () => {
     await userEvent.clear(titleInput);
     await userEvent.type(titleInput, 'Updated Title');
 
+    // Wait for save button to appear
     await waitFor(() => {
-      const saveButton = screen.getByText('Save');
-      userEvent.click(saveButton);
+      expect(screen.getByText('Save')).toBeInTheDocument();
     });
 
+    // Click save button
+    const saveButton = screen.getByText('Save');
+    await userEvent.click(saveButton);
+
+    // Verify updateNote was called correctly
     await waitFor(() => {
       expect(updateNoteSpy).toHaveBeenCalledWith('1', {
         title: 'Updated Title',
@@ -422,5 +416,20 @@ describe('useNotesStore', () => {
 
     expect(sorted[0].title).toBe('Apple');
     expect(sorted[1].title).toBe('Zebra');
+  });
+
+  it('should mark note as favorite', () => {
+    const { addNote, togglePinNote } = useNotesStore.getState();
+
+    addNote({ title: 'Test Note', content: 'Content' });
+
+    const { notes } = useNotesStore.getState();
+    const noteId = notes[0].id;
+
+    // Pin the note (mark as favorite)
+    togglePinNote(noteId);
+
+    const updatedState = useNotesStore.getState();
+    expect(updatedState.notes[0].isPinned).toBe(true);
   });
 });

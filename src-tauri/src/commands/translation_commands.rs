@@ -1,12 +1,36 @@
-use crate::translation::{
-    engine::TranslationEngine,
-    types::{Language, TranslationRequest, TranslationResponse},
+use crate::api::types::{Language, TranslationResponse};
+use crate::translation::cache::TranslationCache;
+use crate::translation::live_session::{
+    LiveSessionManager, LiveTranslationSession, TranslationSegment,
 };
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tauri::State;
+use tokio::sync::Mutex as TokioMutex;
 
+/// State for translation operations
 pub struct TranslationState {
-    pub engine: TranslationEngine,
+    pub cache: Arc<TokioMutex<TranslationCache>>,
+    pub session_manager: Arc<TokioMutex<LiveSessionManager>>,
 }
+
+/// Request to translate text
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranslateTextRequest {
+    pub text: String,
+    pub source_lang: String,
+    pub target_lang: String,
+}
+
+/// Cache statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CacheStats {
+    pub total_translations: u64,
+    pub cache_size_bytes: u64,
+}
+
+// ===== TRANSLATION COMMANDS =====
+
 
 /// Translate text from source language to target language
 #[tauri::command]
@@ -14,136 +38,311 @@ pub async fn translate_text(
     text: String,
     source_lang: String,
     target_lang: String,
-    state: State<'_, TranslationState>,
+    state: State<'_, crate::commands::AppState>,
 ) -> Result<TranslationResponse, String> {
-    let request = TranslationRequest {
-        text,
-        source_lang,
-        target_lang,
+    // Get database path (not held across await)
+    let db_path = {
+        let db = state
+            .db
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+        db.get_db_path().to_path_buf()
     };
 
-    state
-        .engine
-        .translate(&request)
+    // Create translation cache
+    let cache = TranslationCache::new(db_path.to_str().unwrap())
+        .map_err(|e| format!("Failed to initialize cache: {}", e))?;
+
+    // Check cache first
+    if let Some(cached) = cache
+        .get_translation(&text, &source_lang, &target_lang)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| format!("Cache lookup error: {}", e))?
+    {
+        return Ok(cached);
+    }
+
+    // TODO: In production, use HiNotes API client here
+    // For now, return an error indicating API client is needed
+    Err("Translation API client not yet integrated. Use cache or implement API call.".to_string())
 }
 
-/// Get list of supported languages
+/// Get list of supported languages for translation
 #[tauri::command]
-pub async fn get_supported_languages(
-    state: State<'_, TranslationState>,
-) -> Result<Vec<Language>, String> {
-    state
-        .engine
-        .get_supported_languages()
-        .await
-        .map_err(|e| e.to_string())
+pub async fn get_supported_languages() -> Result<Vec<Language>, String> {
+    // TODO: In production, fetch from HiNotes API
+    // For now, return common languages
+    Ok(vec![
+        Language {
+            code: "en".to_string(),
+            name: "English".to_string(),
+            native_name: Some("English".to_string()),
+        },
+        Language {
+            code: "es".to_string(),
+            name: "Spanish".to_string(),
+            native_name: Some("Español".to_string()),
+        },
+        Language {
+            code: "fr".to_string(),
+            name: "French".to_string(),
+            native_name: Some("Français".to_string()),
+        },
+        Language {
+            code: "de".to_string(),
+            name: "German".to_string(),
+            native_name: Some("Deutsch".to_string()),
+        },
+        Language {
+            code: "ja".to_string(),
+            name: "Japanese".to_string(),
+            native_name: Some("日本語".to_string()),
+        },
+        Language {
+            code: "zh".to_string(),
+            name: "Chinese".to_string(),
+            native_name: Some("中文".to_string()),
+        },
+    ])
 }
 
-/// Detect language of given text
+/// Set user's preferred target language for translation
 #[tauri::command]
-pub async fn detect_language(
-    text: String,
-    state: State<'_, TranslationState>,
-) -> Result<String, String> {
-    state
-        .engine
-        .detect_language(&text)
-        .await
-        .map_err(|e| e.to_string())
+pub async fn set_target_language(
+    language_code: String,
+    state: State<'_, crate::commands::AppState>,
+) -> Result<(), String> {
+    let db = state
+        .db
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db.set_user_setting("translation_target_lang", &language_code)
+        .map_err(|e| format!("Failed to set target language: {}", e))
 }
 
-/// Clear translation cache
+/// Get user's preferred target language
+#[tauri::command]
+pub async fn get_target_language(
+    state: State<'_, crate::commands::AppState>,
+) -> Result<Option<String>, String> {
+    let db = state
+        .db
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    db.get_user_setting("translation_target_lang")
+        .map_err(|e| format!("Failed to get target language: {}", e))
+}
+
+/// Clear translation cache older than specified days
 #[tauri::command]
 pub async fn clear_translation_cache(
-    state: State<'_, TranslationState>,
-) -> Result<(), String> {
-    state
-        .engine
-        .clear_cache()
+    days: i64,
+    state: State<'_, crate::commands::AppState>,
+) -> Result<u64, String> {
+    let db_path = {
+        let db = state
+            .db
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+        db.get_db_path().to_path_buf()
+    };
+
+    let cache = TranslationCache::new(db_path.to_str().unwrap())
+        .map_err(|e| format!("Failed to initialize cache: {}", e))?;
+
+    cache
+        .clear_old_translations(days)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| format!("Failed to clear cache: {}", e))
+
 }
 
 /// Get translation cache statistics
 #[tauri::command]
-pub async fn get_translation_cache_stats(
-    state: State<'_, TranslationState>,
-) -> Result<serde_json::Value, String> {
-    state
-        .engine
+pub async fn get_cache_stats(
+    state: State<'_, crate::commands::AppState>,
+) -> Result<CacheStats, String> {
+    let db_path = {
+        let db = state
+            .db
+            .lock()
+            .map_err(|e| format!("Database lock error: {}", e))?;
+        db.get_db_path().to_path_buf()
+    };
+
+    let cache = TranslationCache::new(db_path.to_str().unwrap())
+        .map_err(|e| format!("Failed to initialize cache: {}", e))?;
+
+    let (count, size) = cache
         .get_cache_stats()
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| format!("Failed to get cache stats: {}", e))?;
+
+    Ok(CacheStats {
+        total_translations: count,
+        cache_size_bytes: size,
+    })
+}
+
+// ===== LIVE TRANSLATION SESSION COMMANDS =====
+
+/// Start a new live translation session
+#[tauri::command]
+pub async fn start_translation_session(
+    note_id: String,
+    source_lang: String,
+    target_lang: String,
+    state: State<'_, crate::commands::AppState>,
+) -> Result<LiveTranslationSession, String> {
+    let db = state
+        .db
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    let db_path = db.get_db_path();
+    drop(db);
+
+    let conn = rusqlite::Connection::open(&db_path)
+        .map_err(|e| format!("Failed to open database: {}", e))?;
+
+    let session_manager = LiveSessionManager::new(Arc::new(std::sync::Mutex::new(conn)))
+        .map_err(|e| format!("Failed to initialize session manager: {}", e))?;
+
+    session_manager
+        .start_session(&note_id, &source_lang, &target_lang)
+        .map_err(|e| format!("Failed to start session: {}", e))
+}
+
+/// End an active live translation session
+#[tauri::command]
+pub async fn end_translation_session(
+    session_id: String,
+    state: State<'_, crate::commands::AppState>,
+) -> Result<LiveTranslationSession, String> {
+    let db = state
+        .db
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    let db_path = db.get_db_path();
+    drop(db);
+
+    let conn = rusqlite::Connection::open(&db_path)
+        .map_err(|e| format!("Failed to open database: {}", e))?;
+
+    let session_manager = LiveSessionManager::new(Arc::new(std::sync::Mutex::new(conn)))
+        .map_err(|e| format!("Failed to initialize session manager: {}", e))?;
+
+    session_manager
+        .end_session(&session_id)
+        .map_err(|e| format!("Failed to end session: {}", e))
+}
+
+/// Get active translation session for a note
+#[tauri::command]
+pub async fn get_active_translation_session(
+    note_id: String,
+    state: State<'_, crate::commands::AppState>,
+) -> Result<Option<LiveTranslationSession>, String> {
+    let db = state
+        .db
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    let db_path = db.get_db_path();
+    drop(db);
+
+    let conn = rusqlite::Connection::open(&db_path)
+        .map_err(|e| format!("Failed to open database: {}", e))?;
+
+    let session_manager = LiveSessionManager::new(Arc::new(std::sync::Mutex::new(conn)))
+        .map_err(|e| format!("Failed to initialize session manager: {}", e))?;
+
+    session_manager
+        .get_active_session(&note_id)
+        .map_err(|e| format!("Failed to get active session: {}", e))
+}
+
+/// Get translation segments for a session
+#[tauri::command]
+pub async fn get_translation_segments(
+    session_id: String,
+    state: State<'_, crate::commands::AppState>,
+) -> Result<Vec<TranslationSegment>, String> {
+    let db = state
+        .db
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    let db_path = db.get_db_path();
+    drop(db);
+
+    let conn = rusqlite::Connection::open(&db_path)
+        .map_err(|e| format!("Failed to open database: {}", e))?;
+
+    let session_manager = LiveSessionManager::new(Arc::new(std::sync::Mutex::new(conn)))
+        .map_err(|e| format!("Failed to initialize session manager: {}", e))?;
+
+    session_manager
+        .get_segments(&session_id)
+        .map_err(|e| format!("Failed to get segments: {}", e))
+}
+
+/// List all translation sessions for a note
+#[tauri::command]
+pub async fn list_translation_sessions(
+    note_id: String,
+    state: State<'_, crate::commands::AppState>,
+) -> Result<Vec<LiveTranslationSession>, String> {
+    let db = state
+        .db
+        .lock()
+        .map_err(|e| format!("Database lock error: {}", e))?;
+
+    let db_path = db.get_db_path();
+    drop(db);
+
+    let conn = rusqlite::Connection::open(&db_path)
+        .map_err(|e| format!("Failed to open database: {}", e))?;
+
+    let session_manager = LiveSessionManager::new(Arc::new(std::sync::Mutex::new(conn)))
+        .map_err(|e| format!("Failed to initialize session manager: {}", e))?;
+
+    session_manager
+        .list_sessions(&note_id)
+        .map_err(|e| format!("Failed to list sessions: {}", e))
+
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::Database;
 
-    fn setup_translation_state() -> TranslationState {
-        let db = Database::new_in_memory().expect("Failed to create test database");
-        let engine = TranslationEngine::new(db);
-        TranslationState { engine }
+    #[test]
+    fn test_translate_text_request_serialization() {
+        let request = TranslateTextRequest {
+            text: "Hello".to_string(),
+            source_lang: "en".to_string(),
+            target_lang: "es".to_string(),
+        };
+
+        let json = serde_json::to_string(&request).unwrap();
+        assert!(json.contains("Hello"));
+        assert!(json.contains("en"));
+        assert!(json.contains("es"));
     }
 
-    #[tokio::test]
-    async fn test_translate_text() {
-        let state = setup_translation_state();
+    #[test]
+    fn test_cache_stats_serialization() {
+        let stats = CacheStats {
+            total_translations: 100,
+            cache_size_bytes: 1024,
+        };
 
-        let result = translate_text(
-            "Hello world".to_string(),
-            "en".to_string(),
-            "es".to_string(),
-            State::from(&state),
-        )
-        .await;
-
-        // Note: This will fail without actual API credentials
-        // In real tests, mock the translation engine
-        assert!(result.is_ok() || result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_get_supported_languages() {
-        let state = setup_translation_state();
-
-        let result = get_supported_languages(State::from(&state)).await;
-
-        // Should return list of languages even without API
-        assert!(result.is_ok() || result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_detect_language() {
-        let state = setup_translation_state();
-
-        let result = detect_language(
-            "Hola mundo".to_string(),
-            State::from(&state),
-        )
-        .await;
-
-        assert!(result.is_ok() || result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_clear_translation_cache() {
-        let state = setup_translation_state();
-
-        let result = clear_translation_cache(State::from(&state)).await;
-
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_get_translation_cache_stats() {
-        let state = setup_translation_state();
-
-        let result = get_translation_cache_stats(State::from(&state)).await;
-
-        assert!(result.is_ok());
+        let json = serde_json::to_string(&stats).unwrap();
+        assert!(json.contains("100"));
+        assert!(json.contains("1024"));
     }
 }

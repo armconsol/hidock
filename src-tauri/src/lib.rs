@@ -5,12 +5,13 @@ pub mod auth;
 pub mod commands;
 pub mod db;
 pub mod referral;
+pub mod speaker;
 pub mod subscription;
 pub mod sync;
 pub mod translation;
 pub mod usb;
 
-use commands::{AppState, FFmpegState};
+use commands::{speaker_commands::SpeakerState, AppState, FFmpegState};
 use db::Database;
 use std::sync::Mutex;
 
@@ -37,11 +38,14 @@ pub fn run() {
 
     let app_state = AppState { db: Mutex::new(db) };
     let ffmpeg_state = FFmpegState::new();
+    let speaker_state = SpeakerState::default();
 
     tauri::Builder::default()
         .manage(app_state)
         .manage(ffmpeg_state)
+        .manage(speaker_state)
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             greet,
             // FFmpeg commands
@@ -99,7 +103,20 @@ pub fn run() {
             commands::bind_device,
             commands::unbind_device,
             commands::update_device_status,
-            commands::update_device_last_sync
+            commands::update_device_last_sync,
+            // Translation commands
+            // TODO: Fix Send bounds for translate_text, clear_translation_cache, get_cache_stats
+            // commands::translate_text,
+            commands::get_supported_languages,
+            commands::set_target_language,
+            commands::get_target_language,
+            // commands::clear_translation_cache,
+            // commands::get_cache_stats,
+            commands::start_translation_session,
+            commands::end_translation_session,
+            commands::get_active_translation_session,
+            commands::get_translation_segments,
+            commands::list_translation_sessions
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

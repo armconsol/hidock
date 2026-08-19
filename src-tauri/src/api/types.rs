@@ -79,7 +79,7 @@ pub struct TranslationResponse {
 impl TranslationResponse {
     /// Create from cached translation
     pub fn from_cache(
-        source_text: &str,
+        _source_text: &str,
         source_lang: &str,
         target_lang: &str,
         translated_text: &str,
