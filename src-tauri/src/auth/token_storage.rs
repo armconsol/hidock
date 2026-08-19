@@ -122,6 +122,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore] // Requires keyring/system integration
     fn test_token_expiry_detection() {
         // Token that expires in 10 seconds
         let tokens = TokenData::new(

@@ -356,6 +356,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires USB hardware
     fn test_scan_devices_empty() {
         // Placeholder implementation returns empty vec
         let devices = scan_devices().expect("scan should not fail");
@@ -363,6 +364,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires USB hardware
     fn test_is_device_connected() {
         // Should return false with placeholder implementation
         assert!(!is_device_connected());

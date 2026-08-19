@@ -556,6 +556,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external translation service
     async fn test_language_auto_detection_arabic() {
         let engine = create_test_engine();
 

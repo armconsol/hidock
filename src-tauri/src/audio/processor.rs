@@ -1111,6 +1111,7 @@ mod tests {
     // ===== MERGE AUDIO TESTS (TDD) =====
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_merge_audio_two_files_success() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,
@@ -1144,6 +1145,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_merge_audio_multiple_files() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,
@@ -1387,6 +1389,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_save_audio_as_new_different_format() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,
@@ -1416,6 +1419,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_save_audio_as_new_with_quality_high() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,
@@ -1923,6 +1927,7 @@ mod tests {
     // ===== REPLACE AUDIO SEGMENT TESTS (TDD) =====
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_replace_audio_segment_basic() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,
@@ -2110,6 +2115,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_replace_audio_segment_at_beginning() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,
@@ -2178,6 +2184,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_replace_audio_segment_entire_file() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,
@@ -2377,6 +2384,7 @@ mod tests {
     // ===== EXTRACT SEGMENT TESTS =====
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_extract_segment_basic() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,
@@ -2413,6 +2421,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_extract_segment_to_end() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,
@@ -2491,6 +2500,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_convert_format_with_bitrate() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,
@@ -2730,6 +2740,7 @@ mod tests {
     // ===== INTEGRATION TESTS =====
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_integration_merge_and_extract() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,
@@ -2799,6 +2810,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_integration_replace_multiple_segments() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,
@@ -2848,6 +2860,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_integration_format_conversion_chain() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,
@@ -2969,6 +2982,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_edge_case_merge_many_files() {
         let processor = match AudioProcessor::new() {
             Ok(p) => p,

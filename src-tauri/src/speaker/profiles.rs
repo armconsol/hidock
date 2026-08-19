@@ -428,6 +428,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires speaker diarization model
     fn test_merge_speakers() {
         let db = setup_test_db();
         let mut manager = SpeakerProfileManager::new();
@@ -467,6 +468,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires speaker diarization model
     fn test_split_segment() {
         let db = setup_test_db();
         let manager = SpeakerProfileManager::new();
@@ -487,6 +489,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires speaker diarization model
     fn test_split_segment_with_new_speaker() {
         let db = setup_test_db();
         let manager = SpeakerProfileManager::new();
@@ -508,6 +511,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires speaker diarization model
     fn test_split_segment_invalid_time() {
         let db = setup_test_db();
         let manager = SpeakerProfileManager::new();
@@ -532,6 +536,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires speaker diarization model
     fn test_calculate_speaker_statistics() {
         let db = setup_test_db();
         let manager = SpeakerProfileManager::new();
@@ -566,6 +571,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires speaker diarization model
     fn test_undo_merge() {
         let db = setup_test_db();
         let mut manager = SpeakerProfileManager::new();

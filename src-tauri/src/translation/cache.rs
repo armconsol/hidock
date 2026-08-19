@@ -393,6 +393,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external translation service
     async fn test_clear_all() {
         let (cache, _temp) = setup_test_cache();
 

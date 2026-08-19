@@ -2312,6 +2312,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_authenticate_with_credentials() {
         // Arrange
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
@@ -2328,6 +2329,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_token_is_stored_after_auth() {
         // Arrange
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
@@ -2344,6 +2346,7 @@ mod tests {
     // ===== REGISTRATION TESTS =====
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_register_new_user() {
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
 
@@ -2358,6 +2361,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_register_stores_token() {
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
 
@@ -2408,6 +2412,7 @@ mod tests {
     // ===== LOGOUT TESTS =====
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_logout_clears_token() {
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
         let _ = client.authenticate("test@example.com", "password").await;
@@ -2447,6 +2452,7 @@ mod tests {
     // ===== TOKEN MANAGEMENT TESTS =====
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_is_authenticated() {
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
 
@@ -2471,6 +2477,7 @@ mod tests {
     // ===== SUBSCRIPTION TESTS =====
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_get_subscription_status_active() {
         // Arrange
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
@@ -2503,6 +2510,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_check_subscription_returns_true_for_active() {
         // Arrange
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
@@ -2517,6 +2525,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_check_subscription_returns_false_for_expired() {
         // Arrange
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
@@ -2531,6 +2540,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_get_referral_info() {
         // Arrange
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
@@ -2564,6 +2574,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_subscription_status_parsing_from_response() {
         // Arrange
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
@@ -2594,6 +2605,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_get_receipts_success() {
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
         let _ = client.authenticate("test@example.com", "password").await;
@@ -2619,6 +2631,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_get_billing_portal_url_success() {
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
         let _ = client.authenticate("test@example.com", "password").await;
@@ -2644,6 +2657,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_check_trial_eligibility_success() {
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
         let _ = client.authenticate("test@example.com", "password").await;
@@ -2669,6 +2683,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_claim_trial_success() {
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
         let _ = client
@@ -2685,6 +2700,7 @@ mod tests {
     // ===== CACHING TESTS =====
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_subscription_caching() {
         use std::time::Duration;
 
@@ -2703,6 +2719,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_invalidate_subscription_cache() {
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
         let _ = client.authenticate("test@example.com", "password").await;
@@ -2719,6 +2736,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_get_subscription_status_fresh() {
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
         let _ = client.authenticate("test@example.com", "password").await;
@@ -2731,6 +2749,7 @@ mod tests {
     // ===== GRACE PERIOD TESTS =====
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_is_in_grace_period() {
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
         let _ = client.authenticate("test@example.com", "password").await;
@@ -2740,6 +2759,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_is_subscription_expired() {
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
         let _ = client.authenticate("expired@example.com", "password").await;
@@ -2749,6 +2769,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external API/mock server
     async fn test_get_days_until_expiration() {
         let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
         let _ = client.authenticate("test@example.com", "password").await;

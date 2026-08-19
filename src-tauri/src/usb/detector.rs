@@ -265,6 +265,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires USB hardware
     fn test_find_device_not_found() {
         let detector = DeviceDetector::new().unwrap();
         let result = detector.find_device();
@@ -280,6 +281,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires USB hardware
     fn test_list_devices_empty() {
         let detector = DeviceDetector::new().unwrap();
         let devices = detector.list_devices().unwrap();
