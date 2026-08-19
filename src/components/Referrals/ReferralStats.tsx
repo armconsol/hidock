@@ -5,7 +5,6 @@ import {
   IconGift,
   IconClockCircle,
   IconCalendarClock,
-  IconGift,
 } from '@arco-design/web-react/icon';
 import { ReferralStats as ReferralStatsType } from '../../types/referral';
 import './ReferralStats.css';

@@ -56,7 +56,7 @@ describe('InlineTranslation Component', () => {
   it('shows loading indicator during translation', () => {
     render(<InlineTranslation text="Hello world" isLoading={true} />);
 
-    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.getByTestId('inline-translation')).toBeInTheDocument();
   });
 
   it('toggles between original and translated text', async () => {

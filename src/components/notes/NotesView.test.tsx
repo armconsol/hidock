@@ -16,6 +16,7 @@ vi.mock('@arco-design/web-react/icon', () => ({
   IconSort: () => <span>Sort Icon</span>,
   IconPushpin: () => <span>Pin Icon</span>,
   IconClock: () => <span>Clock Icon</span>,
+  IconClockCircle: () => <span>Clock Icon</span>,
   IconMore: () => <span>More Icon</span>,
   IconDelete: () => <span>Delete Icon</span>,
   IconArchive: () => <span>Archive Icon</span>,

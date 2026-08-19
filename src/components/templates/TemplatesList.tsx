@@ -190,14 +190,14 @@ export function TemplatesList() {
                       size="small"
                       type="text"
                       icon={template.isFavorite ? <IconStarFill /> : <IconStar />}
-                      onClick={(e) => handleToggleFavorite(template.id, e)}
+                      onClick={(e) => handleToggleFavorite(template.id, e as unknown as React.MouseEvent)}
                     />
                     {!template.isDefault && (
                       <Button
                         size="small"
                         type="text"
                         icon={<IconCheck />}
-                        onClick={(e) => handleSetDefault(template.id, e)}
+                        onClick={(e) => handleSetDefault(template.id, e as unknown as React.MouseEvent)}
                       />
                     )}
                     <Button

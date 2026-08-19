@@ -43,7 +43,7 @@ export function InlineTranslation({
     >
       <div className="inline-translation-content">
         {isLoading ? (
-          <Spin size="small" role="progressbar" />
+          <Spin size={16} />
         ) : showTranslation && translatedText ? (
           <span className="translated-text">{translatedText}</span>
         ) : (

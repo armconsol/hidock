@@ -184,7 +184,6 @@ export function AudioPlayer({ noteId, audioUrl, className = '' }: AudioPlayerPro
               value={currentTime}
               max={duration}
               onChange={(val) => handleSeek(Array.isArray(val) ? val[0] : val)}
-              showTooltip={false}
               style={{ width: 300, margin: 0 }}
               data-testid="progress-slider"
             />
@@ -202,7 +201,6 @@ export function AudioPlayer({ noteId, audioUrl, className = '' }: AudioPlayerPro
               value={volume * 100}
               max={100}
               onChange={(val) => handleVolumeChange(Array.isArray(val) ? val[0] : val)}
-              showTooltip={false}
               style={{ width: 100, margin: 0 }}
               data-testid="volume-slider"
             />

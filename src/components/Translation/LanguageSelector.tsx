@@ -37,10 +37,8 @@ export function LanguageSelector({
       disabled={disabled}
       showSearch={showSearch}
       filterOption={(inputValue, option) => {
-        const label = typeof option.props?.children === 'string'
-          ? option.props.children
-          : option.label || '';
-        return label.toLowerCase().includes(inputValue.toLowerCase());
+        const optLabel = options.find(o => o.value === (option as any).value)?.label || '';
+        return optLabel.toLowerCase().includes(inputValue.toLowerCase());
       }}
       style={{ width: '100%' }}
     >
