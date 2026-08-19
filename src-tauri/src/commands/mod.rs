@@ -1,13 +1,17 @@
 // Tauri IPC commands
 
-// pub mod audio; // TODO: Fix audio module compilation errors
+pub mod audio;
 pub mod auth_commands;
 pub mod device_commands; // Device commands module
 pub mod ffmpeg; // FFmpeg commands module
 pub mod notes_commands; // Notes commands module
+pub mod referral_commands; // Referral commands module
+pub mod rewards_commands; // Rewards commands module
 pub mod sharing_commands; // Sharing commands module
 pub mod speaker_commands; // Speaker identification commands module
 pub mod translation_commands; // Translation commands module
+pub mod usb_commands; // USB device commands module
+pub mod whisper_commands; // Whisper notes commands module
 
 use crate::db::{
     types::{
@@ -21,14 +25,18 @@ use std::sync::Mutex;
 use tauri::State;
 
 // Re-export audio command functions and their generated helpers
-// pub use audio::*; // TODO: Fix audio module compilation errors
+pub use audio::*;
 pub use auth_commands::*;
 pub use device_commands::*; // Re-export device commands
 pub use ffmpeg::*; // Re-export FFmpeg commands
 pub use notes_commands::*; // Re-export notes commands
+pub use referral_commands::*; // Re-export referral commands
+pub use rewards_commands::*; // Re-export rewards commands
 pub use sharing_commands::*; // Re-export sharing commands
 pub use speaker_commands::*; // Re-export speaker commands
 pub use translation_commands::*; // Re-export translation commands
+pub use usb_commands::*; // Re-export USB commands
+pub use whisper_commands::*; // Re-export whisper commands
 
 pub struct AppState {
     pub db: Mutex<Database>,

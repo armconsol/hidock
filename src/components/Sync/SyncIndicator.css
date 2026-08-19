@@ -1,0 +1,65 @@
+.sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.sync-indicator:hover {
+  background-color: var(--color-fill-2);
+}
+
+.sync-indicator-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sync-indicator-icon {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}
+
+.sync-indicator-text {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sync-indicator-count {
+  font-size: 12px;
+  color: var(--color-text-3);
+}
+
+/* Status-specific styles */
+.sync-indicator-synced .sync-indicator-icon {
+  color: var(--color-success-6);
+}
+
+.sync-indicator-syncing .sync-indicator-icon {
+  color: var(--color-primary-6);
+}
+
+.sync-indicator-offline .sync-indicator-icon {
+  color: var(--color-text-4);
+}
+
+.sync-indicator-failed .sync-indicator-icon {
+  color: var(--color-danger-6);
+}
+
+/* Spinning animation for sync icon */
+.sync-indicator-spinning {
+  animation: sync-spin 1s linear infinite;
+}
+
+@keyframes sync-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

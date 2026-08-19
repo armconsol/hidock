@@ -1,0 +1,29 @@
+.referrals-page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.referrals-page.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.referrals-header {
+  margin-bottom: 32px;
+}
+
+.referrals-header h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--color-text-1);
+}
+
+.header-subtitle {
+  margin-top: 8px;
+  font-size: 16px;
+  color: var(--color-text-3);
+}

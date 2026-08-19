@@ -1,0 +1,33 @@
+.rewards-list-card {
+  margin-bottom: 20px;
+}
+
+.empty-rewards {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--color-text-3);
+}
+
+.empty-rewards p {
+  margin-top: 16px;
+  font-size: 16px;
+}
+
+.rewards-section {
+  width: 100%;
+}
+
+.section-title {
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-2);
+}
+
+.rewards-table {
+  width: 100%;
+}
+
+.rewards-table.history {
+  opacity: 0.85;
+}

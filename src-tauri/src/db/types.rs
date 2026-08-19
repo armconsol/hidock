@@ -45,6 +45,13 @@ pub struct WhisperNote {
     pub synced_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InsertWhisperNote {
+    pub id: String,
+    pub content: String,
+    pub audio_url: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Folder {
     pub id: String,

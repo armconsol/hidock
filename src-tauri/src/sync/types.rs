@@ -20,6 +20,7 @@ pub enum EntityType {
     Todo,
     CalendarEvent,
     Template,
+    Settings,
 }
 
 impl EntityType {
@@ -30,6 +31,7 @@ impl EntityType {
             EntityType::Todo => "todo",
             EntityType::CalendarEvent => "calendar_event",
             EntityType::Template => "template",
+            EntityType::Settings => "settings",
         }
     }
 }

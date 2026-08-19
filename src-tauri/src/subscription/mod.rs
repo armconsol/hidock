@@ -172,7 +172,7 @@ mod tests {
 
     fn setup() -> (Arc<RwLock<Database>>, Arc<HiNotesClient>) {
         let db = Database::new_in_memory().expect("Failed to create in-memory database");
-        let api_client = HiNotesClient::new("http://localhost:3001/v1");
+        let api_client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
 
         (Arc::new(RwLock::new(db)), Arc::new(api_client))
     }

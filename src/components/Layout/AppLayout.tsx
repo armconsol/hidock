@@ -6,9 +6,11 @@ import {
   IconMessage,
   IconCheckSquare,
   IconSettings,
+  IconUser,
 } from '@arco-design/web-react/icon';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '../ThemeProvider';
+import { useAuthLifecycle } from '../../hooks/useAuthLifecycle';
 import './AppLayout.css';
 
 const MenuItem = Menu.Item;
@@ -18,6 +20,9 @@ const Content = Layout.Content;
 export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Initialize auth lifecycle management
+  useAuthLifecycle();
 
   const menuItems = [
     {
@@ -85,7 +90,21 @@ export function AppLayout() {
 
             <div className="sidebar-footer">
               <div
-                className="settings-button"
+                className="footer-button"
+                onClick={() => navigate('/subscription')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    navigate('/subscription');
+                  }
+                }}
+              >
+                <IconUser />
+                <span className="menu-item-label">Subscription</span>
+              </div>
+              <div
+                className="footer-button"
                 onClick={() => navigate('/settings')}
                 role="button"
                 tabIndex={0}

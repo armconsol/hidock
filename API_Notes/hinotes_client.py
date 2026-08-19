@@ -11,6 +11,7 @@ HiDock for official API access before using in production.
 import requests
 from typing import Optional, Dict, List, Any
 from datetime import datetime, timedelta
+from dateutil import parser as dateparser
 import json
 
 
@@ -401,6 +402,155 @@ class HiNotesClient:
     def get_entry_info(self) -> Dict[str, Any]:
         """Get application entry data"""
         return self._request('POST', '/entry/info')
+
+    # Subscription Management
+
+    def get_subscription_status(self) -> Dict[str, Any]:
+        """
+        Get current subscription status from RevenueCat
+
+        Returns:
+            Dictionary containing subscription details including:
+            - product_id: Subscription product identifier
+            - status: active, expired, canceled, or trial
+            - expires_at: Expiration date (ISO 8601 format)
+        """
+        return self._request('GET', '/subscribers')
+
+    def get_receipts(self) -> List[Dict[str, Any]]:
+        """
+        Get purchase receipts
+
+        Returns:
+            List of receipt objects containing:
+            - id: Receipt identifier
+            - product_id: Product purchased
+            - purchase_date: Date of purchase
+            - store: Store where purchased (apple, google, stripe)
+            - amount: Purchase amount
+            - currency: Currency code
+            - is_trial: Whether this was a trial purchase
+        """
+        response = self._request('GET', '/receipts')
+        return response.get('receipts', [])
+
+    def get_billing_portal_url(self) -> str:
+        """
+        Get RevenueCat billing portal URL for subscription management
+
+        Returns:
+            URL to RevenueCat billing portal where users can manage subscriptions
+        """
+        response = self._request('GET', '/payment/rc/portal')
+        return response.get('url', '')
+
+    def check_trial_eligibility(self) -> Dict[str, Any]:
+        """
+        Check if user is eligible for trial subscription
+
+        Returns:
+            Dictionary containing:
+            - eligible: Boolean indicating trial eligibility
+            - reason: Explanation if not eligible
+            - trial_duration_days: Length of trial period if eligible
+        """
+        return self._request('GET', '/user/trial/check')
+
+    def claim_trial(self) -> Dict[str, Any]:
+        """
+        Claim trial subscription
+
+        Returns:
+            Dictionary containing:
+            - success: Whether trial was successfully claimed
+            - subscription: Subscription details if successful
+            - expires_at: Trial expiration date
+            - message: Result message
+        """
+        return self._request('POST', '/user/trial/claim')
+
+    def check_subscription_active(self) -> bool:
+        """
+        Check if user has an active subscription (includes grace period)
+
+        Returns:
+            Boolean indicating if subscription is active
+        """
+        try:
+            status = self.get_subscription_status()
+            subscription = status.get('subscriber', {}).get('entitlements', {}).get('premium', {})
+
+            if not subscription:
+                return False
+
+            expires_at = subscription.get('expires_date')
+            if not expires_at:
+                return True  # No expiration means active
+
+            # Parse expiration date
+            expires = dateparser.parse(expires_at)
+            now = datetime.utcnow()
+
+            # Include 7-day grace period
+            grace_end = expires + timedelta(days=7)
+            return now < grace_end
+        except Exception:
+            return False
+
+    def is_in_grace_period(self) -> bool:
+        """
+        Check if subscription is in grace period (expired but still accessible)
+
+        Returns:
+            Boolean indicating if in grace period
+        """
+        try:
+            status = self.get_subscription_status()
+            subscription = status.get('subscriber', {}).get('entitlements', {}).get('premium', {})
+
+            if not subscription:
+                return False
+
+            expires_at = subscription.get('expires_date')
+            if not expires_at:
+                return False  # No expiration means not in grace period
+
+            expires = dateparser.parse(expires_at)
+            now = datetime.utcnow()
+            grace_end = expires + timedelta(days=7)
+
+            return expires < now < grace_end
+        except Exception:
+            return False
+
+    def get_days_until_expiration(self) -> Optional[int]:
+        """
+        Get number of days until subscription expires (including grace period)
+
+        Returns:
+            Number of days remaining, or None if no expiration
+        """
+        try:
+            status = self.get_subscription_status()
+            subscription = status.get('subscriber', {}).get('entitlements', {}).get('premium', {})
+
+            if not subscription:
+                return None
+
+            expires_at = subscription.get('expires_date')
+            if not expires_at:
+                return None  # No expiration
+
+            expires = dateparser.parse(expires_at)
+            grace_end = expires + timedelta(days=7)
+            now = datetime.utcnow()
+
+            if grace_end < now:
+                return 0  # Already expired
+
+            return (grace_end - now).days
+        except Exception:
+            return None
 
 
 # Example usage

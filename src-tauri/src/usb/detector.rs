@@ -7,28 +7,26 @@
 //! - Control/Storage interface: VID 0x1395, PID 0x005d (Solid State System)
 
 use super::{
-    DeviceInfo, UsbError, HIDOC_P1_AUDIO_PID, HIDOC_P1_AUDIO_VID,
-    HIDOC_P1_CONTROL_PID, HIDOC_P1_CONTROL_VID,
+    DeviceInfo, DeviceState, UsbError, USB_TIMEOUT_MS, HIDOC_P1_AUDIO_PID, HIDOC_P1_AUDIO_VID,
+    HIDOC_P1_CONTROL_PID, HIDOC_P1_CONTROL_VID, HIDOC_MANUFACTURER,
 };
 use anyhow::Result;
-use log::info;
+use log::{info, warn};
+use rusb::UsbContext;
+use std::time::Duration;
 
 /// USB device detector
 pub struct DeviceDetector {
-    // TODO: Add rusb::Context when rusb is added
-    // context: rusb::Context,
+    context: rusb::Context,
 }
 
 impl DeviceDetector {
     /// Create a new device detector
     pub fn new() -> Result<Self> {
-        // TODO: Initialize rusb context
-        // let context = rusb::Context::new()
-        //     .map_err(|e| UsbError::DeviceOpenFailed(e.to_string()))?;
+        let context = rusb::Context::new()
+            .map_err(|e| UsbError::DeviceOpenFailed(e.to_string()))?;
 
-        Ok(Self {
-            // context,
-        })
+        Ok(Self { context })
     }
 
     /// Find the first HiDoc P1 device
@@ -100,8 +98,6 @@ impl DeviceDetector {
     pub fn list_devices(&self) -> Result<Vec<DeviceInfo>, UsbError> {
         info!("Enumerating USB devices for HiDoc P1 (checking both interfaces)");
 
-        // TODO: Implement with rusb
-        /*
         let devices = self.context.devices()
             .map_err(|e| UsbError::DeviceOpenFailed(e.to_string()))?;
 
@@ -123,10 +119,12 @@ impl DeviceDetector {
                     Ok(info) => {
                         // Validate manufacturer name for additional confidence
                         if let Some(ref mfg) = info.manufacturer {
-                            if !mfg.contains(HIDOC_MANUFACTURER) {
+                            if !mfg.contains(HIDOC_MANUFACTURER)
+                                && !mfg.contains("Actions Semiconductor")
+                                && !mfg.contains("Solid State System") {
                                 warn!(
-                                    "Device VID:PID {:04x}:{:04x} matches but manufacturer '{}' does not contain '{}'",
-                                    vid, pid, mfg, HIDOC_MANUFACTURER
+                                    "Device VID:PID {:04x}:{:04x} matches but manufacturer '{}' unexpected",
+                                    vid, pid, mfg
                                 );
                             }
                         }
@@ -154,34 +152,41 @@ impl DeviceDetector {
         }
 
         Ok(hidoc_devices)
-        */
-
-        // Placeholder - returns empty until rusb is integrated
-        info!("USB enumeration not yet implemented (rusb integration pending)");
-        Ok(Vec::new())
     }
 
     /// Extract device information from a USB device
-    /*
     fn get_device_info(
         &self,
         device: &rusb::Device<rusb::Context>,
         desc: &rusb::DeviceDescriptor,
     ) -> Result<DeviceInfo, UsbError> {
-        let handle = device.open()
-            .map_err(|e| UsbError::DeviceOpenFailed(e.to_string()))?;
-
         let timeout = Duration::from_millis(USB_TIMEOUT_MS);
 
-        // Read string descriptors
-        let manufacturer = desc.manufacturer_string_index()
-            .and_then(|idx| handle.read_manufacturer_string(desc, &timeout).ok());
+        // Try to open device handle for reading string descriptors
+        let (manufacturer, product, serial_number) = match device.open() {
+            Ok(handle) => {
+                // Read string descriptors with language
+                let (manufacturer, product, serial_number) = match handle.read_languages(timeout) {
+                    Ok(langs) if !langs.is_empty() => {
+                        let lang = langs[0];
+                        let mfg = desc.manufacturer_string_index()
+                            .and_then(|_| handle.read_manufacturer_string(lang, desc, timeout).ok());
+                        let prod = desc.product_string_index()
+                            .and_then(|_| handle.read_product_string(lang, desc, timeout).ok());
+                        let serial = desc.serial_number_string_index()
+                            .and_then(|_| handle.read_serial_number_string(lang, desc, timeout).ok());
+                        (mfg, prod, serial)
+                    }
+                    _ => (None, None, None)
+                };
 
-        let product = desc.product_string_index()
-            .and_then(|idx| handle.read_product_string(desc, &timeout).ok());
-
-        let serial_number = desc.serial_number_string_index()
-            .and_then(|idx| handle.read_serial_number_string(desc, &timeout).ok());
+                (manufacturer, product, serial_number)
+            }
+            Err(e) => {
+                warn!("Failed to open device for string descriptors: {}", e);
+                (None, None, None)
+            }
+        };
 
         Ok(DeviceInfo {
             vendor_id: desc.vendor_id(),
@@ -197,30 +202,38 @@ impl DeviceDetector {
             storage_total: None,
         })
     }
-    */
 
     /// Check if device supports mass storage class
-    pub fn is_mass_storage_device(&self, _info: &DeviceInfo) -> Result<bool, UsbError> {
-        // TODO: Implement with rusb
-        /*
-        let device = self.find_device_by_address(info.bus_number, info.device_address)?;
-        let config = device.active_config_descriptor()
-            .map_err(|_| UsbError::InvalidDescriptor)?;
+    pub fn is_mass_storage_device(&self, info: &DeviceInfo) -> Result<bool, UsbError> {
+        let devices = self.context.devices()
+            .map_err(|e| UsbError::DeviceOpenFailed(e.to_string()))?;
 
-        for interface in config.interfaces() {
-            for desc in interface.descriptors() {
-                // Mass Storage Class = 0x08
-                if desc.class_code() == 0x08 {
-                    return Ok(true);
+        // Find the device by bus and address
+        for device in devices.iter() {
+            if device.bus_number() == info.bus_number
+                && device.address() == info.device_address {
+
+                let config = device.active_config_descriptor()
+                    .map_err(|_| UsbError::InvalidDescriptor)?;
+
+                for interface in config.interfaces() {
+                    for desc in interface.descriptors() {
+                        // Mass Storage Class = 0x08
+                        if desc.class_code() == 0x08 {
+                            info!("Device is mass storage class");
+                            return Ok(true);
+                        }
+                    }
                 }
+
+                return Ok(false);
             }
         }
 
-        Ok(false)
-        */
-
-        // Placeholder
-        Ok(false)
+        Err(UsbError::DeviceNotFound {
+            vid: info.vendor_id,
+            pid: info.product_id
+        })
     }
 }
 

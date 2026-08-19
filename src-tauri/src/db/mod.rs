@@ -9,10 +9,10 @@ use std::path::Path;
 use types::{
     CalendarEvent, DbSubscription, Device, DeviceStatus, EventSource, Folder, InsertNote,
     InsertShareLink, InsertSmartLabel, InsertSpeaker, InsertSpeakerSegment, InsertSubscription,
-    InsertSubscriptionEvent, InsertTodo, InsertVocabulary, Note, PaginationParams, ShareLink,
-    SmartLabel, Speaker, SpeakerSegment, SubscriptionEvent, SubscriptionEventType,
-    SubscriptionStatus, Template, Todo, TodoState, UpdateNote, UpdateSmartLabel, UpdateSpeaker,
-    UpdateSubscription, UpdateTodo, Vocabulary,
+    InsertSubscriptionEvent, InsertTodo, InsertVocabulary, InsertWhisperNote, Note,
+    PaginationParams, ShareLink, SmartLabel, Speaker, SpeakerSegment, SubscriptionEvent,
+    SubscriptionEventType, SubscriptionStatus, Template, Todo, TodoState, UpdateNote,
+    UpdateSmartLabel, UpdateSpeaker, UpdateSubscription, UpdateTodo, Vocabulary, WhisperNote,
 };
 
 /// Helper function to parse datetime from SQLite TEXT field (for use outside query_map)
@@ -519,6 +519,167 @@ impl Database {
         };
 
         self.update_note(note_id, &update)
+    }
+
+    // ===== WHISPER NOTES CRUD OPERATIONS =====
+
+    /// Insert a new whisper note
+    pub fn create_whisper_note(&self, whisper: &InsertWhisperNote) -> Result<WhisperNote> {
+        let now = Utc::now();
+
+        self.conn.execute(
+            "INSERT INTO whisper_notes (id, content, audio_url, created_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![
+                &whisper.id,
+                &whisper.content,
+                &whisper.audio_url,
+                now.to_rfc3339(),
+            ],
+        )?;
+
+        self.get_whisper_note(&whisper.id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve inserted whisper note"))
+    }
+
+    /// Get a whisper note by ID
+    pub fn get_whisper_note(&self, id: &str) -> Result<Option<WhisperNote>> {
+        let whisper = self
+            .conn
+            .query_row(
+                "SELECT id, content, audio_url, created_at, synced_at FROM whisper_notes WHERE id = ?1",
+                params![id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, Option<String>>(4)?,
+                    ))
+                },
+            )
+            .optional()?;
+
+        match whisper {
+            Some((id, content, audio_url, created_at, synced_at)) => Ok(Some(WhisperNote {
+                id,
+                content,
+                audio_url,
+                created_at: parse_datetime(created_at)?,
+                synced_at: parse_datetime_opt(synced_at)?,
+            })),
+            None => Ok(None),
+        }
+    }
+
+    /// List whisper notes with pagination
+    pub fn list_whisper_notes(&self, page_index: i64, page_size: i64) -> Result<Vec<WhisperNote>> {
+        let offset = page_index * page_size;
+
+        let mut stmt = self.conn.prepare(
+            "SELECT id, content, audio_url, created_at, synced_at
+             FROM whisper_notes
+             ORDER BY created_at DESC
+             LIMIT ?1 OFFSET ?2",
+        )?;
+
+        let rows = stmt.query_map(params![page_size, offset], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, Option<String>>(4)?,
+            ))
+        })?;
+
+        let mut whispers = Vec::new();
+        for row in rows {
+            let (id, content, audio_url, created_at, synced_at) = row?;
+            whispers.push(WhisperNote {
+                id,
+                content,
+                audio_url,
+                created_at: parse_datetime(created_at)?,
+                synced_at: parse_datetime_opt(synced_at)?,
+            });
+        }
+
+        Ok(whispers)
+    }
+
+    /// Delete a whisper note by ID
+    pub fn delete_whisper_note(&self, id: &str) -> Result<()> {
+        let deleted = self
+            .conn
+            .execute("DELETE FROM whisper_notes WHERE id = ?1", params![id])?;
+
+        if deleted == 0 {
+            anyhow::bail!("Whisper note not found: {}", id);
+        }
+
+        Ok(())
+    }
+
+    /// Convert a whisper note to a regular note
+    pub fn convert_whisper_to_note(&self, whisper_id: &str, folder_id: Option<String>) -> Result<Note> {
+        // Get the whisper note
+        let whisper = self
+            .get_whisper_note(whisper_id)?
+            .ok_or_else(|| anyhow::anyhow!("Whisper note not found: {}", whisper_id))?;
+
+        // Create a new note from the whisper
+        let note = InsertNote {
+            id: whisper.id.clone(),
+            title: whisper.content.clone(),
+            content: Some(whisper.content.clone()),
+            folder_id,
+            audio_url: whisper.audio_url.clone(),
+            duration: None,
+            rating: None,
+        };
+
+        // Insert the note
+        let created_note = self.insert_note(&note)?;
+
+        // Delete the whisper note
+        self.delete_whisper_note(whisper_id)?;
+
+        Ok(created_note)
+    }
+
+    /// Convert a whisper note to a todo
+    pub fn convert_whisper_to_todo(&self, whisper_id: &str) -> Result<Todo> {
+        // Get the whisper note
+        let whisper = self
+            .get_whisper_note(whisper_id)?
+            .ok_or_else(|| anyhow::anyhow!("Whisper note not found: {}", whisper_id))?;
+
+        // Create a new todo from the whisper
+        let todo = InsertTodo {
+            id: whisper.id.clone(),
+            description: whisper.content.clone(),
+            due_date: None,
+            state: TodoState::Open,
+            smart_label: None,
+        };
+
+        // Insert the todo
+        let created_todo = self.insert_todo(todo)?;
+
+        // Delete the whisper note
+        self.delete_whisper_note(whisper_id)?;
+
+        Ok(created_todo)
+    }
+
+    /// Count total whisper notes
+    pub fn count_whisper_notes(&self) -> Result<i64> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM whisper_notes", [], |row| row.get(0))?;
+        Ok(count)
     }
 
     // ===== TODO CRUD OPERATIONS =====
@@ -5668,5 +5829,303 @@ mod tests {
         // Verify segment unchanged
         let seg = db.get_speaker_segment(&segment_id).unwrap().unwrap();
         assert_eq!(seg.speaker_id, "speaker-unknown");
+    }
+
+    // ===== WHISPER NOTES TESTS =====
+
+    fn create_test_whisper_note(id: &str, content: &str, audio_url: Option<String>) -> InsertWhisperNote {
+        InsertWhisperNote {
+            id: id.to_string(),
+            content: content.to_string(),
+            audio_url,
+        }
+    }
+
+    #[test]
+    fn test_create_whisper_note_basic() {
+        let db = setup();
+
+        let whisper = create_test_whisper_note("whisper-1", "Test whisper content", None);
+        let result = db.create_whisper_note(&whisper).unwrap();
+
+        assert_eq!(result.id, "whisper-1");
+        assert_eq!(result.content, "Test whisper content");
+        assert_eq!(result.audio_url, None);
+        assert!(result.synced_at.is_none());
+    }
+
+    #[test]
+    fn test_create_whisper_note_with_audio() {
+        let db = setup();
+
+        let whisper = create_test_whisper_note(
+            "whisper-1",
+            "Test whisper with audio",
+            Some("audio/whisper1.m4a".to_string()),
+        );
+        let result = db.create_whisper_note(&whisper).unwrap();
+
+        assert_eq!(result.id, "whisper-1");
+        assert_eq!(result.content, "Test whisper with audio");
+        assert_eq!(result.audio_url, Some("audio/whisper1.m4a".to_string()));
+    }
+
+    #[test]
+    fn test_get_whisper_note_exists() {
+        let db = setup();
+
+        let whisper = create_test_whisper_note("whisper-1", "Test content", None);
+        db.create_whisper_note(&whisper).unwrap();
+
+        let result = db.get_whisper_note("whisper-1").unwrap();
+        assert!(result.is_some());
+
+        let whisper = result.unwrap();
+        assert_eq!(whisper.id, "whisper-1");
+        assert_eq!(whisper.content, "Test content");
+    }
+
+    #[test]
+    fn test_get_whisper_note_not_exists() {
+        let db = setup();
+
+        let result = db.get_whisper_note("nonexistent").unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_list_whisper_notes_empty() {
+        let db = setup();
+
+        let result = db.list_whisper_notes(0, 10).unwrap();
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_list_whisper_notes_pagination() {
+        let db = setup();
+
+        // Create 5 whisper notes
+        for i in 0..5 {
+            let whisper = create_test_whisper_note(
+                &format!("whisper-{}", i),
+                &format!("Content {}", i),
+                None,
+            );
+            db.create_whisper_note(&whisper).unwrap();
+        }
+
+        // Test first page
+        let page1 = db.list_whisper_notes(0, 2).unwrap();
+        assert_eq!(page1.len(), 2);
+
+        // Test second page
+        let page2 = db.list_whisper_notes(1, 2).unwrap();
+        assert_eq!(page2.len(), 2);
+
+        // Test third page
+        let page3 = db.list_whisper_notes(2, 2).unwrap();
+        assert_eq!(page3.len(), 1);
+
+        // Test beyond available data
+        let page4 = db.list_whisper_notes(3, 2).unwrap();
+        assert_eq!(page4.len(), 0);
+    }
+
+    #[test]
+    fn test_list_whisper_notes_order() {
+        let db = setup();
+
+        // Create whisper notes (newest should come first)
+        let whisper1 = create_test_whisper_note("whisper-1", "First", None);
+        db.create_whisper_note(&whisper1).unwrap();
+
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        let whisper2 = create_test_whisper_note("whisper-2", "Second", None);
+        db.create_whisper_note(&whisper2).unwrap();
+
+        let result = db.list_whisper_notes(0, 10).unwrap();
+        assert_eq!(result.len(), 2);
+        // Most recent first
+        assert_eq!(result[0].id, "whisper-2");
+        assert_eq!(result[1].id, "whisper-1");
+    }
+
+    #[test]
+    fn test_delete_whisper_note_success() {
+        let db = setup();
+
+        let whisper = create_test_whisper_note("whisper-1", "Test", None);
+        db.create_whisper_note(&whisper).unwrap();
+
+        let result = db.delete_whisper_note("whisper-1");
+        assert!(result.is_ok());
+
+        // Verify deletion
+        let get_result = db.get_whisper_note("whisper-1").unwrap();
+        assert!(get_result.is_none());
+    }
+
+    #[test]
+    fn test_delete_whisper_note_not_found() {
+        let db = setup();
+
+        let result = db.delete_whisper_note("nonexistent");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[test]
+    fn test_convert_whisper_to_note_basic() {
+        let db = setup();
+
+        let whisper = create_test_whisper_note(
+            "whisper-1",
+            "Convert me to a note",
+            Some("audio/whisper1.m4a".to_string()),
+        );
+        db.create_whisper_note(&whisper).unwrap();
+
+        let result = db.convert_whisper_to_note("whisper-1", None).unwrap();
+
+        // Verify note was created
+        assert_eq!(result.id, "whisper-1");
+        assert_eq!(result.title, "Convert me to a note");
+        assert_eq!(result.content, Some("Convert me to a note".to_string()));
+        assert_eq!(result.audio_url, Some("audio/whisper1.m4a".to_string()));
+        assert_eq!(result.folder_id, None);
+
+        // Verify whisper was deleted
+        let whisper_check = db.get_whisper_note("whisper-1").unwrap();
+        assert!(whisper_check.is_none());
+    }
+
+    #[test]
+    fn test_convert_whisper_to_note_with_folder() {
+        let db = setup();
+
+        // Create folder
+        db.insert_folder("folder-1", "Test Folder").unwrap();
+
+        let whisper = create_test_whisper_note("whisper-1", "Content", None);
+        db.create_whisper_note(&whisper).unwrap();
+
+        let result = db.convert_whisper_to_note("whisper-1", Some("folder-1".to_string())).unwrap();
+
+        assert_eq!(result.folder_id, Some("folder-1".to_string()));
+    }
+
+    #[test]
+    fn test_convert_whisper_to_note_not_found() {
+        let db = setup();
+
+        let result = db.convert_whisper_to_note("nonexistent", None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[test]
+    fn test_convert_whisper_to_todo_basic() {
+        let db = setup();
+
+        let whisper = create_test_whisper_note("whisper-1", "Buy groceries", None);
+        db.create_whisper_note(&whisper).unwrap();
+
+        let result = db.convert_whisper_to_todo("whisper-1").unwrap();
+
+        // Verify todo was created
+        assert_eq!(result.id, "whisper-1");
+        assert_eq!(result.description, "Buy groceries");
+        assert_eq!(result.state, TodoState::Open);
+        assert_eq!(result.due_date, None);
+        assert_eq!(result.smart_label, None);
+
+        // Verify whisper was deleted
+        let whisper_check = db.get_whisper_note("whisper-1").unwrap();
+        assert!(whisper_check.is_none());
+    }
+
+    #[test]
+    fn test_convert_whisper_to_todo_not_found() {
+        let db = setup();
+
+        let result = db.convert_whisper_to_todo("nonexistent");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[test]
+    fn test_count_whisper_notes_empty() {
+        let db = setup();
+
+        let count = db.count_whisper_notes().unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn test_count_whisper_notes_multiple() {
+        let db = setup();
+
+        for i in 0..5 {
+            let whisper = create_test_whisper_note(&format!("whisper-{}", i), "Content", None);
+            db.create_whisper_note(&whisper).unwrap();
+        }
+
+        let count = db.count_whisper_notes().unwrap();
+        assert_eq!(count, 5);
+    }
+
+    #[test]
+    fn test_count_whisper_notes_after_deletion() {
+        let db = setup();
+
+        for i in 0..3 {
+            let whisper = create_test_whisper_note(&format!("whisper-{}", i), "Content", None);
+            db.create_whisper_note(&whisper).unwrap();
+        }
+
+        assert_eq!(db.count_whisper_notes().unwrap(), 3);
+
+        db.delete_whisper_note("whisper-1").unwrap();
+        assert_eq!(db.count_whisper_notes().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_count_whisper_notes_after_conversion() {
+        let db = setup();
+
+        for i in 0..3 {
+            let whisper = create_test_whisper_note(&format!("whisper-{}", i), "Content", None);
+            db.create_whisper_note(&whisper).unwrap();
+        }
+
+        assert_eq!(db.count_whisper_notes().unwrap(), 3);
+
+        db.convert_whisper_to_note("whisper-1", None).unwrap();
+        assert_eq!(db.count_whisper_notes().unwrap(), 2);
+
+        db.convert_whisper_to_todo("whisper-2").unwrap();
+        assert_eq!(db.count_whisper_notes().unwrap(), 1);
+    }
+
+    #[test]
+    fn test_whisper_note_persistence() {
+        let db = setup();
+
+        let whisper = create_test_whisper_note(
+            "whisper-1",
+            "Persistent content",
+            Some("audio.m4a".to_string()),
+        );
+        db.create_whisper_note(&whisper).unwrap();
+
+        // Retrieve and verify all fields
+        let retrieved = db.get_whisper_note("whisper-1").unwrap().unwrap();
+        assert_eq!(retrieved.id, "whisper-1");
+        assert_eq!(retrieved.content, "Persistent content");
+        assert_eq!(retrieved.audio_url, Some("audio.m4a".to_string()));
+        assert!(retrieved.created_at <= Utc::now());
+        assert!(retrieved.synced_at.is_none());
     }
 }

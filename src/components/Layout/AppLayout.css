@@ -58,6 +58,33 @@
   border-top: 1px solid var(--color-border);
 }
 
+.footer-button {
+  height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--color-text-2);
+}
+
+.footer-button:hover {
+  color: var(--color-text-1);
+  background-color: var(--color-fill-2);
+}
+
+.footer-button:focus {
+  outline: 2px solid var(--color-primary-light-3);
+  outline-offset: -2px;
+}
+
+.footer-button .arco-icon {
+  font-size: 24px;
+}
+
+/* Legacy class for backward compatibility */
 .settings-button {
   height: 64px;
   display: flex;
@@ -95,6 +122,7 @@ body[arco-theme='dark'] .app-sidebar {
   background-color: var(--color-bg-3);
 }
 
+body[arco-theme='dark'] .footer-button:hover,
 body[arco-theme='dark'] .settings-button:hover {
   background-color: var(--color-fill-3);
 }

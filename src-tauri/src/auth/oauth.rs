@@ -109,6 +109,7 @@ pub struct OAuth2Handler {
 }
 
 impl OAuth2Handler {
+    /// Create new OAuth2Handler with explicit client ID
     pub fn new(client_id: &str, client_secret: Option<String>) -> Self {
         let http_client = Client::builder()
             .timeout(Duration::from_secs(TOKEN_EXCHANGE_TIMEOUT_SECS))
@@ -123,6 +124,32 @@ impl OAuth2Handler {
             apple_team_id: None,
             apple_key_id: None,
         }
+    }
+
+    /// Create OAuth2Handler from environment variables
+    ///
+    /// Reads configuration from:
+    /// - GOOGLE_CLIENT_ID (required)
+    /// - GOOGLE_CLIENT_SECRET (optional)
+    pub fn from_env() -> Result<Self, OAuth2Error> {
+        let client_id = std::env::var("GOOGLE_CLIENT_ID").map_err(|_| {
+            OAuth2Error::ServerError(
+                "GOOGLE_CLIENT_ID environment variable not set".to_string(),
+            )
+        })?;
+
+        let client_secret = std::env::var("GOOGLE_CLIENT_SECRET").ok();
+
+        log::info!(
+            "Initializing OAuth2Handler with client ID from environment (secret: {})",
+            if client_secret.is_some() {
+                "present"
+            } else {
+                "not provided"
+            }
+        );
+
+        Ok(Self::new(&client_id, client_secret))
     }
 
     /// Create OAuth2Handler with Apple-specific configuration
@@ -213,7 +240,7 @@ impl OAuth2Handler {
                         // Parse POST body for Apple's form_post response mode
                         let mut body = String::new();
                         {
-                            let mut reader = request.as_reader();
+                            let reader = request.as_reader();
                             let _ = reader.read_to_string(&mut body);
                         }
 
@@ -737,7 +764,7 @@ impl OAuth2Handler {
 
         // Start local callback server
         // Note: Apple uses form_post response_mode, so the callback will receive POST data
-        let (_redirect_uri, mut rx) = Self::start_callback_server(state.clone()).await?;
+        let (_redirect_uri, rx) = Self::start_callback_server(state.clone()).await?;
 
         // Build authorization URL
         let auth_url = self.build_apple_auth_url(&state);

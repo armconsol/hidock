@@ -8,7 +8,9 @@ import { LiveTranslationPage } from './pages/LiveTranslation';
 import { TodoPage } from './pages/Todo';
 import { DevicesPage } from './pages/Devices';
 import { SettingsPage } from './pages/Settings';
+import { SubscriptionPage } from './pages/Subscription';
 import { LoginPage } from './pages/Login';
+import { SyncDemo } from './pages/SyncDemo';
 
 export const router = createBrowserRouter([
   {
@@ -54,6 +56,14 @@ export const router = createBrowserRouter([
       {
         path: '/settings',
         element: <SettingsPage />,
+      },
+      {
+        path: '/subscription',
+        element: <SubscriptionPage />,
+      },
+      {
+        path: '/sync-demo',
+        element: <SyncDemo />,
       },
     ],
   },

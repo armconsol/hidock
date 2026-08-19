@@ -1,8 +1,6 @@
 use crate::audio::cache::AudioCache;
 use crate::audio::AudioProcessor;
 use crate::commands::AppState;
-use crate::db::Database;
-use anyhow::Context;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -60,6 +58,7 @@ pub struct AudioReplaceRequest {
     pub replacement_path: String,
     pub start_ms: u64,
     pub end_ms: u64,
+    pub fade_duration_ms: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -67,13 +66,6 @@ pub struct AudioTrimRequest {
     pub input_path: String,
     pub start_ms: u64,
     pub end_ms: Option<u64>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AudioConvertRequest {
-    pub input_path: String,
-    pub output_format: String,
-    pub bitrate: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -115,7 +107,13 @@ pub async fn replace_audio_segment(
     let replacement = PathBuf::from(&request.replacement_path);
 
     match processor
-        .replace_audio_segment(&original, &replacement, request.start_ms, request.end_ms)
+        .replace_audio_segment(
+            &original,
+            &replacement,
+            request.start_ms,
+            request.end_ms,
+            request.fade_duration_ms.unwrap_or(0),
+        )
         .await
     {
         Ok(output_path) => Ok(AudioOperationResult {
@@ -153,51 +151,14 @@ pub async fn save_audio_as_new(
     }
 }
 
-/// Get audio file duration in milliseconds
+/// Extract/trim audio to a specific time range
 #[tauri::command]
-pub async fn get_audio_duration(file_path: String) -> Result<u64, String> {
-    let processor = AudioProcessor::new().map_err(|e| format!("{}", e))?;
-    let path = PathBuf::from(&file_path);
-
-    processor
-        .get_duration(&path)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-/// Trim audio to a specific time range
-#[tauri::command]
-pub async fn trim_audio(request: AudioTrimRequest) -> Result<AudioOperationResult, String> {
+pub async fn extract_audio_segment(request: AudioTrimRequest) -> Result<AudioOperationResult, String> {
     let processor = AudioProcessor::new().map_err(|e| format!("{}", e))?;
     let input = PathBuf::from(&request.input_path);
 
     match processor
-        .trim_audio(&input, request.start_ms, request.end_ms)
-        .await
-    {
-        Ok(output_path) => Ok(AudioOperationResult {
-            success: true,
-            output_path: Some(output_path.to_string_lossy().to_string()),
-            error: None,
-        }),
-        Err(e) => Ok(AudioOperationResult {
-            success: false,
-            output_path: None,
-            error: Some(e.to_string()),
-        }),
-    }
-}
-
-/// Convert audio to a different format
-#[tauri::command]
-pub async fn convert_audio_format(
-    request: AudioConvertRequest,
-) -> Result<AudioOperationResult, String> {
-    let processor = AudioProcessor::new().map_err(|e| format!("{}", e))?;
-    let input = PathBuf::from(&request.input_path);
-
-    match processor
-        .convert_format(&input, &request.output_format, request.bitrate.as_deref())
+        .extract_segment(&input, request.start_ms, request.end_ms)
         .await
     {
         Ok(output_path) => Ok(AudioOperationResult {

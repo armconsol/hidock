@@ -1,0 +1,50 @@
+.whisper-recorder {
+  padding: 24px;
+  text-align: center;
+}
+
+.whisper-recorder-button-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.whisper-record-button {
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.whisper-record-button:active {
+  transform: scale(0.95);
+}
+
+.whisper-record-button.recording {
+  animation: pulse 1.5s ease-in-out infinite;
+  background: rgb(var(--danger-6)) !important;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--danger-6), 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 20px rgba(var(--danger-6), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--danger-6), 0);
+  }
+}
+
+.whisper-recorder-instructions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.whisper-recorder-error {
+  padding: 12px;
+  background: var(--color-danger-light-1);
+  border-radius: 4px;
+  margin-top: 16px;
+}

@@ -409,6 +409,18 @@ impl SyncEngine {
                         )?;
                     }
                 }
+                EntityType::Settings => {
+                    // Settings are stored as key-value pairs in user_settings table
+                    // Parse the payload as a map of setting key to value
+                    let settings_map: std::collections::HashMap<String, String> =
+                        serde_json::from_value(change.payload.clone())
+                            .context("Failed to parse settings")?;
+
+                    // Update each setting in the database
+                    for (key, value) in settings_map {
+                        db.set_user_setting(&key, &value)?;
+                    }
+                }
             },
             Operation::Delete => match change.entity_type {
                 EntityType::Note => {
@@ -433,6 +445,10 @@ impl SyncEngine {
                     if db.get_template(&change.entity_id)?.is_some() {
                         db.delete_template(&change.entity_id)?;
                     }
+                }
+                EntityType::Settings => {
+                    // Delete a specific setting by key (entity_id is the setting key)
+                    db.delete_user_setting(&change.entity_id)?;
                 }
             },
         }
@@ -461,6 +477,7 @@ impl SyncEngine {
                 "todo" => EntityType::Todo,
                 "calendar_event" => EntityType::CalendarEvent,
                 "template" => EntityType::Template,
+                "settings" => EntityType::Settings,
                 _ => continue,
             };
 
@@ -507,6 +524,7 @@ impl SyncEngine {
             EntityType::Todo => "todos",
             EntityType::CalendarEvent => "calendar/events",
             EntityType::Template => "templates",
+            EntityType::Settings => "user/setting/save",
         }
     }
 }
@@ -523,7 +541,7 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         Database::new(&db_path).unwrap(); // Initialize database
 
-        let client = Arc::new(HiNotesClient::new("http://localhost:3001/v1"));
+        let client = Arc::new(HiNotesClient::with_base_url("http://localhost:3001/v1".to_string()));
 
         let engine = SyncEngine::new(db_path, client);
         let state = engine.get_state().await;
@@ -539,7 +557,7 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         Database::new(&db_path).unwrap(); // Initialize database
 
-        let client = Arc::new(HiNotesClient::new("http://localhost:3001/v1"));
+        let client = Arc::new(HiNotesClient::with_base_url("http://localhost:3001/v1".to_string()));
 
         let engine = SyncEngine::new(db_path, client);
 
@@ -561,7 +579,7 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         Database::new(&db_path).unwrap(); // Initialize database
 
-        let client = Arc::new(HiNotesClient::new("http://localhost:3001/v1"));
+        let client = Arc::new(HiNotesClient::with_base_url("http://localhost:3001/v1".to_string()));
 
         let engine = SyncEngine::new(db_path, client);
         let ops = engine.get_pending_operations().unwrap();

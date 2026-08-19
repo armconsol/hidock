@@ -1,0 +1,15 @@
+.whispers-page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.whispers-header {
+  margin-bottom: 24px;
+}
+
+.whispers-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}

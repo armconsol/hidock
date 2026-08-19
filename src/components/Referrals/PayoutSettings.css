@@ -1,0 +1,54 @@
+.payout-settings-card {
+  margin-bottom: 20px;
+}
+
+.available-cash-section {
+  padding: 20px;
+  background: linear-gradient(135deg, var(--color-success-light-1) 0%, var(--color-success-light-2) 100%);
+  border-radius: 8px;
+}
+
+.cash-display {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.cash-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cash-label {
+  font-size: 14px;
+  color: var(--color-text-2);
+}
+
+.cash-amount {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--color-success-6);
+}
+
+.paypal-section {
+  padding: 16px;
+  background-color: var(--color-fill-1);
+  border-radius: 4px;
+}
+
+.paypal-status {
+  margin-bottom: 8px;
+}
+
+.section-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--color-text-2);
+}
+
+.paypal-email {
+  color: var(--color-text-2);
+  font-size: 14px;
+}

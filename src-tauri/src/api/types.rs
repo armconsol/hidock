@@ -19,6 +19,20 @@ pub struct LoginRequest {
     pub password: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisterRequest {
+    pub email: String,
+    pub password: String,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegisterResponse {
+    pub token: String,
+    pub user: UserInfo,
+    pub message: Option<String>,
+}
+
 // Google Calendar Types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GoogleCalendarEvent {
@@ -156,6 +170,12 @@ pub struct Subscription {
     pub product_id: String,
     pub status: SubscriptionStatus,
     pub expires_at: Option<String>,
+    /// True if subscription is in grace period (expired but still accessible)
+    #[serde(default)]
+    pub in_grace_period: bool,
+    /// Number of days remaining in grace period (if applicable)
+    #[serde(default)]
+    pub grace_period_days_remaining: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -296,4 +316,43 @@ pub struct PayoutResponse {
     pub amount: f64,
     pub paypal_email: String,
     pub estimated_completion: Option<String>,
+}
+
+// Receipt Types
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Receipt {
+    pub id: String,
+    pub product_id: String,
+    pub purchase_date: String,
+    pub store: String,
+    pub amount: f64,
+    pub currency: String,
+    pub is_trial: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReceiptsResponse {
+    pub receipts: Vec<Receipt>,
+}
+
+// Billing Portal Types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BillingPortalResponse {
+    pub url: String,
+}
+
+// Trial Types
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrialEligibility {
+    pub eligible: bool,
+    pub reason: Option<String>,
+    pub trial_duration_days: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClaimTrialResponse {
+    pub success: bool,
+    pub subscription: Option<Subscription>,
+    pub expires_at: Option<String>,
+    pub message: String,
 }

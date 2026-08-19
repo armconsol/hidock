@@ -250,10 +250,11 @@ pub enum UsbError {
 pub fn init() -> Result<()> {
     info!("Initializing USB subsystem");
 
-    // TODO: Initialize rusb context
-    // let context = rusb::Context::new()?;
+    // Test rusb context creation
+    let _context = rusb::Context::new()
+        .map_err(|e| anyhow::anyhow!("Failed to initialize USB context: {}", e))?;
 
-    debug!("USB subsystem initialized");
+    debug!("USB subsystem initialized successfully");
     Ok(())
 }
 
@@ -263,9 +264,11 @@ pub fn init() -> Result<()> {
 pub fn scan_devices() -> Result<Vec<DeviceInfo>> {
     info!("Scanning for HiDoc P1 devices");
 
-    // TODO: Implement actual device scanning with rusb
-    // This is a placeholder implementation
-    let devices = Vec::new();
+    let detector = detector::DeviceDetector::new()
+        .map_err(|e| anyhow::anyhow!("Failed to create device detector: {}", e))?;
+
+    let devices = detector.list_devices()
+        .map_err(|e| anyhow::anyhow!("Failed to list devices: {}", e))?;
 
     if devices.is_empty() {
         debug!("No HiDoc P1 devices found");

@@ -21,6 +21,7 @@ vi.mock('@arco-design/web-react/icon', () => ({
     <div data-testid="icon-check-square">CheckSquare Icon</div>
   ),
   IconSettings: () => <div data-testid="icon-settings">Settings Icon</div>,
+  IconUser: () => <div data-testid="icon-user">User Icon</div>,
 }));
 
 describe('AppLayout', () => {

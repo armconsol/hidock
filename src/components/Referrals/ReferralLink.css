@@ -1,0 +1,84 @@
+.referral-link-card {
+  margin-bottom: 20px;
+}
+
+.referral-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--color-text-2);
+}
+
+.referral-code-section,
+.referral-link-section,
+.share-section,
+.qr-code-section {
+  width: 100%;
+}
+
+.share-button {
+  min-width: 100px;
+}
+
+.share-button.twitter {
+  border-color: #1da1f2;
+  color: #1da1f2;
+}
+
+.share-button.twitter:hover {
+  background-color: #1da1f2;
+  color: white;
+}
+
+.share-button.facebook {
+  border-color: #4267b2;
+  color: #4267b2;
+}
+
+.share-button.facebook:hover {
+  background-color: #4267b2;
+  color: white;
+}
+
+.share-button.whatsapp {
+  border-color: #25d366;
+  color: #25d366;
+}
+
+.share-button.whatsapp:hover {
+  background-color: #25d366;
+  color: white;
+}
+
+.share-button.email {
+  border-color: #ea4335;
+  color: #ea4335;
+}
+
+.share-button.email:hover {
+  background-color: #ea4335;
+  color: white;
+}
+
+.qr-code-display {
+  margin-top: 16px;
+  text-align: center;
+  padding: 20px;
+  background-color: var(--color-fill-1);
+  border-radius: 4px;
+}
+
+.qr-code-image {
+  max-width: 200px;
+  height: auto;
+  border: 2px solid var(--color-border-2);
+  border-radius: 4px;
+  padding: 10px;
+  background-color: white;
+}
+
+.qr-code-hint {
+  margin-top: 12px;
+  color: var(--color-text-3);
+  font-size: 14px;
+}

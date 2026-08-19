@@ -71,49 +71,54 @@ impl TranslationCache {
         source_lang: &str,
         target_lang: &str,
     ) -> Result<Option<TranslationResponse>> {
-        let conn = self.conn.lock().unwrap();
+        let cached_id = {
+            let conn = self.conn.lock().unwrap();
 
-        let mut stmt = conn.prepare(
-            "SELECT id, source_text, source_lang, target_lang, translated_text,
-                    created_at, last_accessed, access_count
-             FROM translations
-             WHERE source_text = ?1 AND source_lang = ?2 AND target_lang = ?3",
-        )?;
+            let mut stmt = conn.prepare(
+                "SELECT id, source_text, source_lang, target_lang, translated_text,
+                        created_at, last_accessed, access_count
+                 FROM translations
+                 WHERE source_text = ?1 AND source_lang = ?2 AND target_lang = ?3",
+            )?;
 
-        let result = stmt.query_row(params![source_text, source_lang, target_lang], |row| {
-            let created_at_str: String = row.get(5)?;
-            let last_accessed_str: String = row.get(6)?;
+            let result = stmt.query_row(params![source_text, source_lang, target_lang], |row| {
+                let created_at_str: String = row.get(5)?;
+                let last_accessed_str: String = row.get(6)?;
 
-            Ok(CachedTranslation {
-                id: row.get(0)?,
-                source_text: row.get(1)?,
-                source_lang: row.get(2)?,
-                target_lang: row.get(3)?,
-                translated_text: row.get(4)?,
-                created_at: DateTime::parse_from_rfc3339(&created_at_str)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
-                last_accessed: DateTime::parse_from_rfc3339(&last_accessed_str)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
-                access_count: row.get(7)?,
-            })
-        });
+                Ok(CachedTranslation {
+                    id: row.get(0)?,
+                    source_text: row.get(1)?,
+                    source_lang: row.get(2)?,
+                    target_lang: row.get(3)?,
+                    translated_text: row.get(4)?,
+                    created_at: DateTime::parse_from_rfc3339(&created_at_str)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now()),
+                    last_accessed: DateTime::parse_from_rfc3339(&last_accessed_str)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .unwrap_or_else(|_| Utc::now()),
+                    access_count: row.get(7)?,
+                })
+            });
 
-        match result {
-            Ok(cached) => {
-                // Update access count and last accessed time
-                drop(stmt);
-                self.update_access(&cached.id).await?;
-                Ok(Some(TranslationResponse::from_cache(
-                    &cached.source_text,
-                    &cached.source_lang,
-                    &cached.target_lang,
-                    &cached.translated_text,
-                )))
+            match result {
+                Ok(cached) => Some(cached),
+                Err(rusqlite::Error::QueryReturnedNoRows) => None,
+                Err(e) => return Err(e.into()),
             }
-            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(e.into()),
+        }; // Lock is dropped here
+
+        // Update access count outside the lock
+        if let Some(cached) = cached_id {
+            self.update_access(&cached.id).await?;
+            Ok(Some(TranslationResponse::from_cache(
+                &cached.source_text,
+                &cached.source_lang,
+                &cached.target_lang,
+                &cached.translated_text,
+            )))
+        } else {
+            Ok(None)
         }
     }
 

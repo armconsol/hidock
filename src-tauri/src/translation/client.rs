@@ -114,7 +114,7 @@ mod tests {
     use super::*;
 
     fn setup_client() -> TranslationClient {
-        let hinotes_client = Arc::new(HiNotesClient::new("http://localhost:3001/v1"));
+        let hinotes_client = Arc::new(HiNotesClient::with_base_url("http://localhost:3001/v1".to_string()));
         TranslationClient::new(hinotes_client)
     }
 

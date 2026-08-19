@@ -1,4 +1,5 @@
 // Referral system module
+pub mod api;
 pub mod rewards;
 
 use chrono::{DateTime, Utc};
@@ -69,6 +70,3 @@ pub mod generator {
             .collect()
     }
 }
-
-// TODO: Re-enable these tests once Database referral methods are implemented
-// Tests have been disabled due to missing Database impl methods

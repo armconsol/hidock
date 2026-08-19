@@ -1,0 +1,33 @@
+.whisper-list {
+  padding: 16px;
+}
+
+.whisper-list-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.whisper-card {
+  margin-bottom: 16px;
+  background: var(--color-bg-2);
+}
+
+.whisper-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.whisper-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-1);
+}
+
+.whisper-audio {
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-2);
+}

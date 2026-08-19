@@ -315,7 +315,7 @@ mod tests {
 
         let conn_arc = Arc::new(Mutex::new(conn));
 
-        let hinotes_client = Arc::new(HiNotesClient::new("http://localhost:3001/v1"));
+        let hinotes_client = Arc::new(HiNotesClient::with_base_url("http://localhost:3001/v1".to_string()));
         let client = Arc::new(TranslationClient::new(hinotes_client));
         let session_manager = Arc::new(LiveSessionManager::new(conn_arc.clone()).unwrap());
         let cache = Arc::new(TranslationCache::new(&db_path.to_string_lossy()).unwrap());

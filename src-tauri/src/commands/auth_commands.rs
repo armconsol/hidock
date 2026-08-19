@@ -103,7 +103,7 @@ mod tests {
     #[tokio::test]
     async fn test_api_client_authenticate() {
         // Test the underlying API client authentication logic
-        let client = HiNotesClient::new("http://localhost:3001/v1");
+        let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
         let result = client.authenticate("test@example.com", "password").await;
 
         // Should either succeed with a valid response or fail with network error
@@ -153,7 +153,7 @@ mod tests {
     #[tokio::test]
     async fn test_auth_state_initialization() {
         // Test that AuthState can be properly initialized
-        let client = HiNotesClient::new("http://localhost:3001/v1");
+        let client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());
         let oauth = OAuth2Handler::new("test-client-id", None);
 
         let state = AuthState {

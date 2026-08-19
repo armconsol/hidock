@@ -38,22 +38,10 @@ pub async fn translate_text(
     text: String,
     source_lang: String,
     target_lang: String,
-    state: State<'_, crate::commands::AppState>,
+    cache_state: State<'_, Arc<TokioMutex<TranslationCache>>>,
 ) -> Result<TranslationResponse, String> {
-    // Get database path (not held across await)
-    let db_path = {
-        let db = state
-            .db
-            .lock()
-            .map_err(|e| format!("Database lock error: {}", e))?;
-        db.get_db_path().to_path_buf()
-    };
-
-    // Create translation cache
-    let cache = TranslationCache::new(db_path.to_str().unwrap())
-        .map_err(|e| format!("Failed to initialize cache: {}", e))?;
-
     // Check cache first
+    let cache = cache_state.lock().await;
     if let Some(cached) = cache
         .get_translation(&text, &source_lang, &target_lang)
         .await
@@ -61,6 +49,7 @@ pub async fn translate_text(
     {
         return Ok(cached);
     }
+    drop(cache);
 
     // TODO: In production, use HiNotes API client here
     // For now, return an error indicating API client is needed
@@ -139,42 +128,21 @@ pub async fn get_target_language(
 #[tauri::command]
 pub async fn clear_translation_cache(
     days: i64,
-    state: State<'_, crate::commands::AppState>,
+    cache_state: State<'_, Arc<TokioMutex<TranslationCache>>>,
 ) -> Result<u64, String> {
-    let db_path = {
-        let db = state
-            .db
-            .lock()
-            .map_err(|e| format!("Database lock error: {}", e))?;
-        db.get_db_path().to_path_buf()
-    };
-
-    let cache = TranslationCache::new(db_path.to_str().unwrap())
-        .map_err(|e| format!("Failed to initialize cache: {}", e))?;
-
+    let cache = cache_state.lock().await;
     cache
         .clear_old_translations(days)
         .await
         .map_err(|e| format!("Failed to clear cache: {}", e))
-
 }
 
 /// Get translation cache statistics
 #[tauri::command]
 pub async fn get_cache_stats(
-    state: State<'_, crate::commands::AppState>,
+    cache_state: State<'_, Arc<TokioMutex<TranslationCache>>>,
 ) -> Result<CacheStats, String> {
-    let db_path = {
-        let db = state
-            .db
-            .lock()
-            .map_err(|e| format!("Database lock error: {}", e))?;
-        db.get_db_path().to_path_buf()
-    };
-
-    let cache = TranslationCache::new(db_path.to_str().unwrap())
-        .map_err(|e| format!("Failed to initialize cache: {}", e))?;
-
+    let cache = cache_state.lock().await;
     let (count, size) = cache
         .get_cache_stats()
         .await

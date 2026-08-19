@@ -1,0 +1,37 @@
+.billing-history {
+  margin-top: 32px;
+}
+
+.billing-history-header {
+  margin-bottom: 24px;
+}
+
+.billing-history-header h2 {
+  font-size: 24px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.billing-history-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.billing-history .arco-table {
+  background-color: var(--bg-primary);
+}
+
+.billing-history .arco-table-th {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.billing-history .arco-table-td {
+  color: var(--text-primary);
+}
+
+.billing-history .arco-empty {
+  padding: 48px 0;
+}
