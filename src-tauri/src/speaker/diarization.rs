@@ -560,6 +560,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires FFmpeg
     fn test_get_audio_duration() {
         let engine = DiarizationEngine::new();
         let (_dir, audio_path) = create_test_audio_file();

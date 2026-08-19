@@ -315,7 +315,7 @@ impl HiNotesClient {
     /// Clear stored token from system keyring
     async fn clear_stored_token(&self) -> Result<()> {
         let entry = keyring::Entry::new("hinotes-desktop", "auth_token")?;
-        match entry.delete_password() {
+        match entry.delete_credential() {
             Ok(_) => {
                 log::debug!("Token cleared from keyring");
                 Ok(())

@@ -203,6 +203,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_save_audio_as_new() {
         let test_data = vec![1, 2, 3, 4, 5];
         let result = save_audio_as_new(test_data, "m4a".to_string()).await;
@@ -214,6 +215,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires FFmpeg
     async fn test_merge_audio_validation() {
         let request = AudioMergeRequest { file_paths: vec![] };
 

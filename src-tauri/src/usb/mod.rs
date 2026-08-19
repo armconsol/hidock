@@ -350,6 +350,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires USB hardware
     fn test_init() {
         // Should not panic with placeholder implementation
         assert!(init().is_ok());

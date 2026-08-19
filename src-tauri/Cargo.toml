@@ -37,7 +37,7 @@ form_urlencoded = "1.2"
 base64 = "0.22"
 sha2 = "0.10"
 rand = "0.8"
-keyring = { version = "2.3", features = ["platform-macos", "platform-windows", "platform-linux"] }
+keyring = { version = "3.0", features = ["apple-native", "windows-native", "linux-native"] }
 
 # USB device communication
 rusb = "0.9"

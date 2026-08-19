@@ -104,7 +104,7 @@ impl TokenStorage {
     /// Delete tokens from the system keychain
     pub fn delete_tokens(&self) -> Result<()> {
         self.entry
-            .delete_password()
+            .delete_credential()
             .context("Failed to delete tokens from keychain")?;
 
         log::info!("Tokens deleted from system keychain");

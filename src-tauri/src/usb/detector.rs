@@ -259,6 +259,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore] // Requires USB hardware
     fn test_detector_creation() {
         let detector = DeviceDetector::new();
         assert!(detector.is_ok());
