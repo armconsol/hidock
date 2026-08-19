@@ -12,7 +12,7 @@ interface CalendarEvent {
 }
 
 export function CalendarWidget() {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [, setEvents] = useState<CalendarEvent[]>([]);
   const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

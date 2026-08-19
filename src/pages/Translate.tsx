@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, Tabs, Space, Button, Message } from '@arco-design/web-react';
+import { Tabs, Space, Button, Message } from '@arco-design/web-react';
 import { IconSettings, IconDelete } from '@arco-design/web-react/icon';
 import { TranslationPanel } from '../components/Translation/TranslationPanel';
 import { TranslationSettings } from '../components/Translation/TranslationSettings';
@@ -19,7 +19,6 @@ export function TranslatePage() {
     translateText,
     clearCache,
     saveSettings,
-    clearError,
   } = useTranslationStore();
 
   const handleTranslate = async (text: string, sourceLang: string, targetLang: string) => {

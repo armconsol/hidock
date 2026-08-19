@@ -174,7 +174,7 @@ describe('SaveAsNewDialog', () => {
     });
 
     it('should show bitrate options for lossy formats', async () => {
-      const user = userEvent.setup();
+      userEvent.setup();
 
       render(
         <SaveAsNewDialog

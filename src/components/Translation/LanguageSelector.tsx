@@ -18,7 +18,6 @@ export function LanguageSelector({
   showNativeName = false,
   allowAutoDetect = false,
 }: LanguageSelectorProps) {
-  const selectedLanguage = SUPPORTED_LANGUAGES.find((lang) => lang.code === value);
 
   const options = [
     ...(allowAutoDetect
@@ -38,13 +37,15 @@ export function LanguageSelector({
       disabled={disabled}
       showSearch={showSearch}
       filterOption={(inputValue, option) => {
-        const label = option.label || '';
+        const label = typeof option.props?.children === 'string'
+          ? option.props.children
+          : option.label || '';
         return label.toLowerCase().includes(inputValue.toLowerCase());
       }}
       style={{ width: '100%' }}
     >
       {options.map((option) => (
-        <Select.Option key={option.value} value={option.value} label={option.label}>
+        <Select.Option key={option.value} value={option.value}>
           <span role="img" aria-label={`${option.label} flag`}>
             {option.flag}
           </span>{' '}

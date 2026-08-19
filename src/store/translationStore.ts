@@ -17,7 +17,7 @@ interface TranslationState {
   clearError: () => void;
 }
 
-export const useTranslationStore = create<TranslationState>((set, get) => ({
+export const useTranslationStore = create<TranslationState>((set) => ({
   isLoading: false,
   error: null,
   translatedText: null,

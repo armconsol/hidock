@@ -10,7 +10,7 @@ import {
   Modal,
   Form,
 } from '@arco-design/web-react';
-import { IconLink, IconUnlink, IconCurrency } from '@arco-design/web-react/icon';
+import { IconLink, IconGift } from '@arco-design/web-react/icon';
 import { PayPalConnection } from '../../types/referral';
 import './PayoutSettings.css';
 
@@ -107,7 +107,7 @@ export function PayoutSettings({
         {/* Available Cash */}
         <div className="available-cash-section">
           <div className="cash-display">
-            <IconCurrency style={{ fontSize: 32, color: 'var(--color-success-6)' }} />
+            <IconGift style={{ fontSize: 32, color: 'var(--color-success-6)' }} />
             <div className="cash-content">
               <div className="cash-label">Available Cash</div>
               <div className="cash-amount">${availableCash.toFixed(2)}</div>
@@ -134,7 +134,7 @@ export function PayoutSettings({
                 <span className="paypal-email">{paypalConnection?.email}</span>
               </Space>
             ) : (
-              <Tag color="gray" icon={<IconUnlink />}>
+              <Tag color="gray">
                 Not Connected
               </Tag>
             )}
@@ -145,7 +145,7 @@ export function PayoutSettings({
               <>
                 <Button
                   type="primary"
-                  icon={<IconCurrency />}
+                  icon={<IconGift />}
                   onClick={() => setPayoutModalVisible(true)}
                   disabled={!canRequestPayout}
                   loading={loading}
@@ -154,7 +154,6 @@ export function PayoutSettings({
                 </Button>
                 <Button
                   type="outline"
-                  icon={<IconUnlink />}
                   onClick={handleDisconnectPayPal}
                   loading={loading}
                   status="danger"

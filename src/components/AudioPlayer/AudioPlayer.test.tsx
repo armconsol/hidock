@@ -18,8 +18,8 @@ HTMLMediaElement.prototype.pause = vi.fn();
 HTMLMediaElement.prototype.load = vi.fn();
 
 // Mock URL.createObjectURL
-global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
-global.URL.revokeObjectURL = vi.fn();
+(globalThis as any).URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+(globalThis as any).URL.revokeObjectURL = vi.fn();
 
 describe('AudioPlayer', () => {
   const mockNoteId = 'test-note-123';

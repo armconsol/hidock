@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, Input, Badge, Spin, Alert, Space } from '@arco-design/web-react';
+import { Card, Button, Input, Spin, Alert, Space } from '@arco-design/web-react';
 import {
   IconSwap,
   IconCopy,

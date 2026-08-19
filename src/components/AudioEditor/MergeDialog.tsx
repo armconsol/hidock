@@ -1,4 +1,4 @@
-import { Modal, Button, Typography, Space, Tag, Spin } from '@arco-design/web-react';
+import { Modal, Button, Typography, Space, Spin } from '@arco-design/web-react';
 import { IconUp, IconDown, IconDelete, IconFile } from '@arco-design/web-react/icon';
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
@@ -255,7 +255,7 @@ export function MergeDialog({ visible, onClose, onComplete }: MergeDialogProps) 
               borderRadius: '4px',
             }}
           >
-            <Text type="danger">{error}</Text>
+            <Text type="error">{error}</Text>
           </div>
         )}
 

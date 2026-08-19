@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { Card, Table, Button, Tag, Space, Message, Modal } from '@arco-design/web-react';
-import { IconGift, IconClockCircle, IconCurrency } from '@arco-design/web-react/icon';
+import { Card, Table, Button, Tag, Space, Message, Modal, TableColumnProps } from '@arco-design/web-react';
+import { IconGift, IconClockCircle } from '@arco-design/web-react/icon';
 import { RewardItem } from '../../types/referral';
 import './RewardsList.css';
-
-const { Column } = Table;
 
 interface RewardsListProps {
   rewards: RewardItem[];
@@ -34,32 +32,32 @@ export function RewardsList({ rewards, onRedeemReward, loading = false }: Reward
     });
   };
 
-  const getRewardIcon = (type: RewardItem['reward_type']) => {
+  const getRewardIcon = (type: string) => {
     switch (type) {
-      case 'minutes':
-        return <IconClockCircle />;
       case 'cash':
-        return <IconCurrency />;
-      case 'credit':
-        return <IconGift />;
+        return <IconGift style={{ color: 'var(--color-success-6)' }} />;
+      case 'minutes':
+        return <IconClockCircle style={{ color: 'var(--color-primary-6)' }} />;
+      default:
+        return null;
     }
   };
 
-  const getRewardTypeLabel = (type: RewardItem['reward_type']) => {
+  const getRewardTypeLabel = (type: string) => {
     switch (type) {
+      case 'cash':
+        return 'Cash Payout';
       case 'minutes':
         return 'Transcription Minutes';
-      case 'cash':
-        return 'Cash Reward';
-      case 'credit':
-        return 'Account Credit';
+      default:
+        return type;
     }
   };
 
-  const getStatusTag = (status: RewardItem['status']) => {
-    const statusConfig = {
+  const getStatusTag = (status: string) => {
+    const statusConfig: Record<string, { color: string; text: string }> = {
       available: { color: 'green', text: 'Available' },
-      redeemed: { color: 'arcoblue', text: 'Redeemed' },
+      redeemed: { color: 'blue', text: 'Redeemed' },
       expired: { color: 'red', text: 'Expired' },
       pending: { color: 'orange', text: 'Pending' },
     };
@@ -86,6 +84,95 @@ export function RewardsList({ rewards, onRedeemReward, loading = false }: Reward
     });
   };
 
+  const availableColumns: TableColumnProps<RewardItem>[] = [
+    {
+      title: 'Type',
+      dataIndex: 'reward_type',
+      render: (_value, record) => (
+        <Space>
+          {getRewardIcon(record.reward_type)}
+          <span>{getRewardTypeLabel(record.reward_type)}</span>
+        </Space>
+      ),
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'amount',
+      render: (amount, record) => (
+        <strong>
+          {record.reward_type === 'cash' && '$'}
+          {amount}
+          {record.reward_type === 'minutes' && ' min'}
+        </strong>
+      ),
+    },
+    {
+      title: 'Description',
+      dataIndex: 'description',
+    },
+    {
+      title: 'Expires',
+      dataIndex: 'expires_at',
+      render: (expiresAt) => formatExpiryDate(expiresAt),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      render: (status) => getStatusTag(status),
+    },
+    {
+      title: 'Action',
+      render: (_value, record) => (
+        <Button
+          type="primary"
+          size="small"
+          loading={redeemingId === record.id}
+          onClick={() => handleRedeem(record)}
+        >
+          Redeem
+        </Button>
+      ),
+    },
+  ];
+
+  const historyColumns: TableColumnProps<RewardItem>[] = [
+    {
+      title: 'Type',
+      dataIndex: 'reward_type',
+      render: (_value, record) => (
+        <Space>
+          {getRewardIcon(record.reward_type)}
+          <span>{getRewardTypeLabel(record.reward_type)}</span>
+        </Space>
+      ),
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'amount',
+      render: (amount, record) => (
+        <strong>
+          {record.reward_type === 'cash' && '$'}
+          {amount}
+          {record.reward_type === 'minutes' && ' min'}
+        </strong>
+      ),
+    },
+    {
+      title: 'Description',
+      dataIndex: 'description',
+    },
+    {
+      title: 'Redeemed',
+      dataIndex: 'redeemed_at',
+      render: (date) => (date ? new Date(date).toLocaleDateString() : '-'),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      render: (status) => getStatusTag(status),
+    },
+  ];
+
   const availableRewards = rewards.filter((r) => r.status === 'available');
   const otherRewards = rewards.filter((r) => r.status !== 'available');
 
@@ -103,61 +190,13 @@ export function RewardsList({ rewards, onRedeemReward, loading = false }: Reward
             <div className="rewards-section">
               <h3 className="section-title">Available to Redeem</h3>
               <Table
+                columns={availableColumns}
                 data={availableRewards}
                 loading={loading}
                 pagination={false}
                 rowKey="id"
                 className="rewards-table"
-              >
-                <Column
-                  title="Type"
-                  dataIndex="reward_type"
-                  render={(_, record: RewardItem) => (
-                    <Space>
-                      {getRewardIcon(record.reward_type)}
-                      <span>{getRewardTypeLabel(record.reward_type)}</span>
-                    </Space>
-                  )}
-                />
-                <Column
-                  title="Amount"
-                  dataIndex="amount"
-                  render={(amount, record: RewardItem) => (
-                    <strong>
-                      {record.reward_type === 'cash' && '$'}
-                      {amount}
-                      {record.reward_type === 'minutes' && ' min'}
-                    </strong>
-                  )}
-                />
-                <Column
-                  title="Description"
-                  dataIndex="description"
-                />
-                <Column
-                  title="Expires"
-                  dataIndex="expires_at"
-                  render={(expiresAt) => formatExpiryDate(expiresAt)}
-                />
-                <Column
-                  title="Status"
-                  dataIndex="status"
-                  render={(status) => getStatusTag(status)}
-                />
-                <Column
-                  title="Action"
-                  render={(_, record: RewardItem) => (
-                    <Button
-                      type="primary"
-                      size="small"
-                      loading={redeemingId === record.id}
-                      onClick={() => handleRedeem(record)}
-                    >
-                      Redeem
-                    </Button>
-                  )}
-                />
-              </Table>
+              />
             </div>
           )}
 
@@ -166,54 +205,13 @@ export function RewardsList({ rewards, onRedeemReward, loading = false }: Reward
             <div className="rewards-section">
               <h3 className="section-title">Reward History</h3>
               <Table
+                columns={historyColumns}
                 data={otherRewards}
                 loading={loading}
                 pagination={{ pageSize: 5 }}
                 rowKey="id"
-                className="rewards-table history"
-              >
-                <Column
-                  title="Type"
-                  dataIndex="reward_type"
-                  render={(_, record: RewardItem) => (
-                    <Space>
-                      {getRewardIcon(record.reward_type)}
-                      <span>{getRewardTypeLabel(record.reward_type)}</span>
-                    </Space>
-                  )}
-                />
-                <Column
-                  title="Amount"
-                  dataIndex="amount"
-                  render={(amount, record: RewardItem) => (
-                    <span>
-                      {record.reward_type === 'cash' && '$'}
-                      {amount}
-                      {record.reward_type === 'minutes' && ' min'}
-                    </span>
-                  )}
-                />
-                <Column
-                  title="Description"
-                  dataIndex="description"
-                />
-                <Column
-                  title="Date"
-                  dataIndex="updated_at"
-                  render={(date) =>
-                    new Date(date).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                    })
-                  }
-                />
-                <Column
-                  title="Status"
-                  dataIndex="status"
-                  render={(status) => getStatusTag(status)}
-                />
-              </Table>
+                className="rewards-table"
+              />
             </div>
           )}
         </Space>

@@ -158,7 +158,7 @@ export function AudioPlayer({ noteId, audioUrl, className = '' }: AudioPlayerPro
   if (error) {
     return (
       <div className={`audio-player ${className}`} data-testid="audio-player-error">
-        <Text type="danger">{error}</Text>
+        <Text type="error">{error}</Text>
       </div>
     );
   }
@@ -183,7 +183,7 @@ export function AudioPlayer({ noteId, audioUrl, className = '' }: AudioPlayerPro
             <Slider
               value={currentTime}
               max={duration}
-              onChange={handleSeek}
+              onChange={(val) => handleSeek(Array.isArray(val) ? val[0] : val)}
               showTooltip={false}
               style={{ width: 300, margin: 0 }}
               data-testid="progress-slider"
@@ -201,7 +201,7 @@ export function AudioPlayer({ noteId, audioUrl, className = '' }: AudioPlayerPro
             <Slider
               value={volume * 100}
               max={100}
-              onChange={handleVolumeChange}
+              onChange={(val) => handleVolumeChange(Array.isArray(val) ? val[0] : val)}
               showTooltip={false}
               style={{ width: 100, margin: 0 }}
               data-testid="volume-slider"

@@ -14,15 +14,13 @@ import {
   IconDelete,
   IconArchive,
   IconPushpin,
-  IconTag,
   IconSave,
 } from '@arco-design/web-react/icon';
 import { useNotesStore } from '../../store/notesStore';
-import type { Note } from '../../types/notes';
 import './NoteDetail.css';
 
 const { TextArea } = Input;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 export function NoteDetail() {
   const {
@@ -137,7 +135,6 @@ export function NoteDetail() {
             onChange={setTitle}
             placeholder="Note title"
             style={{ fontSize: 20, fontWeight: 600 }}
-            bordered={false}
           />
           <Space size={12} wrap>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -173,7 +170,6 @@ export function NoteDetail() {
           placeholder="Start writing..."
           autoSize={{ minRows: 10 }}
           style={{ fontSize: 14, lineHeight: 1.6 }}
-          bordered={false}
         />
       </div>
     </div>

@@ -152,7 +152,7 @@ describe('AppLayout', () => {
       .getByText('Settings')
       .closest('.footer-button');
 
-    if (settingsButton) {
+    if (settingsButton instanceof HTMLElement) {
       settingsButton.focus();
       await user.keyboard('{Enter}');
     }

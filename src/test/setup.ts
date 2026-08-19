@@ -1,6 +1,6 @@
 import { expect, afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
-import * as matchers from '@testing-library/jest-dom';
+import * as matchers from '@testing-library/jest-dom/matchers';
 import '@arco-design/web-react/dist/css/arco.css';
 
 // Extend Vitest's expect with Testing Library matchers
@@ -42,7 +42,7 @@ vi.mock('@arco-design/web-react', async () => {
   const actual = await vi.importActual('@arco-design/web-react');
 
   // Create mock Message methods that return a cleanup function
-  const createMessageMethod = (type: string) => vi.fn((content: string) => {
+  const createMessageMethod = (_type: string) => vi.fn((_content: string) => {
     return {
       close: vi.fn(),
     };

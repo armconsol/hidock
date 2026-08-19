@@ -122,7 +122,7 @@ export function ReferralsPage() {
     }
   };
 
-  const handleConnectPayPal = async (email: string, authCode: string) => {
+  const handleConnectPayPal = async (email: string, _authCode: string) => {
     try {
       // Mock API call - Replace with actual implementation
       // API endpoint: POST /v1/referral/paypal/connect

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Card, Button, Badge, Space, Empty, Spin, Message, Popconfirm } from '@arco-design/web-react';
 import { IconWifi, IconPoweroff, IconSync, IconDelete } from '@arco-design/web-react/icon';
 import { useDevicesStore } from '../../store/devicesStore';

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Badge, Spin, Tooltip } from '@arco-design/web-react';
+import { Button, Spin, Tooltip } from '@arco-design/web-react';
 import { IconTranslate, IconSwap } from '@arco-design/web-react/icon';
 import './InlineTranslation.css';
 
@@ -16,7 +16,6 @@ interface InlineTranslationProps {
 export function InlineTranslation({
   text,
   translatedText,
-  targetLang = 'es',
   confidence,
   isLoading = false,
   error,
@@ -55,7 +54,7 @@ export function InlineTranslation({
           <span
             className="confidence-badge"
             style={{
-              marginLeft: 8,
+              marginLeft: '8px',
               padding: '2px 8px',
               borderRadius: '12px',
               fontSize: '12px',

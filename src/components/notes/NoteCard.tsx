@@ -1,5 +1,5 @@
 import { Card, Typography, Space, Tag } from '@arco-design/web-react';
-import { IconPushpin, IconClock } from '@arco-design/web-react/icon';
+import { IconPushpin, IconClockCircle } from '@arco-design/web-react/icon';
 import type { Note } from '../../types/notes';
 import './NoteCard.css';
 
@@ -61,7 +61,7 @@ export function NoteCard({ note, isSelected, onClick }: NoteCardProps) {
             </Text>
             {note.duration && (
               <Space size={4}>
-                <IconClock style={{ fontSize: 12 }} />
+                <IconClockCircle style={{ fontSize: 12 }} />
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {formatDuration(note.duration)}
                 </Text>

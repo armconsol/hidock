@@ -258,7 +258,7 @@ export function SaveAsNewDialog({
               borderRadius: '4px',
             }}
           >
-            <Text type="danger">{error}</Text>
+            <Text type="error">{error}</Text>
           </div>
         )}
 

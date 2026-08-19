@@ -5,7 +5,6 @@ import { TranslationPanel } from './TranslationPanel';
 
 describe('TranslationPanel Component', () => {
   const mockOnTranslate = vi.fn();
-  const mockOnCopy = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();

@@ -276,7 +276,7 @@ export function AudioEditor({
   if (error) {
     return (
       <div className={`audio-editor ${className}`}>
-        <Text type="danger">{error}</Text>
+        <Text type="error">{error}</Text>
       </div>
     );
   }

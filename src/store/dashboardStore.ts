@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { DashboardLayout, DEFAULT_LAYOUT, Widget } from '../types/widgets';
+import { DashboardLayout, DEFAULT_LAYOUT } from '../types/widgets';
 
 interface DashboardState {
   layout: DashboardLayout;

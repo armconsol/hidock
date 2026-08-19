@@ -4,28 +4,53 @@ This document describes how to build HiNotes Desktop for all supported platforms
 
 ## Quick Start
 
-### Automated Builds (Gitea Actions)
+### Automated Builds
 
-**Status:** CI/CD workflows are configured for testing only. Native installer builds must be done locally.
+#### GitHub Actions (github.com)
+
+**Native Installer Builds:**
+1. **Tag-based release:**
+   ```bash
+   git tag v1.0.0-beta
+   git push origin v1.0.0-beta
+   ```
+   - Automatically builds for macOS (Universal), Linux (AppImage/deb/rpm), Windows (MSI)
+   - Creates GitHub release with all installers attached
+
+2. **Manual build:**
+   - Go to Actions → Build Native Installers → Run workflow
+   - Select platform (all/macos/linux/windows)
+   - Download artifacts after build completes
+
+**Monitor Progress:**
+- https://github.com/YOUR_USERNAME/hinotes/actions
 
 **Available Workflows:**
-1. **Test Workflow** (`.gitea/workflows/test.yml`) - Runs on every push to main and PRs
-   - Backend tests (Rust)
-   - Frontend tests (React/Vitest)
-   
-2. **PR Review Workflow** (`.gitea/workflows/pr-review.yml`) - Runs on all PRs
-   - Code quality checks (rustfmt, clippy)
-   - Backend tests
-   - Frontend tests
-   - Integration tests (full Tauri build)
-   - Security audit (cargo-audit, npm audit)
+1. **Build Native Installers** (`.github/workflows/build-installers.yml`)
+   - Triggered on version tags (`v*`) or manual dispatch
+   - Builds universal macOS DMG, Linux packages, Windows MSI
+   - Creates GitHub release automatically for tagged builds
+
+2. **Test Workflow** (`.github/workflows/test.yml`)
+   - Runs on push to main and PRs
+   - Backend tests (Rust) + Frontend tests (React/Vitest)
+
+3. **PR Review Workflow** (`.github/workflows/pr-review.yml`)
+   - Comprehensive PR validation
+   - Code quality, tests, integration build, security audit
+
+#### Gitea Actions (gogs.tftsr.com)
+
+**Status:** Testing only (no native installer builds)
+
+**Available Workflows:**
+1. **Test Workflow** (`.gitea/workflows/test.yml`) - Backend + Frontend tests
+2. **PR Review Workflow** (`.gitea/workflows/pr-review.yml`) - Full PR validation
 
 **Monitor Progress:**
 - https://gogs.tftsr.com/sarman/hinotes/actions
 
-**Note:** Native installer builds require either:
-- Self-hosted Gitea runners with macOS/Windows/Linux environments
-- Manual local builds (see Local Builds section below)
+**Note:** Gitea workflows use container-based runners and cannot build native installers. Use GitHub Actions for installer builds.
 
 ---
 
@@ -297,12 +322,18 @@ The project includes two workflows that run on `ubuntu-latest` runners with Dock
 - No dependency on GitHub Actions marketplace actions
 - Compatible with self-hosted Gitea Actions runners
 
-### GitHub Actions
+### Mirroring Between Gitea and GitHub
 
-These workflows are **NOT** compatible with GitHub Actions due to Gitea-specific patterns. To use on GitHub:
-1. Replace manual git checkout with `actions/checkout@v4`
-2. Replace container-based jobs with `actions/setup-node` and `actions/setup-rust`
-3. Update repository URLs from gogs.tftsr.com to github.com
+The project supports both Gitea Actions (gogs.tftsr.com) and GitHub Actions (github.com):
+
+- **Gitea Actions**: Container-based, testing only
+- **GitHub Actions**: Native runners, includes installer builds
+
+**Workflow files:**
+- `.gitea/workflows/` - For Gitea Actions (container-based, manual git checkout)
+- `.github/workflows/` - For GitHub Actions (uses actions/checkout, includes build-installers.yml)
+
+Both sets work independently when the repository is mirrored to both platforms.
 
 ---
 

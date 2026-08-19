@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, Button, Avatar, Message, Spin, Modal } from '@arco-design/web-react';
+import { Button, Avatar, Message, Spin, Modal } from '@arco-design/web-react';
 import { IconCamera, IconUser } from '@arco-design/web-react/icon';
 import './AvatarUpload.css';
 

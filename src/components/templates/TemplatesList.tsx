@@ -31,7 +31,6 @@ const { Title, Text } = Typography;
 
 export function TemplatesList() {
   const {
-    templates,
     selectedTemplateId,
     filter,
     sortBy,
@@ -212,7 +211,7 @@ export function TemplatesList() {
                     />
                     <Popconfirm
                       title="Are you sure you want to delete this template?"
-                      onOk={(e) => handleDelete(template.id, e!)}
+                      onOk={(e) => handleDelete(template.id, e as React.MouseEvent<Element, MouseEvent>)}
                       okText="Delete"
                       cancelText="Cancel"
                     >

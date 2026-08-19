@@ -55,8 +55,10 @@ export function CalendarWidget({ onEventClick }: CalendarWidgetProps) {
     }
   };
 
-  const handleDateChange = (date: Date) => {
-    setSelectedDate(date);
+  const handleDateChange = (date: any) => {
+    // dayjs object from Arco Design Calendar, convert to Date
+    const jsDate = date instanceof Date ? date : new Date(date.format('YYYY-MM-DD'));
+    setSelectedDate(jsDate);
   };
 
   const formatTime = (dateString: string) => {
@@ -114,7 +116,7 @@ export function CalendarWidget({ onEventClick }: CalendarWidgetProps) {
                 >
                   <Space direction="vertical" size="mini" style={{ width: '100%' }}>
                     <Space>
-                      <Text strong>{event.title}</Text>
+                      <Text style={{ fontWeight: 600 }}>{event.title}</Text>
                       <Tag color={event.source === 'google_calendar' ? 'blue' : 'green'}>
                         {event.source === 'google_calendar' ? 'Google' : 'HiNotes'}
                       </Tag>

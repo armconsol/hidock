@@ -4,8 +4,8 @@ import {
   IconUserAdd,
   IconGift,
   IconClockCircle,
-  IconCurrency,
   IconCalendarClock,
+  IconGift,
 } from '@arco-design/web-react/icon';
 import { ReferralStats as ReferralStatsType } from '../../types/referral';
 import './ReferralStats.css';
@@ -93,7 +93,7 @@ export function ReferralStats({ stats }: ReferralStatsProps) {
           </div>
 
           <div className="reward-stat">
-            <IconCurrency style={{ fontSize: 24, color: 'var(--color-success-6)' }} />
+            <IconGift style={{ fontSize: 24, color: 'var(--color-success-6)' }} />
             <div className="reward-stat-content">
               <div className="reward-stat-label">Credits</div>
               <div className="reward-stat-value">

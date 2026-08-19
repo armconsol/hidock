@@ -18,8 +18,8 @@ HTMLMediaElement.prototype.pause = vi.fn();
 HTMLMediaElement.prototype.load = vi.fn();
 
 // Mock URL.createObjectURL
-global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
-global.URL.revokeObjectURL = vi.fn();
+(globalThis as any).URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+(globalThis as any).URL.revokeObjectURL = vi.fn();
 
 // Mock Canvas API for waveform visualization
 HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
@@ -299,7 +299,7 @@ describe('AudioEditor', () => {
   describe('Callbacks', () => {
     it('should call onOperationComplete when audio operation succeeds', async () => {
       const onOperationComplete = vi.fn();
-      const user = userEvent.setup();
+      userEvent.setup();
 
       mockInvoke.mockResolvedValueOnce(mockAudioData); // Initial audio load
       mockInvoke.mockResolvedValueOnce({
