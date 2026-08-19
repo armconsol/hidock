@@ -125,6 +125,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external OAuth server
     async fn test_oauth_google_flow() {
         // Test the OAuth2 handler for Google
         let oauth = OAuth2Handler::new("test-client-id", None);
@@ -138,6 +139,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires external OAuth server
     async fn test_oauth_apple_flow() {
         // Test the OAuth2 handler for Apple
         let oauth = OAuth2Handler::new("test-client-id", None);
