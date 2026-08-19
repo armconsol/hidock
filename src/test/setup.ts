@@ -21,6 +21,16 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
+// Mock navigator.clipboard for copy tests
+Object.defineProperty(navigator, 'clipboard', {
+  writable: true,
+  configurable: true,
+  value: {
+    writeText: vi.fn().mockResolvedValue(undefined),
+    readText: vi.fn().mockResolvedValue(''),
+  },
+});
+
 /**
  * Mock Arco Design Message component
  *

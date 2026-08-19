@@ -162,7 +162,7 @@ describe('AudioEditor', () => {
       await user.click(mergeButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/merge audio/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /merge audio files/i })).toBeInTheDocument();
       });
     });
 
@@ -194,7 +194,7 @@ describe('AudioEditor', () => {
       await user.click(saveButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/save as new/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /save as new/i })).toBeInTheDocument();
       });
     });
   });
@@ -229,6 +229,19 @@ describe('AudioEditor', () => {
       const timeline = screen.getByTestId('timeline');
       const audio = document.querySelector('audio') as HTMLAudioElement;
 
+      // Mock getBoundingClientRect to return valid dimensions
+      vi.spyOn(timeline, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+        width: 800,
+        height: 50,
+        right: 800,
+        bottom: 50,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      });
+
       // Simulate metadata loaded
       Object.defineProperty(audio, 'duration', { value: 180, configurable: true });
       audio.dispatchEvent(new Event('loadedmetadata'));
@@ -250,6 +263,24 @@ describe('AudioEditor', () => {
       });
 
       const timeline = screen.getByTestId('timeline');
+      const audio = document.querySelector('audio') as HTMLAudioElement;
+
+      // Mock getBoundingClientRect to return valid dimensions
+      vi.spyOn(timeline, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+        width: 800,
+        height: 50,
+        right: 800,
+        bottom: 50,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      });
+
+      // Simulate metadata loaded
+      Object.defineProperty(audio, 'duration', { value: 180, configurable: true });
+      audio.dispatchEvent(new Event('loadedmetadata'));
 
       // Simulate mouse down to start selection
       await user.pointer({ target: timeline, coords: { x: 100, y: 50 }, keys: '[MouseLeft>]' });

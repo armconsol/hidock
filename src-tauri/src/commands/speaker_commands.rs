@@ -237,8 +237,8 @@ pub async fn get_speaker_colors(
     speaker_ids.sort();
     speaker_ids.dedup();
 
-    for speaker_id in speaker_ids {
-        color_assigner.assign_color(&speaker_id);
+    for speaker_id in &speaker_ids {
+        color_assigner.assign_color(speaker_id);
     }
 
     Ok(color_assigner.get_all_assignments())

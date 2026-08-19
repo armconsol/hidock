@@ -58,7 +58,7 @@ describe('SaveAsNewDialog', () => {
         />
       );
 
-      expect(screen.getByText(/format/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/format/i)).toBeInTheDocument();
     });
 
     it('should render quality settings', () => {
@@ -71,7 +71,7 @@ describe('SaveAsNewDialog', () => {
         />
       );
 
-      expect(screen.getByText(/quality/i)).toBeInTheDocument();
+      expect(screen.getByRole('slider')).toBeInTheDocument();
     });
   });
 
@@ -112,7 +112,7 @@ describe('SaveAsNewDialog', () => {
       await user.click(formatSelect);
 
       await waitFor(() => {
-        expect(screen.getByText('M4A')).toBeInTheDocument();
+        expect(screen.getByText(/M4A.*Lossy/i)).toBeInTheDocument();
       });
     });
 
@@ -132,7 +132,7 @@ describe('SaveAsNewDialog', () => {
       await user.click(formatSelect);
 
       await waitFor(() => {
-        expect(screen.getByText('WAV')).toBeInTheDocument();
+        expect(screen.getByText(/WAV.*Lossless/i)).toBeInTheDocument();
       });
     });
   });
@@ -185,18 +185,13 @@ describe('SaveAsNewDialog', () => {
         />
       );
 
-      // Select MP3 format (lossy)
-      const formatSelect = screen.getByLabelText(/format/i);
-      await user.click(formatSelect);
-
+      // MP3 is selected by default (lossy format)
+      // Should show bitrate buttons
       await waitFor(() => {
-        const mp3Option = screen.getByText('MP3');
-        user.click(mp3Option);
-      });
-
-      // Should show bitrate options
-      await waitFor(() => {
-        expect(screen.getByText(/bitrate/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '128k' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '192k' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '256k' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '320k' })).toBeInTheDocument();
       });
     });
   });
@@ -220,7 +215,7 @@ describe('SaveAsNewDialog', () => {
         />
       );
 
-      const saveButton = screen.getByText(/save/i);
+      const saveButton = screen.getByRole('button', { name: /^save$/i });
       await user.click(saveButton);
 
       await waitFor(() => {
@@ -252,7 +247,7 @@ describe('SaveAsNewDialog', () => {
         />
       );
 
-      const saveButton = screen.getByText(/save/i);
+      const saveButton = screen.getByRole('button', { name: /^save$/i });
       await user.click(saveButton);
 
       await waitFor(() => {
@@ -278,7 +273,7 @@ describe('SaveAsNewDialog', () => {
         />
       );
 
-      const saveButton = screen.getByText(/save/i);
+      const saveButton = screen.getByRole('button', { name: /^save$/i });
       await user.click(saveButton);
 
       await waitFor(() => {
@@ -302,11 +297,11 @@ describe('SaveAsNewDialog', () => {
         />
       );
 
-      const saveButton = screen.getByText(/save/i);
+      const saveButton = screen.getByRole('button', { name: /^save$/i });
       await user.click(saveButton);
 
       await waitFor(() => {
-        expect(screen.getByText(/saving/i)).toBeInTheDocument();
+        expect(screen.getByText(/saving audio file/i)).toBeInTheDocument();
       });
     });
   });
@@ -348,7 +343,7 @@ describe('SaveAsNewDialog', () => {
         />
       );
 
-      const saveButton = screen.getByText(/save/i);
+      const saveButton = screen.getByRole('button', { name: /^save$/i });
       await user.click(saveButton);
 
       await waitFor(() => {
@@ -372,7 +367,7 @@ describe('SaveAsNewDialog', () => {
         />
       );
 
-      const saveButton = screen.getByText(/save/i);
+      const saveButton = screen.getByRole('button', { name: /^save$/i });
       await user.click(saveButton);
 
       await waitFor(() => {

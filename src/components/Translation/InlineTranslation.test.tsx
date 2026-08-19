@@ -69,21 +69,23 @@ describe('InlineTranslation Component', () => {
       />
     );
 
-    expect(screen.getByText('Hello world')).toBeInTheDocument();
+    // Initially shows translated text (because translatedText is provided)
+    expect(screen.getByText('Hola mundo')).toBeInTheDocument();
 
-    const toggleButton = screen.getByRole('button', { name: /show translation/i });
-    await user.click(toggleButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('Hola mundo')).toBeInTheDocument();
-      expect(screen.queryByText('Hello world')).not.toBeInTheDocument();
-    });
-
+    const toggleButton = screen.getByRole('button', { name: /show original/i });
     await user.click(toggleButton);
 
     await waitFor(() => {
       expect(screen.getByText('Hello world')).toBeInTheDocument();
       expect(screen.queryByText('Hola mundo')).not.toBeInTheDocument();
+    });
+
+    const newToggleButton = screen.getByRole('button', { name: /show translation/i });
+    await user.click(newToggleButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Hola mundo')).toBeInTheDocument();
+      expect(screen.queryByText('Hello world')).not.toBeInTheDocument();
     });
   });
 

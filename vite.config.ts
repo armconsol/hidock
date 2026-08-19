@@ -8,6 +8,13 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [react()],
 
+  // Resolve aliases for test mocks
+  resolve: {
+    alias: {
+      '@tauri-apps/plugin-dialog': new URL('./src/test/mocks/tauri-dialog.ts', import.meta.url).pathname,
+    },
+  },
+
   // Test configuration
   test: {
     globals: true,

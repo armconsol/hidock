@@ -15,7 +15,7 @@ describe('TranslationSettings Component', () => {
 
     expect(screen.getByText(/default source language/i)).toBeInTheDocument();
     expect(screen.getByText(/default target language/i)).toBeInTheDocument();
-    expect(screen.getByText(/auto.*translate/i)).toBeInTheDocument();
+    expect(screen.getByText(/auto-translate notes/i)).toBeInTheDocument();
   });
 
   it('displays current settings', () => {
@@ -116,11 +116,15 @@ describe('TranslationSettings Component', () => {
     const user = userEvent.setup();
     render(<TranslationSettings onSave={mockOnSave} />);
 
-    const saveButton = screen.getByRole('button', { name: /save/i });
+    // Make a change to enable the save button
+    const autoTranslateSwitch = screen.getByRole('switch');
+    await user.click(autoTranslateSwitch);
+
+    const saveButton = screen.getByRole('button', { name: /save settings/i });
     await user.click(saveButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/settings saved/i)).toBeInTheDocument();
+      expect(mockOnSave).toHaveBeenCalled();
     });
   });
 

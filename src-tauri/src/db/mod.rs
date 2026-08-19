@@ -2434,6 +2434,113 @@ impl Database {
         Ok(assigned_count)
     }
 
+    /// Alias method for backward compatibility: list_speaker_segments_for_note
+    pub fn list_speaker_segments_for_note(&self, note_id: &str) -> Result<Vec<SpeakerSegment>> {
+        self.list_speaker_segments_by_note(note_id)
+    }
+
+    /// Update the speaker assignment for all segments of a note from one speaker to another
+    /// Used when merging speakers
+    pub fn update_segment_speaker(
+        &self,
+        note_id: &str,
+        old_speaker_id: &str,
+        new_speaker_id: &str,
+    ) -> Result<usize> {
+        let updated = self.conn.execute(
+            "UPDATE speaker_segments SET speaker_id = ?1 WHERE note_id = ?2 AND speaker_id = ?3",
+            params![new_speaker_id, note_id, old_speaker_id],
+        )?;
+
+        Ok(updated)
+    }
+
+    /// Count total segments for a specific speaker across all notes
+    pub fn count_segments_for_speaker(&self, speaker_id: &str) -> Result<i64> {
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM speaker_segments WHERE speaker_id = ?1",
+            params![speaker_id],
+            |row| row.get(0),
+        )?;
+        Ok(count)
+    }
+
+    /// Update the end time of a speaker segment
+    pub fn update_segment_end_time(&self, segment_id: &str, end_time: f64) -> Result<SpeakerSegment> {
+        let updated = self.conn.execute(
+            "UPDATE speaker_segments SET end_time = ?1 WHERE id = ?2",
+            params![end_time, segment_id],
+        )?;
+
+        if updated == 0 {
+            anyhow::bail!("Speaker segment not found: {}", segment_id);
+        }
+
+        self.get_speaker_segment(segment_id)?
+            .ok_or_else(|| anyhow::anyhow!("Failed to retrieve updated speaker segment"))
+    }
+
+    /// Alias for delete_speaker_segments_by_note for backward compatibility
+    pub fn delete_segments_for_note(&self, note_id: &str) -> Result<usize> {
+        self.delete_speaker_segments_by_note(note_id)
+    }
+
+    // ===== USER SETTINGS CRUD OPERATIONS =====
+
+    /// Set a user setting (key-value pair)
+    pub fn set_user_setting(&self, key: &str, value: &str) -> Result<()> {
+        let now = Utc::now();
+
+        self.conn.execute(
+            "INSERT INTO user_settings (key, value, updated_at) VALUES (?1, ?2, ?3)
+             ON CONFLICT(key) DO UPDATE SET value = ?2, updated_at = ?3",
+            params![key, value, now.to_rfc3339()],
+        )?;
+
+        Ok(())
+    }
+
+    /// Get a user setting by key
+    pub fn get_user_setting(&self, key: &str) -> Result<Option<String>> {
+        let value = self
+            .conn
+            .query_row(
+                "SELECT value FROM user_settings WHERE key = ?1",
+                params![key],
+                |row| row.get(0),
+            )
+            .optional()?;
+
+        Ok(value)
+    }
+
+    /// Delete a user setting
+    pub fn delete_user_setting(&self, key: &str) -> Result<bool> {
+        let deleted = self
+            .conn
+            .execute("DELETE FROM user_settings WHERE key = ?1", params![key])?;
+
+        Ok(deleted > 0)
+    }
+
+    /// List all user settings
+    pub fn list_user_settings(&self) -> Result<Vec<(String, String)>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT key, value FROM user_settings ORDER BY key ASC")?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+
+        let mut settings = Vec::new();
+        for row in rows {
+            settings.push(row?);
+        }
+
+        Ok(settings)
+    }
+
     // ===== SUBSCRIPTION CRUD OPERATIONS =====
 
     /// Insert a new subscription

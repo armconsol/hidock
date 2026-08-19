@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MergeDialog } from './MergeDialog';
+import * as dialogPlugin from '@tauri-apps/plugin-dialog';
 
 // Mock Tauri API
 const { mockInvoke } = vi.hoisted(() => ({
@@ -10,11 +11,6 @@ const { mockInvoke } = vi.hoisted(() => ({
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: mockInvoke,
-}));
-
-// Mock Tauri dialog API
-vi.mock('@tauri-apps/plugin-dialog', () => ({
-  open: vi.fn(),
 }));
 
 describe('MergeDialog', () => {
@@ -54,9 +50,8 @@ describe('MergeDialog', () => {
   describe('File Selection', () => {
     it('should allow selecting multiple audio files', async () => {
       const user = userEvent.setup();
-      const mockOpen = await import('@tauri-apps/plugin-dialog');
 
-      (mockOpen.open as any).mockResolvedValue([
+      vi.mocked(dialogPlugin.open).mockResolvedValue([
         '/path/to/file1.mp3',
         '/path/to/file2.mp3',
       ]);
@@ -71,7 +66,7 @@ describe('MergeDialog', () => {
       await user.click(selectButton);
 
       await waitFor(() => {
-        expect(mockOpen.open).toHaveBeenCalledWith({
+        expect(dialogPlugin.open).toHaveBeenCalledWith({
           multiple: true,
           filters: expect.arrayContaining([
             expect.objectContaining({
@@ -85,9 +80,8 @@ describe('MergeDialog', () => {
 
     it('should display selected files with durations', async () => {
       const user = userEvent.setup();
-      const mockOpen = await import('@tauri-apps/plugin-dialog');
 
-      (mockOpen.open as any).mockResolvedValue([
+      vi.mocked(dialogPlugin.open).mockResolvedValue([
         '/path/to/file1.mp3',
         '/path/to/file2.mp3',
       ]);
@@ -111,9 +105,7 @@ describe('MergeDialog', () => {
   describe('File Reordering', () => {
     it('should allow reordering files', async () => {
       const user = userEvent.setup();
-      const mockOpen = await import('@tauri-apps/plugin-dialog');
-
-      (mockOpen.open as any).mockResolvedValue([
+      vi.mocked(dialogPlugin.open).mockResolvedValue([
         '/path/to/file1.mp3',
         '/path/to/file2.mp3',
       ]);
@@ -143,15 +135,13 @@ describe('MergeDialog', () => {
         <MergeDialog visible={true} onClose={mockOnClose} onComplete={mockOnComplete} />
       );
 
-      const mergeButton = screen.getByText(/merge files/i);
+      const mergeButton = screen.getByRole('button', { name: /merge files/i });
       expect(mergeButton).toBeDisabled();
     });
 
     it('should execute merge operation when merge button is clicked', async () => {
       const user = userEvent.setup();
-      const mockOpen = await import('@tauri-apps/plugin-dialog');
-
-      (mockOpen.open as any).mockResolvedValue([
+      vi.mocked(dialogPlugin.open).mockResolvedValue([
         '/path/to/file1.mp3',
         '/path/to/file2.mp3',
       ]);
@@ -189,9 +179,7 @@ describe('MergeDialog', () => {
 
     it('should call onComplete callback when merge succeeds', async () => {
       const user = userEvent.setup();
-      const mockOpen = await import('@tauri-apps/plugin-dialog');
-
-      (mockOpen.open as any).mockResolvedValue([
+      vi.mocked(dialogPlugin.open).mockResolvedValue([
         '/path/to/file1.mp3',
         '/path/to/file2.mp3',
       ]);
@@ -225,9 +213,7 @@ describe('MergeDialog', () => {
 
     it('should display error message when merge fails', async () => {
       const user = userEvent.setup();
-      const mockOpen = await import('@tauri-apps/plugin-dialog');
-
-      (mockOpen.open as any).mockResolvedValue([
+      vi.mocked(dialogPlugin.open).mockResolvedValue([
         '/path/to/file1.mp3',
         '/path/to/file2.mp3',
       ]);
@@ -276,9 +262,7 @@ describe('MergeDialog', () => {
 
     it('should close dialog after successful merge', async () => {
       const user = userEvent.setup();
-      const mockOpen = await import('@tauri-apps/plugin-dialog');
-
-      (mockOpen.open as any).mockResolvedValue([
+      vi.mocked(dialogPlugin.open).mockResolvedValue([
         '/path/to/file1.mp3',
         '/path/to/file2.mp3',
       ]);
@@ -314,9 +298,7 @@ describe('MergeDialog', () => {
   describe('Preview', () => {
     it('should display total duration of all selected files', async () => {
       const user = userEvent.setup();
-      const mockOpen = await import('@tauri-apps/plugin-dialog');
-
-      (mockOpen.open as any).mockResolvedValue([
+      vi.mocked(dialogPlugin.open).mockResolvedValue([
         '/path/to/file1.mp3',
         '/path/to/file2.mp3',
       ]);
