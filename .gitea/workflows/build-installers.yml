@@ -237,26 +237,32 @@ jobs:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           set -eu
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            TAG="${GITHUB_REF#refs/tags/}"
-            echo "Using pushed tag as-is: $TAG"
-          else
-            API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
-            BASE=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
-            EXISTING=$(curl -sf --retry 3 --retry-delay 2 --retry-connrefused "$API/tags?limit=50" \
-              -H "Authorization: token $RELEASE_TOKEN" \
-              | jq -r --arg prefix "v$BASE." '.[] | select(.name | startswith($prefix)) | .name')
-            MAXPATCH=-1
-            for t in $EXISTING; do
-              patch="${t#v$BASE.}"
-              if [[ "$patch" =~ ^[0-9]+$ ]] && [ "$patch" -gt "$MAXPATCH" ]; then
-                MAXPATCH="$patch"
-              fi
-            done
-            NEXT=$((MAXPATCH + 1))
-            TAG="v$BASE.$NEXT"
-            echo "No tag pushed; computed next version from package.json ($BASE) and existing tags: $TAG"
-          fi
+          case "$GITHUB_REF" in
+            refs/tags/v*)
+              TAG="${GITHUB_REF#refs/tags/}"
+              echo "Using pushed tag as-is: $TAG"
+              ;;
+            *)
+              API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
+              BASE=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+              EXISTING=$(curl -sf --retry 3 --retry-delay 2 --retry-connrefused "$API/tags?limit=50" \
+                -H "Authorization: token $RELEASE_TOKEN" \
+                | jq -r --arg prefix "v$BASE." '.[] | select(.name | startswith($prefix)) | .name')
+              MAXPATCH=-1
+              for t in $EXISTING; do
+                patch="${t#v$BASE.}"
+                case "$patch" in
+                  ''|*[!0-9]*) continue ;;
+                esac
+                if [ "$patch" -gt "$MAXPATCH" ]; then
+                  MAXPATCH="$patch"
+                fi
+              done
+              NEXT=$((MAXPATCH + 1))
+              TAG="v$BASE.$NEXT"
+              echo "No tag pushed; computed next version from package.json ($BASE) and existing tags: $TAG"
+              ;;
+          esac
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   build-macos:
