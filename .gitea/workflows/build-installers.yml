@@ -20,7 +20,173 @@ on:
           - windows
 
 jobs:
+  # Gating checks. build-macos/build-linux/build-windows all `needs:` these,
+  # so a broken build never gets past a failing fmt/clippy/test check.
+  # Gitea Actions has no reliable cross-workflow `workflow_run` gating (see
+  # docs.gitea.com/usage/actions/comparison), so — same as
+  # tftsr-devops_investigation's needs: autotag pattern — the checks live in
+  # this workflow file rather than a separate test.yml that runs independently.
+  rust-fmt-check:
+    runs-on: linux-amd64
+    container:
+      image: harbor.tftsr.com/tftsr/tftsr-linux-amd64:rust1.89-node22
+    steps:
+      - name: Checkout
+        env:
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          git init
+          git remote add origin "https://x-access-token:${GITEA_TOKEN}@gogs.tftsr.com/sarman/hinotes.git"
+          if [ -n "${GITHUB_SHA:-}" ] && git fetch --depth=1 origin "$GITHUB_SHA"; then
+            echo "Fetched commit SHA: $GITHUB_SHA"
+          elif [ -n "${GITHUB_REF_NAME:-}" ] && git fetch --depth=1 origin "$GITHUB_REF_NAME"; then
+            echo "Fetched ref name: $GITHUB_REF_NAME"
+          else
+            git fetch --depth=1 origin main
+            echo "Fetched fallback ref: main"
+          fi
+          git checkout FETCH_HEAD
+      - name: Install libusb
+        run: apt-get update -qq && apt-get install -y -qq --no-install-recommends libusb-1.0-0-dev
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+
+  rust-clippy:
+    runs-on: linux-amd64
+    container:
+      image: harbor.tftsr.com/tftsr/tftsr-linux-amd64:rust1.89-node22
+    steps:
+      - name: Checkout
+        env:
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          git init
+          git remote add origin "https://x-access-token:${GITEA_TOKEN}@gogs.tftsr.com/sarman/hinotes.git"
+          if [ -n "${GITHUB_SHA:-}" ] && git fetch --depth=1 origin "$GITHUB_SHA"; then
+            echo "Fetched commit SHA: $GITHUB_SHA"
+          elif [ -n "${GITHUB_REF_NAME:-}" ] && git fetch --depth=1 origin "$GITHUB_REF_NAME"; then
+            echo "Fetched ref name: $GITHUB_REF_NAME"
+          else
+            git fetch --depth=1 origin main
+            echo "Fetched fallback ref: main"
+          fi
+          git checkout FETCH_HEAD
+      - name: Install libusb
+        run: apt-get update -qq && apt-get install -y -qq --no-install-recommends libusb-1.0-0-dev
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+
+  rust-tests:
+    runs-on: linux-amd64
+    container:
+      image: harbor.tftsr.com/tftsr/tftsr-linux-amd64:rust1.89-node22
+    steps:
+      - name: Checkout
+        env:
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          git init
+          git remote add origin "https://x-access-token:${GITEA_TOKEN}@gogs.tftsr.com/sarman/hinotes.git"
+          if [ -n "${GITHUB_SHA:-}" ] && git fetch --depth=1 origin "$GITHUB_SHA"; then
+            echo "Fetched commit SHA: $GITHUB_SHA"
+          elif [ -n "${GITHUB_REF_NAME:-}" ] && git fetch --depth=1 origin "$GITHUB_REF_NAME"; then
+            echo "Fetched ref name: $GITHUB_REF_NAME"
+          else
+            git fetch --depth=1 origin main
+            echo "Fetched fallback ref: main"
+          fi
+          git checkout FETCH_HEAD
+      - name: Install libusb
+        run: apt-get update -qq && apt-get install -y -qq --no-install-recommends libusb-1.0-0-dev
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+
+  frontend-typecheck:
+    runs-on: ubuntu-latest
+    container:
+      image: node:22-alpine
+    steps:
+      - name: Checkout
+        env:
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          apk add --no-cache git
+          git init
+          git remote add origin "https://x-access-token:${GITEA_TOKEN}@gogs.tftsr.com/sarman/hinotes.git"
+          if [ -n "${GITHUB_SHA:-}" ] && git fetch --depth=1 origin "$GITHUB_SHA"; then
+            echo "Fetched commit SHA: $GITHUB_SHA"
+          elif [ -n "${GITHUB_REF_NAME:-}" ] && git fetch --depth=1 origin "$GITHUB_REF_NAME"; then
+            echo "Fetched ref name: $GITHUB_REF_NAME"
+          else
+            git fetch --depth=1 origin main
+            echo "Fetched fallback ref: main"
+          fi
+          git checkout FETCH_HEAD
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+      - name: Install dependencies with retry
+        run: |
+          for i in 1 2 3; do
+            if npm ci --prefer-offline --no-audit; then
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 5 seconds..."
+            sleep 5
+          done
+          echo "All retry attempts failed"
+          exit 1
+      - run: npx tsc --noEmit
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    container:
+      image: node:22-alpine
+    steps:
+      - name: Checkout
+        env:
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          apk add --no-cache git
+          git init
+          git remote add origin "https://x-access-token:${GITEA_TOKEN}@gogs.tftsr.com/sarman/hinotes.git"
+          if [ -n "${GITHUB_SHA:-}" ] && git fetch --depth=1 origin "$GITHUB_SHA"; then
+            echo "Fetched commit SHA: $GITHUB_SHA"
+          elif [ -n "${GITHUB_REF_NAME:-}" ] && git fetch --depth=1 origin "$GITHUB_REF_NAME"; then
+            echo "Fetched ref name: $GITHUB_REF_NAME"
+          else
+            git fetch --depth=1 origin main
+            echo "Fetched fallback ref: main"
+          fi
+          git checkout FETCH_HEAD
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+      - name: Install dependencies with retry
+        run: |
+          for i in 1 2 3; do
+            if npm ci --prefer-offline --no-audit; then
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 5 seconds..."
+            sleep 5
+          done
+          echo "All retry attempts failed"
+          exit 1
+      - run: npx vitest run
+
   build-macos:
+    needs: [rust-fmt-check, rust-clippy, rust-tests, frontend-typecheck, frontend-tests]
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos'))
@@ -84,6 +250,7 @@ jobs:
           retention-days: 7
 
   build-linux:
+    needs: [rust-fmt-check, rust-clippy, rust-tests, frontend-typecheck, frontend-tests]
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux'))
@@ -167,6 +334,7 @@ jobs:
           retention-days: 7
 
   build-windows:
+    needs: [rust-fmt-check, rust-clippy, rust-tests, frontend-typecheck, frontend-tests]
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows'))

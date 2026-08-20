@@ -1,9 +1,10 @@
 name: Test
 
+# Runs on pull requests only. Push-to-main gets the same checks as
+# gating jobs inside build-installers.yml (build-macos/linux/windows all
+# `needs:` these same checks re-run there), so running them again here on
+# every push to main would be redundant.
 on:
-  push:
-    branches:
-      - main
   pull_request:
 
 jobs:

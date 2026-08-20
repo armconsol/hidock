@@ -41,16 +41,24 @@ This document describes how to build HiNotes Desktop for all supported platforms
 
 #### Gitea Actions (gogs.tftsr.com)
 
-**Status:** Testing only (no native installer builds)
+**Status:** Full native installer builds, gated behind Rust/frontend checks.
 
 **Available Workflows:**
-1. **Test Workflow** (`.gitea/workflows/test.yml`) - Backend + Frontend tests
-2. **PR Review Workflow** (`.gitea/workflows/pr-review.yml`) - Full PR validation
+1. **Build Native Installers** (`.gitea/workflows/build-installers.yml`) -
+   Runs `rust-fmt-check`, `rust-clippy`, `rust-tests`, `frontend-typecheck`,
+   `frontend-tests` first; `build-macos`/`build-linux`/`build-windows` all
+   `needs:` those checks and only run if they pass.
+2. **Test Workflow** (`.gitea/workflows/test.yml`) - Same checks, PR-only
+   (pushes to main are covered by the gating jobs above).
+3. **PR Review Workflow** (`.gitea/workflows/pr-review.yml`) - Full PR
+   validation (code quality, tests, integration build, security audit).
 
 **Monitor Progress:**
 - https://gogs.tftsr.com/sarman/hinotes/actions
 
-**Note:** Gitea workflows use container-based runners and cannot build native installers. Use GitHub Actions for installer builds.
+**Note:** See "CI/CD Integration" below for why Gitea workflows here use
+`linux-amd64`/`macos-arm64` runner labels and Harbor container images instead
+of `ubuntu-latest`/`macos-latest`/`windows-latest` and `actions/checkout@v4`.
 
 ---
 
@@ -323,12 +331,28 @@ Use the manual `git init && git remote add && git fetch --depth=1 && git
 checkout FETCH_HEAD` pattern (see any job in `.gitea/workflows/`) with
 `secrets.GITHUB_TOKEN` instead.
 
-**1. Test Workflow (`.gitea/workflows/test.yml`)**
-- Triggers on push to main and pull requests
-- Separate `rust-fmt-check`, `rust-clippy`, `rust-tests` jobs (Harbor Rust
-  image) and `frontend-typecheck`, `frontend-tests` jobs (`node:22-alpine`)
+**1. Build Installers Workflow (`.gitea/workflows/build-installers.yml`)**
+- Triggers on push to main and version tags
+- Gating checks first: `rust-fmt-check`, `rust-clippy`, `rust-tests` (Harbor
+  Rust image), `frontend-typecheck`, `frontend-tests` (`node:22-alpine`)
+- `build-macos`, `build-linux`, `build-windows` all `needs:` every check job
+  above and only start once they all pass
+- Builds Linux (deb/rpm/AppImage) on `linux-amd64`, Windows NSIS installer
+  (cross-compiled via mingw) on `linux-amd64`, and macOS arm64 DMG on
+  `macos-arm64`
+- Windows bundle target is `nsis`, not `msi` — WiX/MSI cannot be
+  cross-compiled from Linux; NSIS can (see `bundle.targets` in
+  `src-tauri/tauri.conf.json`)
+- Gitea Actions has no reliable cross-workflow gating (no `workflow_run`
+  equivalent — see docs.gitea.com/usage/actions/comparison), so the checks
+  live in this same workflow file rather than a separate `test.yml` that
+  build jobs can depend on
 
-**2. PR Review Workflow (`.gitea/workflows/pr-review.yml`)**
+**2. Test Workflow (`.gitea/workflows/test.yml`)**
+- Same checks as above, but triggers on pull requests only — pushes to main
+  are already covered by the gating jobs in `build-installers.yml`
+
+**3. PR Review Workflow (`.gitea/workflows/pr-review.yml`)**
 - Triggers on all PRs to main/develop
 - Comprehensive validation:
   - Code quality (rustfmt, clippy, placeholder check)
@@ -337,15 +361,6 @@ checkout FETCH_HEAD` pattern (see any job in `.gitea/workflows/`) with
   - Integration tests (full Tauri build)
   - Security audit (cargo-audit, npm audit)
 - Generates summary report
-
-**3. Build Installers Workflow (`.gitea/workflows/build-installers.yml`)**
-- Triggers on push to main and version tags
-- Builds Linux (deb/rpm/AppImage) on `linux-amd64`, Windows NSIS installer
-  (cross-compiled via mingw) on `linux-amd64`, and macOS arm64 DMG on
-  `macos-arm64`
-- Windows bundle target is `nsis`, not `msi` — WiX/MSI cannot be
-  cross-compiled from Linux; NSIS can (see `bundle.targets` in
-  `src-tauri/tauri.conf.json`)
 
 ### GitHub Actions mirror
 
