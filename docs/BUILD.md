@@ -298,42 +298,63 @@ upx --best src-tauri/target/release/hinotes-desktop
 
 ### Gitea Actions
 
-The project includes two workflows that run on `ubuntu-latest` runners with Docker containers:
+Workflows run on this Gitea instance's self-hosted runners, using the same
+runner labels and pre-baked Harbor images as the `tftsr-devops_investigation`
+(TRCAA) project:
+
+- `runs-on: linux-amd64` with `container: harbor.tftsr.com/tftsr/tftsr-linux-amd64:rust1.89-node22`
+  for Rust jobs (Rust + Node.js + webkit/gtk build deps preinstalled).
+- `runs-on: linux-amd64` with `container: harbor.tftsr.com/tftsr/tftsr-windows-cross:rust1.89-node22`
+  for Windows builds (mingw cross-compilation, no native Windows runner exists).
+- `runs-on: macos-arm64` (native, no container) for macOS builds — only an
+  arm64 Mac runner is registered, so macOS builds are `aarch64-apple-darwin`
+  only (no universal binary).
+- `runs-on: ubuntu-latest` with `container: node:22-alpine` for frontend-only
+  jobs.
+
+**Do not use `actions/checkout@v4`, `actions/setup-node@v4`, or
+`runs-on: ubuntu-latest`/`macos-latest`/`windows-latest` without a `container:`
+image on this Gitea instance.** The Docker-based act_runner here does not
+reliably support `actions/checkout`'s Node-based execution when the job
+container has no Node.js preinstalled (checkout fails with `exec: "node":
+executable file not found in $PATH`), and there is no runner registered under
+the `macos-latest`/`windows-latest` labels — jobs using them queue forever.
+Use the manual `git init && git remote add && git fetch --depth=1 && git
+checkout FETCH_HEAD` pattern (see any job in `.gitea/workflows/`) with
+`secrets.GITHUB_TOKEN` instead.
 
 **1. Test Workflow (`.gitea/workflows/test.yml`)**
 - Triggers on push to main and pull requests
-- Uses rustlang/rust:nightly and node:20 containers
-- Runs backend (cargo test) and frontend (npm test) tests
-- Manual git checkout pattern with GITHUB_TOKEN authentication
+- Separate `rust-fmt-check`, `rust-clippy`, `rust-tests` jobs (Harbor Rust
+  image) and `frontend-typecheck`, `frontend-tests` jobs (`node:22-alpine`)
 
 **2. PR Review Workflow (`.gitea/workflows/pr-review.yml`)**
 - Triggers on all PRs to main/develop
 - Comprehensive validation:
   - Code quality (rustfmt, clippy, placeholder check)
   - Backend tests (Rust)
-  - Frontend tests (React/Vitest)
+  - Frontend tests (React/Vitest) + frontend build
   - Integration tests (full Tauri build)
   - Security audit (cargo-audit, npm audit)
 - Generates summary report
 
-**Workflow Pattern:**
-- Uses public container images (rustlang/rust:nightly, node:20, alpine)
-- Manual git checkout with token authentication
-- No dependency on GitHub Actions marketplace actions
-- Compatible with self-hosted Gitea Actions runners
+**3. Build Installers Workflow (`.gitea/workflows/build-installers.yml`)**
+- Triggers on push to main and version tags
+- Builds Linux (deb/rpm/AppImage) on `linux-amd64`, Windows NSIS installer
+  (cross-compiled via mingw) on `linux-amd64`, and macOS arm64 DMG on
+  `macos-arm64`
+- Windows bundle target is `nsis`, not `msi` — WiX/MSI cannot be
+  cross-compiled from Linux; NSIS can (see `bundle.targets` in
+  `src-tauri/tauri.conf.json`)
 
-### Mirroring Between Gitea and GitHub
+### GitHub Actions mirror
 
-The project supports both Gitea Actions (gogs.tftsr.com) and GitHub Actions (github.com):
-
-- **Gitea Actions**: Container-based, testing only
-- **GitHub Actions**: Native runners, includes installer builds
-
-**Workflow files:**
-- `.gitea/workflows/` - For Gitea Actions (container-based, manual git checkout)
-- `.github/workflows/` - For GitHub Actions (uses actions/checkout, includes build-installers.yml)
-
-Both sets work independently when the repository is mirrored to both platforms.
+`.github/workflows/` contains an equivalent set of workflows for if/when this
+repo is mirrored to github.com, using GitHub-hosted runners
+(`ubuntu-latest`/`macos-latest`/`windows-latest`) and `actions/checkout@v4`
+directly — those work fine there since GitHub-hosted runners have Node.js
+preinstalled on the VM. The two directories are intentionally different and
+should not be kept byte-for-byte identical.
 
 ---
 

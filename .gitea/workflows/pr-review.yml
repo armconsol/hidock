@@ -10,9 +10,9 @@ on:
 jobs:
   code-quality:
     name: Code Quality Checks
-    runs-on: ubuntu-latest
+    runs-on: linux-amd64
     container:
-      image: rustlang/rust:nightly
+      image: harbor.tftsr.com/tftsr/tftsr-linux-amd64:rust1.89-node22
 
     steps:
       - name: Checkout code
@@ -32,14 +32,8 @@ jobs:
           fi
           git checkout FETCH_HEAD
 
-      - name: Install system dependencies and Node.js
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends curl
-          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-          apt-get install -y nodejs
-
-      - name: Install Rust components
-        run: rustup component add rustfmt clippy
+      - name: Install libusb
+        run: apt-get update -qq && apt-get install -y -qq --no-install-recommends libusb-1.0-0-dev
 
       - name: Install dependencies
         run: npm ci
@@ -56,26 +50,21 @@ jobs:
           fi
           echo "✅ No placeholders found in production code"
 
-      - name: Check frontend formatting
-        run: npm run lint || echo "⚠️  Linting warnings found"
-
       - name: Check Rust formatting
-        working-directory: src-tauri
-        run: cargo fmt -- --check
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 
       - name: Run Clippy
-        working-directory: src-tauri
         run: |
-          cargo clippy --all-targets --all-features -- \
+          cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- \
             -D warnings \
             -A clippy::too_many_arguments \
             -A clippy::type_complexity
 
   backend-tests:
     name: Backend Tests (Rust)
-    runs-on: ubuntu-latest
+    runs-on: linux-amd64
     container:
-      image: rustlang/rust:nightly
+      image: harbor.tftsr.com/tftsr/tftsr-linux-amd64:rust1.89-node22
 
     steps:
       - name: Checkout code
@@ -95,22 +84,20 @@ jobs:
           fi
           git checkout FETCH_HEAD
 
-      - name: Install system dependencies
-        run: apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev
+      - name: Install libusb
+        run: apt-get update -qq && apt-get install -y -qq --no-install-recommends libusb-1.0-0-dev
 
       - name: Run backend tests
-        working-directory: src-tauri
-        run: cargo test --lib -- --nocapture
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib -- --nocapture
 
       - name: Check backend compilation
-        working-directory: src-tauri
-        run: cargo build --lib
+        run: cargo build --manifest-path src-tauri/Cargo.toml --lib
 
   frontend-tests:
     name: Frontend Tests (React)
     runs-on: ubuntu-latest
     container:
-      image: node:20
+      image: node:22-alpine
 
     steps:
       - name: Checkout code
@@ -118,7 +105,7 @@ jobs:
           GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eux
-          apt-get update && apt-get install -y --no-install-recommends git
+          apk add --no-cache git
           git init
           git remote add origin "https://x-access-token:${GITEA_TOKEN}@gogs.tftsr.com/sarman/hinotes.git"
           if [ -n "${GITHUB_SHA:-}" ] && git fetch --depth=1 origin "$GITHUB_SHA"; then
@@ -135,17 +122,17 @@ jobs:
         run: npm ci
 
       - name: Run frontend tests
-        run: npm test
+        run: npx vitest run
 
       - name: Build frontend
         run: npm run build
 
   integration-tests:
     name: Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: linux-amd64
     needs: [backend-tests, frontend-tests]
     container:
-      image: rustlang/rust:nightly
+      image: harbor.tftsr.com/tftsr/tftsr-linux-amd64:rust1.89-node22
 
     steps:
       - name: Checkout code
@@ -165,30 +152,18 @@ jobs:
           fi
           git checkout FETCH_HEAD
 
-      - name: Install system dependencies
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            curl
-
-      - name: Install Node.js
-        run: |
-          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-          apt-get install -y nodejs
+      - name: Install libusb
+        run: apt-get update -qq && apt-get install -y -qq --no-install-recommends libusb-1.0-0-dev
 
       - name: Install dependencies
         run: npm ci
 
       - name: Build application
-        run: npm run tauri build -- --debug
+        run: npx tauri build --debug
 
       - name: Test binary exists
         run: |
-          if [ -f "src-tauri/target/debug/hinotes-desktop" ] || [ -f "src-tauri/target/debug/hinotes-desktop.exe" ]; then
+          if [ -f "src-tauri/target/debug/hinotes-desktop" ]; then
             echo "✅ Binary built successfully"
           else
             echo "❌ Binary not found"
@@ -197,9 +172,9 @@ jobs:
 
   security-audit:
     name: Security Audit
-    runs-on: ubuntu-latest
+    runs-on: linux-amd64
     container:
-      image: rustlang/rust:nightly
+      image: harbor.tftsr.com/tftsr/tftsr-linux-amd64:rust1.89-node22
 
     steps:
       - name: Checkout code
@@ -219,12 +194,6 @@ jobs:
           fi
           git checkout FETCH_HEAD
 
-      - name: Install system dependencies and Node.js
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends curl
-          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-          apt-get install -y nodejs
-
       - name: Install cargo-audit
         run: cargo install cargo-audit
 
@@ -232,8 +201,7 @@ jobs:
         run: npm audit --production || echo "⚠️  npm vulnerabilities found"
 
       - name: Run cargo audit
-        working-directory: src-tauri
-        run: cargo audit || echo "⚠️  Rust vulnerabilities found"
+        run: cargo audit --file src-tauri/Cargo.lock || echo "⚠️  Rust vulnerabilities found"
 
   pr-summary:
     name: PR Summary
