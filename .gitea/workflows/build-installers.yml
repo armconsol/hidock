@@ -197,8 +197,70 @@ jobs:
           exit 1
       - run: npx vitest run
 
-  build-macos:
+  # Computes the release tag every build job uploads to. On an actual `v*`
+  # tag push, that tag is used as-is. Otherwise (push to main, or
+  # workflow_dispatch), the next patch version is auto-derived: X.Y come
+  # from package.json's version field, Z is one more than the highest
+  # existing `vX.Y.Z` tag in Gitea (0 if none exist yet). This lets
+  # "push to main -> tests pass -> installers build -> release bumps"
+  # happen with zero manual tagging.
+  compute-version:
     needs: [rust-fmt-check, rust-clippy, rust-tests, frontend-typecheck, frontend-tests]
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: linux-amd64
+    container:
+      image: harbor.tftsr.com/tftsr/tftsr-linux-amd64:rust1.89-node22
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout
+        env:
+          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          git init
+          git remote add origin "https://x-access-token:${GITEA_TOKEN}@gogs.tftsr.com/sarman/hinotes.git"
+          if [ -n "${GITHUB_SHA:-}" ] && git fetch --depth=1 origin "$GITHUB_SHA"; then
+            echo "Fetched commit SHA: $GITHUB_SHA"
+          elif [ -n "${GITHUB_REF_NAME:-}" ] && git fetch --depth=1 origin "$GITHUB_REF_NAME"; then
+            echo "Fetched ref name: $GITHUB_REF_NAME"
+          else
+            git fetch --depth=1 origin main
+            echo "Fetched fallback ref: main"
+          fi
+          git checkout FETCH_HEAD
+      - name: Compute next release tag
+        id: version
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          set -eu
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "Using pushed tag as-is: $TAG"
+          else
+            API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
+            BASE=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+            EXISTING=$(curl -sf "$API/tags?limit=50" \
+              -H "Authorization: token $RELEASE_TOKEN" \
+              | jq -r --arg prefix "v$BASE." '.[] | select(.name | startswith($prefix)) | .name')
+            MAXPATCH=-1
+            for t in $EXISTING; do
+              patch="${t#v$BASE.}"
+              if [[ "$patch" =~ ^[0-9]+$ ]] && [ "$patch" -gt "$MAXPATCH" ]; then
+                MAXPATCH="$patch"
+              fi
+            done
+            NEXT=$((MAXPATCH + 1))
+            TAG="v$BASE.$NEXT"
+            echo "No tag pushed; computed next version from package.json ($BASE) and existing tags: $TAG"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  build-macos:
+    needs: [rust-fmt-check, rust-clippy, rust-tests, frontend-typecheck, frontend-tests, compute-version]
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos'))
@@ -255,33 +317,26 @@ jobs:
           npx tauri build --target aarch64-apple-darwin
 
       - name: Upload to Gitea release
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          TAG: ${{ needs.compute-version.outputs.tag }}
         run: |
           set -eu
-          TAG="${GITHUB_REF#refs/tags/}"
           API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
 
-          VERSION="${TAG#v}"
-          BODY=$(awk -v ver="$VERSION" '
-            BEGIN { found=0 }
-            /^## \[/ {
-              if (found) exit
-              if (index($0, "[" ver "]") > 0) { found=1; next }
-              next
-            }
-            found { print }
+          BODY=$(awk '
+            /^## \[/ { n++; if (n == 2) exit; next }
+            n == 1 { print }
           ' CHANGELOG.md)
           if [ -z "$BODY" ]; then
-            BODY="_No changelog entry found for $VERSION in CHANGELOG.md._"
+            BODY="_No changelog entry found in CHANGELOG.md._"
           fi
 
           RELEASE_ID=$(curl -sf "$API/releases/tags/$TAG" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
           if [ -z "$RELEASE_ID" ]; then
-            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" --arg body "$BODY" \
-              '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: ($tag | test("-"))}' \
+            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" --arg body "$BODY" --arg sha "$GITHUB_SHA" \
+              '{tag_name: $tag, target_commitish: $sha, name: $name, body: $body, draft: false, prerelease: ($tag | test("-"))}' \
               | curl -sf -X POST "$API/releases" \
                   -H "Authorization: token $RELEASE_TOKEN" \
                   -H "Content-Type: application/json" \
@@ -317,7 +372,7 @@ jobs:
           echo "✓ Uploaded $NAME"
 
   build-linux:
-    needs: [rust-fmt-check, rust-clippy, rust-tests, frontend-typecheck, frontend-tests]
+    needs: [rust-fmt-check, rust-clippy, rust-tests, frontend-typecheck, frontend-tests, compute-version]
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux'))
@@ -380,33 +435,26 @@ jobs:
         run: npx tauri build --target x86_64-unknown-linux-gnu
 
       - name: Upload to Gitea release
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          TAG: ${{ needs.compute-version.outputs.tag }}
         run: |
           set -eu
-          TAG="${GITHUB_REF#refs/tags/}"
           API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
 
-          VERSION="${TAG#v}"
-          BODY=$(awk -v ver="$VERSION" '
-            BEGIN { found=0 }
-            /^## \[/ {
-              if (found) exit
-              if (index($0, "[" ver "]") > 0) { found=1; next }
-              next
-            }
-            found { print }
+          BODY=$(awk '
+            /^## \[/ { n++; if (n == 2) exit; next }
+            n == 1 { print }
           ' CHANGELOG.md)
           if [ -z "$BODY" ]; then
-            BODY="_No changelog entry found for $VERSION in CHANGELOG.md._"
+            BODY="_No changelog entry found in CHANGELOG.md._"
           fi
 
           RELEASE_ID=$(curl -sf "$API/releases/tags/$TAG" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
           if [ -z "$RELEASE_ID" ]; then
-            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" --arg body "$BODY" \
-              '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: ($tag | test("-"))}' \
+            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" --arg body "$BODY" --arg sha "$GITHUB_SHA" \
+              '{tag_name: $tag, target_commitish: $sha, name: $name, body: $body, draft: false, prerelease: ($tag | test("-"))}' \
               | curl -sf -X POST "$API/releases" \
                   -H "Authorization: token $RELEASE_TOKEN" \
                   -H "Content-Type: application/json" \
@@ -445,7 +493,7 @@ jobs:
           done
 
   build-windows:
-    needs: [rust-fmt-check, rust-clippy, rust-tests, frontend-typecheck, frontend-tests]
+    needs: [rust-fmt-check, rust-clippy, rust-tests, frontend-typecheck, frontend-tests, compute-version]
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows'))
@@ -502,33 +550,26 @@ jobs:
         run: npx tauri build --target x86_64-pc-windows-gnu
 
       - name: Upload to Gitea release
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          TAG: ${{ needs.compute-version.outputs.tag }}
         run: |
           set -eu
-          TAG="${GITHUB_REF#refs/tags/}"
           API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
 
-          VERSION="${TAG#v}"
-          BODY=$(awk -v ver="$VERSION" '
-            BEGIN { found=0 }
-            /^## \[/ {
-              if (found) exit
-              if (index($0, "[" ver "]") > 0) { found=1; next }
-              next
-            }
-            found { print }
+          BODY=$(awk '
+            /^## \[/ { n++; if (n == 2) exit; next }
+            n == 1 { print }
           ' CHANGELOG.md)
           if [ -z "$BODY" ]; then
-            BODY="_No changelog entry found for $VERSION in CHANGELOG.md._"
+            BODY="_No changelog entry found in CHANGELOG.md._"
           fi
 
           RELEASE_ID=$(curl -sf "$API/releases/tags/$TAG" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
           if [ -z "$RELEASE_ID" ]; then
-            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" --arg body "$BODY" \
-              '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: ($tag | test("-"))}' \
+            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" --arg body "$BODY" --arg sha "$GITHUB_SHA" \
+              '{tag_name: $tag, target_commitish: $sha, name: $name, body: $body, draft: false, prerelease: ($tag | test("-"))}' \
               | curl -sf -X POST "$API/releases" \
                   -H "Authorization: token $RELEASE_TOKEN" \
                   -H "Content-Type: application/json" \

@@ -321,22 +321,57 @@ runner labels and pre-baked Harbor images as the `tftsr-devops_investigation`
   jobs.
 
 **If `build-macos` sits in `queued` forever with no runner picking it up**,
-the macOS runner host (`172.0.1.54`, hostname `mac-arm64-runner-2` in
-`/admin/actions/runners`) uses a local relay chain to reach Gitea, since
-headless launchd processes can't resolve `gogs.tftsr.com` on macOS's Local
-Network otherwise: `/etc/hosts` maps `gogs.tftsr.com` → `127.0.0.1`, a
-root-owned `forward443` LaunchDaemon listens on `127.0.0.1:443` and forwards
-to a `GiteaRunnerRelay.app` LaunchAgent (listening on `127.0.0.1:8443`), which
-proxies to the real Gitea at `172.0.0.70:443` with the correct TLS SNI. If
-either link in that chain hangs, `act_runner`'s log
-(`~/gitea-runner/runner.err.log` on that host) shows `Your Gitea version is
-too old to support runner declare` / `unimplemented: unary response has zero
-messages` even though Gitea itself is fine — check with `curl -sk
-https://gogs.tftsr.com/api/v1/version` on that host; a `SSL_ERROR_SYSCALL`
-there means the relay chain is broken, not Gitea. Restart with `sudo
-launchctl kickstart -k system/com.tftsr.gitea-runner-portforward` and (as
-the `sarman` user) `launchctl kickstart -k
-gui/$(id -u)/com.tftsr.gitea-runner-relay`.
+check two separate things, in this order:
+
+1. **Runner scope.** Check `curl -sk -H "Authorization: token $TOKEN"
+   https://gogs.tftsr.com/api/v1/repos/sarman/hinotes/actions/runners` — if
+   this returns `"runners":[],"total_count":0` even though
+   `/admin/actions/runners` shows macOS runners `online`, the runner(s) were
+   registered with a token scoped to a *different* repo/org and are
+   categorically ineligible to pick up `hinotes` jobs no matter how long you
+   wait or how many times you restart anything network-related. This is not
+   a transient issue — it doesn't fix itself and doesn't show up as an error
+   anywhere in `runner.err.log`, since Gitea just never offers the runner
+   the task. Fix: generate a fresh token from
+   `POST /admin/actions/runners/registration-token` (instance-wide scope —
+   works for any repo) and re-register with
+   `act_runner register --no-interactive --instance https://gogs.tftsr.com
+   --token <token> --name mac-arm64-runner-2 --labels macos-arm64`, then
+   restart the `com.tftsr.gitea-runner` LaunchAgent. Confirmed as the actual
+   root cause of `hinotes`'s `build-macos` jobs never running once, going
+   back through the repo's entire Actions history, despite the same runner
+   having many successful runs in `tftsr-devops_investigation` (which it
+   *was* correctly scoped to).
+2. **Relay chain hung.** Only after confirming the runner is actually
+   eligible for this repo's jobs — the macOS runner host (`172.0.1.54`,
+   hostname `mac-arm64-runner-2` in `/admin/actions/runners`) uses a local
+   relay chain to reach Gitea, since headless launchd processes can't
+   resolve `gogs.tftsr.com` on macOS's Local Network otherwise: `/etc/hosts`
+   maps `gogs.tftsr.com` → `127.0.0.1`, a root-owned `forward443`
+   LaunchDaemon listens on `127.0.0.1:443` and forwards to a
+   `GiteaRunnerRelay.app` LaunchAgent (listening on `127.0.0.1:8443`), which
+   proxies to the real Gitea at `172.0.0.70:443` with the correct TLS SNI.
+   If either link in that chain hangs, `act_runner`'s log
+   (`~/gitea-runner/runner.err.log` on that host) shows `Your Gitea version
+   is too old to support runner declare` / `unimplemented: unary response
+   has zero messages`, or repeated `unexpected EOF`/`GOAWAY` — check with
+   `curl -sk https://gogs.tftsr.com/api/v1/version` on that host; a
+   `SSL_ERROR_SYSCALL` or hang there means the relay chain is broken, not
+   Gitea. Restart with `sudo launchctl kickstart -k
+   system/com.tftsr.gitea-runner-portforward` and (as the `sarman` user)
+   `launchctl kickstart -k gui/$(id -u)/com.tftsr.gitea-runner-relay`, then
+   `launchctl kickstart -k gui/$(id -u)/com.tftsr.gitea-runner` to force the
+   act_runner daemon itself to open a fresh connection.
+
+Direct SSH to the Gitea host (`172.0.0.70`) is not available from this
+network for debugging — only ports 80/443 are reachable (confirmed:
+`nc -zv 172.0.0.70 22` returns "Network is unreachable" while port 443
+succeeds), so relay/scope issues have to be diagnosed via `tea` (the Gitea
+CLI, already configured — `tea api -X GET
+repos/sarman/hinotes/actions/jobs/<id>` is the fastest way to check a
+specific job's `runner_id`/`runner_name`, which stays `0`/`null` for a job
+that was never actually offered to any runner) and the admin API
+(`/admin/actions/runners`), not host shell access.
 
 **Do not use `actions/checkout@v4`, `actions/setup-node@v4`, or
 `runs-on: ubuntu-latest`/`macos-latest`/`windows-latest` without a `container:`
@@ -363,19 +398,36 @@ artifact upload/download actions are broken here.
 - Triggers on push to main and version tags
 - Gating checks first: `rust-fmt-check`, `rust-clippy`, `rust-tests` (Harbor
   Rust image), `frontend-typecheck`, `frontend-tests` (`node:22-alpine`)
-- `build-macos`, `build-linux`, `build-windows` all `needs:` every check job
-  above and only start once they all pass
-- Builds Linux (deb/rpm/AppImage) on `linux-amd64`, Windows NSIS installer
+- `compute-version`, `build-macos`, `build-linux`, `build-windows` all
+  `needs:` every check job above and only start once they all pass
+- Builds Linux (deb/rpm) on `linux-amd64`, Windows NSIS installer
   (cross-compiled via mingw) on `linux-amd64`, and macOS arm64 DMG on
   `macos-arm64`
-- On a `v*` tag push, each build job uploads its installer to a Gitea
-  release via `RELEASE_TOKEN` (creating the release if it doesn't exist yet)
+- **Fully automatic versioning/releases — no manual tagging required.** The
+  `compute-version` job runs after the gating checks and determines the tag
+  every build job uploads to: if the triggering push was an actual `v*` tag,
+  that tag is used as-is; otherwise (every ordinary push to `main`, or a
+  manual `workflow_dispatch`) it reads `X.Y` from `package.json`'s `version`
+  field, finds the highest existing `vX.Y.Z` tag in Gitea via the `tags` API,
+  and bumps `Z` by one (starting at `0` if none exist for that `X.Y` yet).
+  Each build job then creates-or-patches a Gitea release for that tag (via
+  `RELEASE_TOKEN`) and uploads its installer, so every successful push to
+  `main` that passes all gating checks and all three platform builds
+  produces a new patch release automatically. Bumping `X` or `Y` is still
+  manual — edit `package.json`'s `version` field.
+- The release body is auto-populated from the first `## [...]` section in
+  `CHANGELOG.md` (i.e. whatever is at the top — `[Unreleased]` or the latest
+  dated entry) — keep that section current if you want release notes to be
+  meaningful. Falls back to a placeholder string if `CHANGELOG.md` has no
+  `## [` heading at all.
 - Windows bundle target is `nsis`, not `msi` — WiX/MSI cannot be
   cross-compiled from Linux; NSIS can (see `bundle.targets` in
   `src-tauri/tauri.conf.json`)
-- The Linux job installs `xdg-utils` — Tauri's AppImage bundler shells out to
-  `xdg-open` and fails the whole build (`xdg-open binary not found`) without
-  it; the Harbor `tftsr-linux-amd64` image doesn't include it by default
+- AppImage bundling was removed (Linux only builds `deb`/`rpm` now) — Tauri's
+  AppImage bundler shells out to `xdg-open` and needs `xdg-utils` plus
+  `APPIMAGE_EXTRACT_AND_RUN=1` in this container, which added fragility for
+  a format we don't distribute; re-add `appimage` to `bundle.targets` in
+  `src-tauri/tauri.conf.json` and the Linux job's system deps if needed again
 - Gitea Actions has no reliable cross-workflow gating (no `workflow_run`
   equivalent — see docs.gitea.com/usage/actions/comparison), so the checks
   live in this same workflow file rather than a separate `test.yml` that
