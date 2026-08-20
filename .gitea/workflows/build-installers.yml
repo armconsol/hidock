@@ -1,5 +1,13 @@
 name: Build Native Installers
 
+# On version tags (v*), each platform job uploads its installer directly to a
+# Gitea release via the RELEASE_TOKEN secret (curl against the Gitea releases
+# API). actions/upload-artifact and actions/download-artifact are NOT used
+# anywhere here -- they are unsupported on this self-hosted Gitea instance
+# ("GHESNotSupportedError: @actions/artifact v2.0.0+ ... are not currently
+# supported on GHES"), confirmed by a failed run. This matches the pattern
+# already used in tftsr-devops_investigation's release-beta.yml.
+
 on:
   push:
     branches:
@@ -246,12 +254,47 @@ jobs:
           rustup target add aarch64-apple-darwin
           npx tauri build --target aarch64-apple-darwin
 
-      - name: Upload macOS DMG
-        uses: actions/upload-artifact@v4
-        with:
-          name: hinotes-desktop-macos-arm64
-          path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-          retention-days: 7
+      - name: Upload to Gitea release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          set -eu
+          TAG="${GITHUB_REF#refs/tags/}"
+          API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
+
+          RELEASE_ID=$(curl -sf "$API/releases/tags/$TAG" \
+            -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
+          if [ -z "$RELEASE_ID" ]; then
+            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" \
+              '{tag_name: $tag, name: $name, draft: false, prerelease: ($tag | test("-"))}' \
+              | curl -sf -X POST "$API/releases" \
+                  -H "Authorization: token $RELEASE_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  --data @- | jq -r '.id')
+          fi
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
+            echo "ERROR: Failed to create or locate release for $TAG"
+            exit 1
+          fi
+
+          DMG=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/dmg -type f -name "*.dmg" | head -1)
+          if [ -z "$DMG" ]; then
+            echo "ERROR: No macOS DMG found to upload"
+            exit 1
+          fi
+          NAME="macos-arm64-$(basename "$DMG")"
+          EXISTING_ID=$(curl -sf "$API/releases/$RELEASE_ID" \
+            -H "Authorization: token $RELEASE_TOKEN" \
+            | jq -r --arg name "$NAME" '.assets[]? | select(.name == $name) | .id')
+          if [ -n "$EXISTING_ID" ]; then
+            curl -sf -X DELETE "$API/releases/$RELEASE_ID/assets/$EXISTING_ID" \
+              -H "Authorization: token $RELEASE_TOKEN"
+          fi
+          curl -sf -X POST "$API/releases/$RELEASE_ID/assets" \
+            -H "Authorization: token $RELEASE_TOKEN" \
+            -F "attachment=@$DMG;filename=$NAME"
+          echo "✓ Uploaded $NAME"
 
   build-linux:
     needs: [rust-fmt-check, rust-clippy, rust-tests, frontend-typecheck, frontend-tests]
@@ -308,7 +351,8 @@ jobs:
             librsvg2-dev \
             libusb-1.0-0-dev \
             patchelf \
-            pkg-config
+            pkg-config \
+            xdg-utils
 
       - name: Install dependencies
         run: npm ci
@@ -316,26 +360,50 @@ jobs:
       - name: Build Linux packages
         run: npx tauri build --target x86_64-unknown-linux-gnu
 
-      - name: Upload Linux AppImage
-        uses: actions/upload-artifact@v4
-        with:
-          name: hinotes-desktop-linux-appimage
-          path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
-          retention-days: 7
+      - name: Upload to Gitea release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          set -eu
+          TAG="${GITHUB_REF#refs/tags/}"
+          API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
 
-      - name: Upload Linux deb
-        uses: actions/upload-artifact@v4
-        with:
-          name: hinotes-desktop-linux-deb
-          path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
-          retention-days: 7
+          RELEASE_ID=$(curl -sf "$API/releases/tags/$TAG" \
+            -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
+          if [ -z "$RELEASE_ID" ]; then
+            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" \
+              '{tag_name: $tag, name: $name, draft: false, prerelease: ($tag | test("-"))}' \
+              | curl -sf -X POST "$API/releases" \
+                  -H "Authorization: token $RELEASE_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  --data @- | jq -r '.id')
+          fi
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
+            echo "ERROR: Failed to create or locate release for $TAG"
+            exit 1
+          fi
 
-      - name: Upload Linux rpm
-        uses: actions/upload-artifact@v4
-        with:
-          name: hinotes-desktop-linux-rpm
-          path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/*.rpm
-          retention-days: 7
+          ARTIFACTS=$(find src-tauri/target/x86_64-unknown-linux-gnu/release/bundle -type f \
+            \( -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \))
+          if [ -z "$ARTIFACTS" ]; then
+            echo "ERROR: No Linux artifacts found to upload"
+            exit 1
+          fi
+          printf '%s\n' "$ARTIFACTS" | while IFS= read -r f; do
+            NAME="linux-amd64-$(basename "$f")"
+            EXISTING_ID=$(curl -sf "$API/releases/$RELEASE_ID" \
+              -H "Authorization: token $RELEASE_TOKEN" \
+              | jq -r --arg name "$NAME" '.assets[]? | select(.name == $name) | .id')
+            if [ -n "$EXISTING_ID" ]; then
+              curl -sf -X DELETE "$API/releases/$RELEASE_ID/assets/$EXISTING_ID" \
+                -H "Authorization: token $RELEASE_TOKEN"
+            fi
+            curl -sf -X POST "$API/releases/$RELEASE_ID/assets" \
+              -H "Authorization: token $RELEASE_TOKEN" \
+              -F "attachment=@$f;filename=$NAME"
+            echo "✓ Uploaded $NAME"
+          done
 
   build-windows:
     needs: [rust-fmt-check, rust-clippy, rust-tests, frontend-typecheck, frontend-tests]
@@ -394,46 +462,44 @@ jobs:
           OPENSSL_STATIC: "1"
         run: npx tauri build --target x86_64-pc-windows-gnu
 
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: hinotes-desktop-windows-nsis
-          path: src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis/*.exe
-          retention-days: 7
-
-  create-release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [build-macos, build-linux, build-windows]
-    runs-on: linux-amd64
-    container:
-      image: alpine:latest
-    steps:
-      - name: Checkout code
+      - name: Upload to Gitea release
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
-          GITEA_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
-          set -eux
-          apk add --no-cache git
-          git init
-          git remote add origin "https://x-access-token:${GITEA_TOKEN}@gogs.tftsr.com/sarman/hinotes.git"
-          if [ -n "${GITHUB_SHA:-}" ] && git fetch --depth=1 origin "$GITHUB_SHA"; then
-            echo "Fetched commit SHA: $GITHUB_SHA"
-          elif [ -n "${GITHUB_REF_NAME:-}" ] && git fetch --depth=1 origin "$GITHUB_REF_NAME"; then
-            echo "Fetched ref name: $GITHUB_REF_NAME"
-          else
-            git fetch --depth=1 origin main
-            echo "Fetched fallback ref: main"
+          set -eu
+          TAG="${GITHUB_REF#refs/tags/}"
+          API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
+
+          RELEASE_ID=$(curl -sf "$API/releases/tags/$TAG" \
+            -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
+          if [ -z "$RELEASE_ID" ]; then
+            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" \
+              '{tag_name: $tag, name: $name, draft: false, prerelease: ($tag | test("-"))}' \
+              | curl -sf -X POST "$API/releases" \
+                  -H "Authorization: token $RELEASE_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  --data @- | jq -r '.id')
           fi
-          git checkout FETCH_HEAD
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
+            echo "ERROR: Failed to create or locate release for $TAG"
+            exit 1
+          fi
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create release
-        run: |
-          # Placeholder for Gitea release creation
-          # Gitea doesn't have equivalent to softprops/action-gh-release
-          echo "Artifacts built successfully"
-          ls -R artifacts/
+          EXE=$(find src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis -type f -name "*.exe" | head -1)
+          if [ -z "$EXE" ]; then
+            echo "ERROR: No Windows installer found to upload"
+            exit 1
+          fi
+          NAME="windows-x64-$(basename "$EXE")"
+          EXISTING_ID=$(curl -sf "$API/releases/$RELEASE_ID" \
+            -H "Authorization: token $RELEASE_TOKEN" \
+            | jq -r --arg name "$NAME" '.assets[]? | select(.name == $name) | .id')
+          if [ -n "$EXISTING_ID" ]; then
+            curl -sf -X DELETE "$API/releases/$RELEASE_ID/assets/$EXISTING_ID" \
+              -H "Authorization: token $RELEASE_TOKEN"
+          fi
+          curl -sf -X POST "$API/releases/$RELEASE_ID/assets" \
+            -H "Authorization: token $RELEASE_TOKEN" \
+            -F "attachment=@$EXE;filename=$NAME"
+          echo "✓ Uploaded $NAME"

@@ -331,6 +331,16 @@ Use the manual `git init && git remote add && git fetch --depth=1 && git
 checkout FETCH_HEAD` pattern (see any job in `.gitea/workflows/`) with
 `secrets.GITHUB_TOKEN` instead.
 
+**Do not use `actions/upload-artifact` or `actions/download-artifact` on this
+Gitea instance either** — confirmed failing with `GHESNotSupportedError:
+@actions/artifact v2.0.0+, upload-artifact@v4+ and download-artifact@v4+ are
+not currently supported on GHES`. Each build job in `build-installers.yml`
+instead `curl`s its installer directly to a Gitea release on version-tag
+pushes, using a `RELEASE_TOKEN` secret (a Gitea personal access token with
+repo write access) — same pattern as `tftsr-devops_investigation`'s
+`release-beta.yml`. `actions/cache@v4` is fine and used throughout; only the
+artifact upload/download actions are broken here.
+
 **1. Build Installers Workflow (`.gitea/workflows/build-installers.yml`)**
 - Triggers on push to main and version tags
 - Gating checks first: `rust-fmt-check`, `rust-clippy`, `rust-tests` (Harbor
@@ -340,9 +350,14 @@ checkout FETCH_HEAD` pattern (see any job in `.gitea/workflows/`) with
 - Builds Linux (deb/rpm/AppImage) on `linux-amd64`, Windows NSIS installer
   (cross-compiled via mingw) on `linux-amd64`, and macOS arm64 DMG on
   `macos-arm64`
+- On a `v*` tag push, each build job uploads its installer to a Gitea
+  release via `RELEASE_TOKEN` (creating the release if it doesn't exist yet)
 - Windows bundle target is `nsis`, not `msi` — WiX/MSI cannot be
   cross-compiled from Linux; NSIS can (see `bundle.targets` in
   `src-tauri/tauri.conf.json`)
+- The Linux job installs `xdg-utils` — Tauri's AppImage bundler shells out to
+  `xdg-open` and fails the whole build (`xdg-open binary not found`) without
+  it; the Harbor `tftsr-linux-amd64` image doesn't include it by default
 - Gitea Actions has no reliable cross-workflow gating (no `workflow_run`
   equivalent — see docs.gitea.com/usage/actions/comparison), so the checks
   live in this same workflow file rather than a separate `test.yml` that
