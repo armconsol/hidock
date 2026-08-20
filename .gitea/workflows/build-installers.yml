@@ -329,6 +329,8 @@ jobs:
             exit 1
           fi
           APP_NAME=$(basename "$APP" .app)
+          APP_VERSION=$(node -p "require('./package.json').version")
+          DMG_NAME="${APP_NAME}_${APP_VERSION}_aarch64"
 
           # Ad-hoc sign (no Apple Developer cert configured for this
           # project -- signingIdentity is null in tauri.conf.json). This is
@@ -343,7 +345,7 @@ jobs:
           codesign --deep --force --sign - "$APP"
 
           mkdir -p src-tauri/target/aarch64-apple-darwin/release/bundle/dmg
-          DMG="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/${APP_NAME}.dmg"
+          DMG="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/${DMG_NAME}.dmg"
           hdiutil create -volname "$APP_NAME" -srcfolder "$APP" -ov -format UDZO "$DMG"
 
       - name: Upload to Gitea release
