@@ -20,6 +20,11 @@ export default defineConfig(async () => ({
     globals: true,
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",
+    // Default 5000ms is too tight for userEvent.type() interactions under a
+    // loaded/shared CI runner (multiple parallel jobs on the same host) --
+    // these tests run in <1s locally but can exceed 5000ms in CI, causing
+    // flaky failures unrelated to app behavior.
+    testTimeout: 15000,
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
