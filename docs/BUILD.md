@@ -320,6 +320,24 @@ runner labels and pre-baked Harbor images as the `tftsr-devops_investigation`
 - `runs-on: ubuntu-latest` with `container: node:22-alpine` for frontend-only
   jobs.
 
+**If `build-macos` sits in `queued` forever with no runner picking it up**,
+the macOS runner host (`172.0.1.54`, hostname `mac-arm64-runner-2` in
+`/admin/actions/runners`) uses a local relay chain to reach Gitea, since
+headless launchd processes can't resolve `gogs.tftsr.com` on macOS's Local
+Network otherwise: `/etc/hosts` maps `gogs.tftsr.com` → `127.0.0.1`, a
+root-owned `forward443` LaunchDaemon listens on `127.0.0.1:443` and forwards
+to a `GiteaRunnerRelay.app` LaunchAgent (listening on `127.0.0.1:8443`), which
+proxies to the real Gitea at `172.0.0.70:443` with the correct TLS SNI. If
+either link in that chain hangs, `act_runner`'s log
+(`~/gitea-runner/runner.err.log` on that host) shows `Your Gitea version is
+too old to support runner declare` / `unimplemented: unary response has zero
+messages` even though Gitea itself is fine — check with `curl -sk
+https://gogs.tftsr.com/api/v1/version` on that host; a `SSL_ERROR_SYSCALL`
+there means the relay chain is broken, not Gitea. Restart with `sudo
+launchctl kickstart -k system/com.tftsr.gitea-runner-portforward` and (as
+the `sarman` user) `launchctl kickstart -k
+gui/$(id -u)/com.tftsr.gitea-runner-relay`.
+
 **Do not use `actions/checkout@v4`, `actions/setup-node@v4`, or
 `runs-on: ubuntu-latest`/`macos-latest`/`windows-latest` without a `container:`
 image on this Gitea instance.** The Docker-based act_runner here does not
