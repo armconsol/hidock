@@ -263,15 +263,35 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
 
+          VERSION="${TAG#v}"
+          BODY=$(awk -v ver="$VERSION" '
+            BEGIN { found=0 }
+            /^## \[/ {
+              if (found) exit
+              if (index($0, "[" ver "]") > 0) { found=1; next }
+              next
+            }
+            found { print }
+          ' CHANGELOG.md)
+          if [ -z "$BODY" ]; then
+            BODY="_No changelog entry found for $VERSION in CHANGELOG.md._"
+          fi
+
           RELEASE_ID=$(curl -sf "$API/releases/tags/$TAG" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
           if [ -z "$RELEASE_ID" ]; then
-            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" \
-              '{tag_name: $tag, name: $name, draft: false, prerelease: ($tag | test("-"))}' \
+            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" --arg body "$BODY" \
+              '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: ($tag | test("-"))}' \
               | curl -sf -X POST "$API/releases" \
                   -H "Authorization: token $RELEASE_TOKEN" \
                   -H "Content-Type: application/json" \
                   --data @- | jq -r '.id')
+          else
+            jq -n --arg body "$BODY" '{body: $body}' \
+              | curl -sf -X PATCH "$API/releases/$RELEASE_ID" \
+                  -H "Authorization: token $RELEASE_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  --data @- > /dev/null
           fi
           if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
             echo "ERROR: Failed to create or locate release for $TAG"
@@ -368,15 +388,35 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
 
+          VERSION="${TAG#v}"
+          BODY=$(awk -v ver="$VERSION" '
+            BEGIN { found=0 }
+            /^## \[/ {
+              if (found) exit
+              if (index($0, "[" ver "]") > 0) { found=1; next }
+              next
+            }
+            found { print }
+          ' CHANGELOG.md)
+          if [ -z "$BODY" ]; then
+            BODY="_No changelog entry found for $VERSION in CHANGELOG.md._"
+          fi
+
           RELEASE_ID=$(curl -sf "$API/releases/tags/$TAG" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
           if [ -z "$RELEASE_ID" ]; then
-            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" \
-              '{tag_name: $tag, name: $name, draft: false, prerelease: ($tag | test("-"))}' \
+            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" --arg body "$BODY" \
+              '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: ($tag | test("-"))}' \
               | curl -sf -X POST "$API/releases" \
                   -H "Authorization: token $RELEASE_TOKEN" \
                   -H "Content-Type: application/json" \
                   --data @- | jq -r '.id')
+          else
+            jq -n --arg body "$BODY" '{body: $body}' \
+              | curl -sf -X PATCH "$API/releases/$RELEASE_ID" \
+                  -H "Authorization: token $RELEASE_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  --data @- > /dev/null
           fi
           if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
             echo "ERROR: Failed to create or locate release for $TAG"
@@ -470,15 +510,35 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
 
+          VERSION="${TAG#v}"
+          BODY=$(awk -v ver="$VERSION" '
+            BEGIN { found=0 }
+            /^## \[/ {
+              if (found) exit
+              if (index($0, "[" ver "]") > 0) { found=1; next }
+              next
+            }
+            found { print }
+          ' CHANGELOG.md)
+          if [ -z "$BODY" ]; then
+            BODY="_No changelog entry found for $VERSION in CHANGELOG.md._"
+          fi
+
           RELEASE_ID=$(curl -sf "$API/releases/tags/$TAG" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
           if [ -z "$RELEASE_ID" ]; then
-            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" \
-              '{tag_name: $tag, name: $name, draft: false, prerelease: ($tag | test("-"))}' \
+            RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" --arg body "$BODY" \
+              '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: ($tag | test("-"))}' \
               | curl -sf -X POST "$API/releases" \
                   -H "Authorization: token $RELEASE_TOKEN" \
                   -H "Content-Type: application/json" \
                   --data @- | jq -r '.id')
+          else
+            jq -n --arg body "$BODY" '{body: $body}' \
+              | curl -sf -X PATCH "$API/releases/$RELEASE_ID" \
+                  -H "Authorization: token $RELEASE_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  --data @- > /dev/null
           fi
           if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
             echo "ERROR: Failed to create or locate release for $TAG"
