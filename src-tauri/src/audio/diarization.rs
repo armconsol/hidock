@@ -211,13 +211,13 @@ mod tests {
     #[test]
     fn test_diarizer_creation() {
         let diarizer = Diarizer::new();
-        assert!(std::mem::size_of_val(&diarizer) >= 0);
+        let _ = diarizer;
     }
 
     #[test]
     fn test_diarizer_default() {
         let diarizer = Diarizer::default();
-        assert!(std::mem::size_of_val(&diarizer) >= 0);
+        let _ = diarizer;
     }
 
     #[test]

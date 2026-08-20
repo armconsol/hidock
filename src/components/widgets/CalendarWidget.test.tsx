@@ -20,21 +20,28 @@ describe('CalendarWidget', () => {
   it('should display today\'s events', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
 
+    // Use a fixed mid-day time so "+2 hours" and "+3 hours" offsets below
+    // never roll over into the next calendar day (which would make
+    // CalendarWidget's todayEvents filter exclude them, causing this test
+    // to fail flakily depending on the time of day it happens to run).
+    const todayNoon = new Date();
+    todayNoon.setHours(12, 0, 0, 0);
+
     // Mock calendar events
     (invoke as any).mockResolvedValueOnce([
       {
         id: 'event-1',
         title: 'Team Meeting',
-        start_time: new Date().toISOString(),
-        end_time: new Date(Date.now() + 3600000).toISOString(),
+        start_time: todayNoon.toISOString(),
+        end_time: new Date(todayNoon.getTime() + 3600000).toISOString(),
         source: 'google_calendar',
         meeting_url: 'https://meet.google.com/abc-def-ghi',
       },
       {
         id: 'event-2',
         title: 'Code Review',
-        start_time: new Date(Date.now() + 7200000).toISOString(),
-        end_time: new Date(Date.now() + 10800000).toISOString(),
+        start_time: new Date(todayNoon.getTime() + 7200000).toISOString(),
+        end_time: new Date(todayNoon.getTime() + 10800000).toISOString(),
         source: 'hinotes',
         meeting_url: null,
       },
@@ -62,12 +69,17 @@ describe('CalendarWidget', () => {
   it('should display meeting links for events with URLs', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
 
+    // Fixed mid-day time so the +1 hour offset never rolls into the next
+    // calendar day (see comment in the "today's events" test above).
+    const todayNoon = new Date();
+    todayNoon.setHours(12, 0, 0, 0);
+
     (invoke as any).mockResolvedValueOnce([
       {
         id: 'event-1',
         title: 'Team Meeting',
-        start_time: new Date().toISOString(),
-        end_time: new Date(Date.now() + 3600000).toISOString(),
+        start_time: todayNoon.toISOString(),
+        end_time: new Date(todayNoon.getTime() + 3600000).toISOString(),
         source: 'google_calendar',
         meeting_url: 'https://meet.google.com/abc-def-ghi',
       },

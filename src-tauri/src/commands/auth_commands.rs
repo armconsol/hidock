@@ -163,9 +163,9 @@ mod tests {
             oauth_handler: Arc::new(oauth),
         };
 
-        // Verify we can access the state
+        // Verify we can access the state; reaching this point without a
+        // panic confirms the state is properly initialized.
         let _client = state.api_client.read().await;
-        assert!(true); // If we got here, state is properly initialized
     }
 
     #[tokio::test]

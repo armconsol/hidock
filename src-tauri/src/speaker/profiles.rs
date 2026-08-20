@@ -374,7 +374,6 @@ pub struct SpeakerStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
 
     fn setup_test_db() -> Database {
         Database::new_in_memory().unwrap()

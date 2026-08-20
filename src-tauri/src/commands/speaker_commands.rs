@@ -308,11 +308,15 @@ mod tests {
     use super::*;
     use crate::db::Database;
 
+    // Used by the commented-out tests below once Tauri 2.x State::new
+    // support lands; see TODO above.
+    #[allow(dead_code)]
     fn setup_test_state() -> AppState {
         let db = Database::new_in_memory().expect("Failed to create test database");
         AppState { db: Mutex::new(db) }
     }
 
+    #[allow(dead_code)]
     fn setup_speaker_state() -> SpeakerState {
         SpeakerState::default()
     }

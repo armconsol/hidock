@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const SERVICE_NAME: &str = "com.hidock.hinotes.desktop";
-const TOKEN_KEY: &str = "oauth_tokens";
 
 /// OAuth2 token information
 #[derive(Debug, Clone, Serialize, Deserialize)]

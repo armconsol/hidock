@@ -186,7 +186,7 @@ impl AudioProcessor {
 
         // Run FFmpeg concat
         let output = Command::new(&self.ffmpeg_path)
-            .args(&args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())
+            .args(args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())
             .output()
             .context("Failed to execute FFmpeg merge")?;
 
@@ -241,7 +241,7 @@ impl AudioProcessor {
         for line in stderr.lines() {
             if line.contains("Audio:") {
                 if let Some(codec_part) = line.split("Audio:").nth(1) {
-                    if let Some(codec) = codec_part.trim().split_whitespace().next() {
+                    if let Some(codec) = codec_part.split_whitespace().next() {
                         return Ok(codec.to_lowercase());
                     }
                 }
@@ -680,7 +680,7 @@ impl AudioProcessor {
 
         // Execute FFmpeg
         let output = Command::new(&self.ffmpeg_path)
-            .args(&args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())
+            .args(args.iter().map(|s| s.as_str()).collect::<Vec<&str>>())
             .output()
             .context("Failed to execute FFmpeg segment extraction")?;
 
@@ -968,10 +968,8 @@ impl AudioProcessor {
             if metadata.is_file() {
                 if let Ok(modified) = metadata.modified() {
                     if let Ok(age) = now.duration_since(modified) {
-                        if age > max_age {
-                            if fs::remove_file(entry.path()).await.is_ok() {
-                                removed_count += 1;
-                            }
+                        if age > max_age && fs::remove_file(entry.path()).await.is_ok() {
+                            removed_count += 1;
                         }
                     }
                 }
@@ -1054,7 +1052,7 @@ mod tests {
 
     #[ignore] // Requires FFmpeg
     #[tokio::test]
-    #[ignore] // Requires FFmpeg
+    // Requires FFmpeg
     async fn test_save_as_new() {
         let processor = AudioProcessor::new().unwrap();
         let test_data = b"test audio data";
@@ -1072,7 +1070,7 @@ mod tests {
 
     #[ignore] // Requires FFmpeg
     #[tokio::test]
-    #[ignore] // Requires FFmpeg
+    // Requires FFmpeg
     async fn test_save_empty_data() {
         let processor = AudioProcessor::new().unwrap();
         let result = processor.save_as_new(&[], "m4a").await;
@@ -1226,7 +1224,7 @@ mod tests {
         let file1 = temp_dir.join("test_merge_single.wav");
         create_test_wav_file(&file1).unwrap();
 
-        let result = processor.merge_audio(&[file1.clone()]).await;
+        let result = processor.merge_audio(std::slice::from_ref(&file1)).await;
 
         assert!(result.is_err(), "Should fail with single file");
         assert!(result.unwrap_err().to_string().contains("at least 2 files"));
@@ -1611,7 +1609,7 @@ mod tests {
             // Verify duration is approximately 500ms (allow some tolerance)
             let duration = processor.get_duration(&output_path).await.unwrap();
             assert!(
-                duration >= 400 && duration <= 700,
+                (400..=700).contains(&duration),
                 "Duration should be approximately 500ms, got {}ms",
                 duration
             );
@@ -1845,7 +1843,7 @@ mod tests {
             assert!(output_path.exists());
             let duration = processor.get_duration(&output_path).await.unwrap();
             assert!(
-                duration >= 900 && duration <= 1100,
+                (900..=1100).contains(&duration),
                 "Duration should be approximately 1000ms"
             );
             let _ = fs::remove_file(output_path).await;
@@ -1885,22 +1883,19 @@ mod tests {
         if let Ok(output_path) = result {
             assert!(output_path.exists());
 
-            // Verify progress was reported
-            let progress_values = progress_called.lock().unwrap();
-            assert!(
-                !progress_values.is_empty(),
-                "Progress callback should be called"
-            );
-            assert_eq!(
-                *progress_values.first().unwrap(),
-                0.0,
-                "First progress should be 0.0"
-            );
-            assert_eq!(
-                *progress_values.last().unwrap(),
-                1.0,
-                "Last progress should be 1.0"
-            );
+            // Verify progress was reported (lock is scoped and dropped
+            // before the .await below)
+            let (first, last, is_empty) = {
+                let progress_values = progress_called.lock().unwrap();
+                (
+                    progress_values.first().copied(),
+                    progress_values.last().copied(),
+                    progress_values.is_empty(),
+                )
+            };
+            assert!(!is_empty, "Progress callback should be called");
+            assert_eq!(first.unwrap(), 0.0, "First progress should be 0.0");
+            assert_eq!(last.unwrap(), 1.0, "Last progress should be 1.0");
 
             let _ = fs::remove_file(output_path).await;
         }
@@ -1971,7 +1966,7 @@ mod tests {
             let duration = processor.get_duration(&output_path).await.unwrap();
             // Original is 1000ms, replaced 400ms with ~1000ms = ~1600ms
             assert!(
-                duration >= 1400 && duration <= 2200,
+                (1400..=2200).contains(&duration),
                 "Duration should be approximately 1600ms, got {}ms",
                 duration
             );
@@ -2231,7 +2226,7 @@ mod tests {
             // Duration should approximately match replacement file
             let duration = processor.get_duration(&output_path).await.unwrap();
             assert!(
-                duration >= 900 && duration <= 1100,
+                (900..=1100).contains(&duration),
                 "Duration should be approximately 1000ms"
             );
             let _ = fs::remove_file(output_path).await;
@@ -2367,7 +2362,7 @@ mod tests {
         if let Ok(duration) = result {
             // Should be approximately 1000ms (allow some tolerance)
             assert!(
-                duration >= 900 && duration <= 1100,
+                (900..=1100).contains(&duration),
                 "Duration should be approximately 1000ms, got {}ms",
                 duration
             );
@@ -2428,7 +2423,7 @@ mod tests {
             assert!(output_path.exists());
             let duration = processor.get_duration(&output_path).await.unwrap();
             assert!(
-                duration >= 400 && duration <= 600,
+                (400..=600).contains(&duration),
                 "Duration should be approximately 500ms, got {}ms",
                 duration
             );
@@ -2463,7 +2458,7 @@ mod tests {
             assert!(output_path.exists());
             let duration = processor.get_duration(&output_path).await.unwrap();
             assert!(
-                duration >= 400 && duration <= 600,
+                (400..=600).contains(&duration),
                 "Duration should be approximately 500ms, got {}ms",
                 duration
             );
@@ -2650,9 +2645,8 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            false,
+        assert!(
+            !result.unwrap(),
             "Should not need re-encode for same format"
         );
 
@@ -2683,9 +2677,8 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
-        assert_eq!(
+        assert!(
             result.unwrap(),
-            true,
             "Should need re-encode for different formats"
         );
 
@@ -2701,7 +2694,7 @@ mod tests {
         let result = processor.needs_re_encode(&[]).await;
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), false, "Empty array should return false");
+        assert!(!result.unwrap(), "Empty array should return false");
     }
 
     // ===== VERIFY FFMPEG TESTS =====
@@ -2715,13 +2708,9 @@ mod tests {
 
         let result = processor.verify_ffmpeg();
 
-        // Should succeed if FFmpeg is installed
-        if result.is_ok() {
-            assert!(true, "FFmpeg verification succeeded");
-        } else {
-            // This is acceptable in CI without FFmpeg
-            assert!(true, "FFmpeg not available - test skipped");
-        }
+        // Should succeed if FFmpeg is installed; acceptable to be Err in CI
+        // without FFmpeg installed.
+        let _ = result;
     }
 
     // ===== HELPER FUNCTION TESTS =====
@@ -2796,7 +2785,7 @@ mod tests {
             // Verify merged duration is approximately 1500ms (3 x 500ms)
             let duration = processor.get_duration(&merged_path).await.unwrap();
             assert!(
-                duration >= 1300 && duration <= 1700,
+                (1300..=1700).contains(&duration),
                 "Merged duration should be approximately 1500ms, got {}ms",
                 duration
             );
@@ -2815,7 +2804,7 @@ mod tests {
                 assert!(extracted_path.exists());
                 let extracted_duration = processor.get_duration(&extracted_path).await.unwrap();
                 assert!(
-                    extracted_duration >= 400 && extracted_duration <= 600,
+                    (400..=600).contains(&extracted_duration),
                     "Extracted duration should be approximately 500ms, got {}ms",
                     extracted_duration
                 );
@@ -2920,7 +2909,7 @@ mod tests {
                 // Verify final file has reasonable duration
                 let duration = processor.get_duration(&m4a_path).await.unwrap();
                 assert!(
-                    duration >= 900 && duration <= 1100,
+                    (900..=1100).contains(&duration),
                     "Final duration should be approximately 1000ms"
                 );
 
@@ -2994,7 +2983,7 @@ mod tests {
         if let Ok(output_path) = result {
             let duration = processor.get_duration(&output_path).await.unwrap();
             assert!(
-                duration >= 900 && duration <= 1100,
+                (900..=1100).contains(&duration),
                 "Should extract 1 second segment"
             );
             let _ = fs::remove_file(output_path).await;
@@ -3033,7 +3022,7 @@ mod tests {
             let duration = processor.get_duration(&merged_path).await.unwrap();
             // 10 files x 200ms = 2000ms
             assert!(
-                duration >= 1800 && duration <= 2200,
+                (1800..=2200).contains(&duration),
                 "Should merge all files, expected ~2000ms, got {}ms",
                 duration
             );

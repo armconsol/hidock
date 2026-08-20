@@ -8,6 +8,12 @@ pub struct FFmpegState {
     wrapper: Mutex<Option<FFmpegWrapper>>,
 }
 
+impl Default for FFmpegState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FFmpegState {
     pub fn new() -> Self {
         Self {

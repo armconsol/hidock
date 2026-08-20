@@ -57,6 +57,12 @@ pub struct HiNotesClient {
     max_retries: u32,
 }
 
+impl Default for HiNotesClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HiNotesClient {
     /// Default production base URL
     const DEFAULT_BASE_URL: &'static str = "https://hinotes.hidock.com/v1";
@@ -683,7 +689,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .get(&format!("{}/receipts", self.base_url))
+            .get(format!("{}/receipts", self.base_url))
             .bearer_auth(&token)
             .send()
             .await?;
@@ -705,7 +711,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .get(&format!("{}/payment/rc/portal", self.base_url))
+            .get(format!("{}/payment/rc/portal", self.base_url))
             .bearer_auth(&token)
             .send()
             .await?;
@@ -727,7 +733,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .get(&format!("{}/user/trial/check", self.base_url))
+            .get(format!("{}/user/trial/check", self.base_url))
             .bearer_auth(&token)
             .send()
             .await?;
@@ -749,7 +755,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .post(&format!("{}/user/trial/claim", self.base_url))
+            .post(format!("{}/user/trial/claim", self.base_url))
             .bearer_auth(&token)
             .send()
             .await?;
@@ -771,7 +777,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .get(&format!("{}/referral/rewards-overview", self.base_url))
+            .get(format!("{}/referral/rewards-overview", self.base_url))
             .bearer_auth(&token)
             .send()
             .await?;
@@ -857,7 +863,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .post(&format!("{}/detect-language", self.base_url))
+            .post(format!("{}/detect-language", self.base_url))
             .bearer_auth(&token)
             .json(&request)
             .send()
@@ -969,7 +975,7 @@ impl HiNotesClient {
             anyhow::bail!("Note ID cannot be empty");
         }
 
-        if rating < 1 || rating > 5 {
+        if !(1..=5).contains(&rating) {
             anyhow::bail!("Rating must be between 1 and 5");
         }
 
@@ -1033,7 +1039,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .post(&format!("{}/note/speaker/find", self.base_url))
+            .post(format!("{}/note/speaker/find", self.base_url))
             .bearer_auth(&token)
             .json(&request)
             .send()
@@ -1056,7 +1062,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .get(&format!("{}/redemption/info", self.base_url))
+            .get(format!("{}/redemption/info", self.base_url))
             .bearer_auth(&token)
             .send()
             .await?;
@@ -1095,7 +1101,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .post(&format!("{}/redemption/fulfill", self.base_url))
+            .post(format!("{}/redemption/fulfill", self.base_url))
             .bearer_auth(&token)
             .json(&request)
             .send()
@@ -1140,7 +1146,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .post(&format!("{}/referral/paypal/payout", self.base_url))
+            .post(format!("{}/referral/paypal/payout", self.base_url))
             .bearer_auth(&token)
             .json(&request)
             .send()
@@ -1336,7 +1342,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .post(&format!("{}/user/setting/get", self.base_url))
+            .post(format!("{}/user/setting/get", self.base_url))
             .bearer_auth(&token)
             .json(&request)
             .send()
@@ -1359,7 +1365,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .get(&format!("{}/user/setting/list", self.base_url))
+            .get(format!("{}/user/setting/list", self.base_url))
             .bearer_auth(&token)
             .send()
             .await?;
@@ -1387,7 +1393,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .post(&format!("{}/user/setting/save", self.base_url))
+            .post(format!("{}/user/setting/save", self.base_url))
             .bearer_auth(&token)
             .json(&request)
             .send()
@@ -1420,7 +1426,7 @@ impl HiNotesClient {
 
         let response = self
             .http_client
-            .get(&format!("{}/user/setting/ai_engine/list", self.base_url))
+            .get(format!("{}/user/setting/ai_engine/list", self.base_url))
             .bearer_auth(&token)
             .send()
             .await?;
@@ -2613,7 +2619,7 @@ mod tests {
         let result = client.get_receipts().await;
         assert!(result.is_ok());
         let receipts = result.unwrap();
-        assert!(receipts.len() >= 0);
+        let _ = receipts.len();
     }
 
     // ===== BILLING PORTAL TESTS =====
@@ -2665,7 +2671,8 @@ mod tests {
         let result = client.check_trial_eligibility().await;
         assert!(result.is_ok());
         let eligibility = result.unwrap();
-        assert!(eligibility.eligible || !eligibility.eligible); // Just check it returns a valid response
+        // Just check it returns a valid response with a readable field.
+        let _ = eligibility.eligible;
     }
 
     // ===== CLAIM TRIAL TESTS =====
@@ -2693,7 +2700,7 @@ mod tests {
         let result = client.claim_trial().await;
         assert!(result.is_ok());
         let claim_response = result.unwrap();
-        assert!(claim_response.success || !claim_response.success);
+        let _ = claim_response.success;
         assert!(!claim_response.message.is_empty());
     }
 

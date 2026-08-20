@@ -105,9 +105,7 @@ impl TextSegmenter {
         let mut segments = Vec::new();
 
         // Try splitting on clause boundaries first (commas, semicolons)
-        let clauses: Vec<&str> = sentence
-            .split(|c| c == ',' || c == ';' || c == ':')
-            .collect();
+        let clauses: Vec<&str> = sentence.split([',', ';', ':']).collect();
 
         let mut current_segment = String::new();
 
@@ -244,7 +242,7 @@ mod tests {
         let segments = segmenter.segment_text(text);
 
         // Should stay as one segment since total length is under max
-        assert!(segments.len() >= 1);
+        assert!(!segments.is_empty());
     }
 
     #[test]
@@ -277,7 +275,7 @@ mod tests {
         let text = "これは最初の文です。これは二番目の文です。これは三番目の文です。";
         let segments = segmenter.segment_text(text);
 
-        assert!(segments.len() >= 1);
+        assert!(!segments.is_empty());
     }
 
     #[test]
@@ -302,7 +300,7 @@ mod tests {
         let segments = segmenter.segment_text(text);
 
         // Should still produce segments
-        assert!(segments.len() > 0);
+        assert!(!segments.is_empty());
     }
 
     #[test]
@@ -311,7 +309,7 @@ mod tests {
         let text = "First part. Second part. Third part.";
         let boundaries = segmenter.estimate_boundaries(text);
 
-        assert!(boundaries.len() > 0);
+        assert!(!boundaries.is_empty());
 
         // Verify boundaries are sequential
         for i in 1..boundaries.len() {
@@ -337,7 +335,7 @@ mod tests {
         let text = "Question? Statement! Exclamation. Another sentence; with semicolon.";
         let segments = segmenter.segment_text(text);
 
-        assert!(segments.len() >= 1);
+        assert!(!segments.is_empty());
     }
 
     #[test]
@@ -346,6 +344,6 @@ mod tests {
         let text = "This text has no sentence terminators at all just keeps going and going";
         let segments = segmenter.segment_text(text);
 
-        assert!(segments.len() >= 1);
+        assert!(!segments.is_empty());
     }
 }

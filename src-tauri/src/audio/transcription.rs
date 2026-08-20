@@ -87,7 +87,7 @@ impl Transcription {
         let words_per_segment = if diarization_segments.is_empty() {
             words.len()
         } else {
-            (words.len() + diarization_segments.len() - 1) / diarization_segments.len()
+            words.len().div_ceil(diarization_segments.len())
         };
 
         for seg in diarization_segments {

@@ -75,19 +75,9 @@ pub struct PendingOperation {
 }
 
 /// Sync state stored in database
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SyncState {
     pub last_sync_timestamp: Option<DateTime<Utc>>,
     pub is_syncing: bool,
     pub last_error: Option<String>,
-}
-
-impl Default for SyncState {
-    fn default() -> Self {
-        Self {
-            last_sync_timestamp: None,
-            is_syncing: false,
-            last_error: None,
-        }
-    }
 }

@@ -414,11 +414,9 @@ impl TranslationEngine {
             current.push(ch);
 
             // Simple sentence boundary detection
-            if ch == '.' || ch == '!' || ch == '?' {
-                if !current.trim().is_empty() {
-                    sentences.push(current.trim().to_string());
-                    current.clear();
-                }
+            if (ch == '.' || ch == '!' || ch == '?') && !current.trim().is_empty() {
+                sentences.push(current.trim().to_string());
+                current.clear();
             }
         }
 

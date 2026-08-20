@@ -105,6 +105,7 @@ impl TodoState {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, String> {
         match s {
             "open" => Ok(TodoState::Open),
@@ -144,6 +145,7 @@ impl EventSource {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, String> {
         match s {
             "google_calendar" => Ok(EventSource::GoogleCalendar),
@@ -170,6 +172,7 @@ impl SyncStatus {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, String> {
         match s {
             "synced" => Ok(SyncStatus::Synced),
@@ -274,6 +277,7 @@ impl DeviceStatus {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, String> {
         match s {
             "connected" => Ok(DeviceStatus::Connected),
@@ -393,6 +397,7 @@ impl SubscriptionStatus {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, String> {
         match s {
             "active" => Ok(SubscriptionStatus::Active),
@@ -442,6 +447,7 @@ impl SubscriptionEventType {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, String> {
         match s {
             "activated" => Ok(SubscriptionEventType::Activated),

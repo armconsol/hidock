@@ -23,7 +23,6 @@ pub mod protocol;
 ///
 /// Discovered via: system_profiler SPUSBDataType on macOS
 /// Serial Number: ACTIONS-BOS-002
-
 /// Audio interface Vendor ID (Actions Semiconductor Co., Ltd.)
 pub const HIDOC_P1_AUDIO_VID: u16 = 0x10d6;
 
@@ -47,13 +46,6 @@ pub const USB_TIMEOUT_MS: u64 = 5000;
 
 /// Maximum audio chunk size for bulk transfers (bytes)
 pub const MAX_AUDIO_CHUNK_SIZE: usize = 16384; // 16KB chunks
-
-// Backward compatibility aliases (deprecated)
-#[deprecated(note = "Use HIDOC_P1_CONTROL_VID instead")]
-pub const HIDOC_P1_VID: u16 = HIDOC_P1_CONTROL_VID;
-
-#[deprecated(note = "Use HIDOC_P1_CONTROL_PID instead")]
-pub const HIDOC_P1_PID: u16 = HIDOC_P1_CONTROL_PID;
 
 /// Default audio sample rate (Hz)
 /// Confirmed via macOS Audio MIDI Setup: 48kHz
@@ -303,8 +295,8 @@ mod tests {
     #[test]
     fn test_device_info_validation() {
         let mut info = DeviceInfo {
-            vendor_id: HIDOC_P1_VID,
-            product_id: HIDOC_P1_PID,
+            vendor_id: HIDOC_P1_CONTROL_VID,
+            product_id: HIDOC_P1_CONTROL_PID,
             serial_number: None,
             manufacturer: Some(HIDOC_MANUFACTURER.to_string()),
             product: Some(HIDOC_PRODUCT.to_string()),
@@ -340,8 +332,8 @@ mod tests {
     #[test]
     fn test_usb_error_display() {
         let err = UsbError::DeviceNotFound {
-            vid: HIDOC_P1_VID,
-            pid: HIDOC_P1_PID,
+            vid: HIDOC_P1_CONTROL_VID,
+            pid: HIDOC_P1_CONTROL_PID,
         };
         assert!(err.to_string().contains("Device not found"));
 

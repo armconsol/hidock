@@ -12,14 +12,16 @@ pub async fn get_audio(
     audio_url: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<u8>, String> {
-    // Get database connection
-    let db = state.db.lock().map_err(|e| format!("{}", e))?;
+    // Get database path (lock is scoped and dropped before any .await)
+    let db_path = {
+        let db = state.db.lock().map_err(|e| format!("{}", e))?;
+        db.get_db_path()
+    };
 
     // Get cache directory
     let cache_dir = AudioCache::get_platform_cache_dir().map_err(|e| format!("{}", e))?;
 
     // Create database connection for audio cache
-    let db_path = db.get_db_path();
     let cache_db_conn = Connection::open(&db_path).map_err(|e| format!("{}", e))?;
 
     // Initialize audio cache table if not exists

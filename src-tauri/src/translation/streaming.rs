@@ -332,9 +332,9 @@ mod tests {
     async fn test_subscribe_to_events() {
         let (streamer, _temp) = setup_streamer();
 
+        // Just test that subscription works; reaching this point without a
+        // panic confirms subscribe() succeeded.
         let _receiver = streamer.subscribe();
-        // Just test that subscription works
-        assert!(true);
     }
 
     #[tokio::test]

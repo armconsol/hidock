@@ -167,9 +167,12 @@ impl SubscriptionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::types::SubscriptionStatus as ApiSubscriptionStatus;
-    use std::path::PathBuf;
 
+    // Database wraps rusqlite::Connection, which is not Sync, so
+    // Arc<RwLock<Database>> triggers clippy::arc_with_non_send_sync -- this
+    // matches the production field type (SubscriptionManager::db above) and
+    // is not something to change from a test helper.
+    #[allow(clippy::arc_with_non_send_sync)]
     fn setup() -> (Arc<RwLock<Database>>, Arc<HiNotesClient>) {
         let db = Database::new_in_memory().expect("Failed to create in-memory database");
         let api_client = HiNotesClient::with_base_url("http://localhost:3001/v1".to_string());

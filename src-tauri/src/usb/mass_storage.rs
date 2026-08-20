@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 // ============================================================================
 
 /// Expected volume name for HiDoc P1 mass storage
+#[allow(dead_code)] // reserved for mass-storage device scanning, not yet wired up
 const VOLUME_NAME: &str = "HIDOC_P1";
 
 /// Supported audio file extensions
@@ -21,9 +22,11 @@ const AUDIO_EXTENSIONS: &[&str] = &["wav", "mp3", "m4a", "aac"];
 
 /// Default mount point patterns per platform
 #[cfg(target_os = "macos")]
+#[allow(dead_code)] // reserved for mass-storage device scanning, not yet wired up
 const MOUNT_POINT_PATTERNS: &[&str] = &["/Volumes/HIDOC*", "/Volumes/P1*"];
 
 #[cfg(target_os = "linux")]
+#[allow(dead_code)] // reserved for mass-storage device scanning, not yet wired up
 const MOUNT_POINT_PATTERNS: &[&str] = &[
     "/media/${USER}/HIDOC*",
     "/media/${USER}/P1*",
@@ -32,6 +35,7 @@ const MOUNT_POINT_PATTERNS: &[&str] = &[
 ];
 
 #[cfg(target_os = "windows")]
+#[allow(dead_code)] // reserved for mass-storage device scanning, not yet wired up
 const MOUNT_POINT_PATTERNS: &[&str] = &["?:\\"];
 
 // ============================================================================

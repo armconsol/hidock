@@ -69,6 +69,7 @@ struct AppleTokenResponse {
 
 /// Decoded Apple ID token claims
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // iat/email_verified document the JWT claim shape even though unread
 struct AppleIdTokenClaims {
     iss: String,           // Issuer (https://appleid.apple.com)
     sub: String,           // Subject (unique user identifier)
@@ -308,7 +309,7 @@ impl OAuth2Handler {
             }
         });
 
-        Ok((format!("http://127.0.0.1:8080/callback"), rx))
+        Ok(("http://127.0.0.1:8080/callback".to_string(), rx))
     }
 
     /// Exchange authorization code for tokens (Google)
@@ -588,7 +589,7 @@ impl OAuth2Handler {
 
         let response = self
             .http_client
-            .post(&format!("{}/oauth2/signin/google", HINOTES_API_BASE))
+            .post(format!("{}/oauth2/signin/google", HINOTES_API_BASE))
             .json(&serde_json::json!({
                 "access_token": google_access_token
             }))
@@ -655,7 +656,7 @@ impl OAuth2Handler {
 
         let response = self
             .http_client
-            .post(&format!("{}/oauth2/signin/apple", HINOTES_API_BASE))
+            .post(format!("{}/oauth2/signin/apple", HINOTES_API_BASE))
             .json(&payload)
             .send()
             .await

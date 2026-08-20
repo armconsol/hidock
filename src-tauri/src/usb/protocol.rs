@@ -15,18 +15,22 @@ use log::{debug, info};
 
 /// USB interface number for HiDoc P1
 /// TODO: Determine from device descriptor analysis
+#[allow(dead_code)] // reserved for control-protocol implementation, not yet wired up
 const HIDOC_INTERFACE: u8 = 0;
 
 /// USB endpoint for control commands (OUT)
 /// TODO: Determine from endpoint descriptors
+#[allow(dead_code)] // reserved for control-protocol implementation, not yet wired up
 const CONTROL_ENDPOINT_OUT: u8 = 0x01;
 
 /// USB endpoint for control responses (IN)
 /// TODO: Determine from endpoint descriptors
+#[allow(dead_code)] // reserved for control-protocol implementation, not yet wired up
 const CONTROL_ENDPOINT_IN: u8 = 0x81;
 
 /// USB endpoint for audio data (IN)
 /// TODO: Determine from endpoint descriptors
+#[allow(dead_code)] // reserved for control-protocol implementation, not yet wired up
 const AUDIO_ENDPOINT_IN: u8 = 0x82;
 
 // ============================================================================

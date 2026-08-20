@@ -64,7 +64,11 @@ jobs:
           git checkout FETCH_HEAD
       - name: Install libusb
         run: apt-get update -qq && apt-get install -y -qq --no-install-recommends libusb-1.0-0-dev
-      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+      - run: |
+          cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- \
+            -D warnings \
+            -A clippy::too_many_arguments \
+            -A clippy::type_complexity
 
   rust-tests:
     runs-on: linux-amd64

@@ -2725,8 +2725,8 @@ impl Database {
 
         let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
 
-        for i in 0..=len1 {
-            matrix[i][0] = i;
+        for (i, row) in matrix.iter_mut().enumerate().take(len1 + 1) {
+            row[0] = i;
         }
         for j in 0..=len2 {
             matrix[0][j] = j;
@@ -2787,7 +2787,7 @@ impl Database {
     /// Returns the number of segments that were assigned
     pub fn auto_assign_speakers_to_segments(
         &self,
-        note_id: &str,
+        _note_id: &str,
         signature_map: &[(String, String)], // (segment_id, voice_signature)
         threshold: f64,
     ) -> Result<usize> {
@@ -5793,7 +5793,7 @@ mod tests {
 
         assert!(similarity.is_some());
         let score = similarity.unwrap();
-        assert!(score >= 0.0 && score < 1.0);
+        assert!((0.0..1.0).contains(&score));
     }
 
     #[test]
