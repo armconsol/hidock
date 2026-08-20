@@ -313,8 +313,32 @@ jobs:
 
       - name: Build macOS arm64 app
         run: |
+          set -eu
           rustup target add aarch64-apple-darwin
-          npx tauri build --target aarch64-apple-darwin
+          npx tauri build --target aarch64-apple-darwin --bundles app
+
+          APP=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name "*.app" | head -1)
+          if [ -z "$APP" ]; then
+            echo "ERROR: Could not find macOS app bundle"
+            exit 1
+          fi
+          APP_NAME=$(basename "$APP" .app)
+
+          # Ad-hoc sign (no Apple Developer cert configured for this
+          # project -- signingIdentity is null in tauri.conf.json). This is
+          # NOT equivalent to a Developer ID signature/notarization: it
+          # satisfies Gatekeeper enough that double-clicking the .app works
+          # on the machine that opened it (after the first "unidentified
+          # developer" prompt, or none at all once ad-hoc signed), but it
+          # will not skip Gatekeeper prompts on a fresh machine the way a
+          # real Developer ID + notarization would. Matches the pattern
+          # already used in tftsr-devops_investigation's
+          # release-beta.yml/auto-tag.yml for the same no-cert situation.
+          codesign --deep --force --sign - "$APP"
+
+          mkdir -p src-tauri/target/aarch64-apple-darwin/release/bundle/dmg
+          DMG="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/${APP_NAME}.dmg"
+          hdiutil create -volname "$APP_NAME" -srcfolder "$APP" -ov -format UDZO "$DMG"
 
       - name: Upload to Gitea release
         env:
