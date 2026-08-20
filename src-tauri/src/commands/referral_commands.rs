@@ -148,7 +148,9 @@ mod tests {
         let db = state.db.lock().unwrap();
 
         // Create a code first
-        let code_result = db.generate_referral_code_with_expiry("user-123", None).unwrap();
+        let code_result = db
+            .generate_referral_code_with_expiry("user-123", None)
+            .unwrap();
 
         // Validate it
         let is_valid = db.validate_referral_code(&code_result.code).unwrap();

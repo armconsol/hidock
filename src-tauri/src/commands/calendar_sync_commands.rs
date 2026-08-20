@@ -214,11 +214,7 @@ pub async fn notify_calendar_recording(
             .await
             .map_err(|e| format!("Failed to notify recording status: {}", e))?;
 
-        let status_msg = if is_recording {
-            "started"
-        } else {
-            "stopped"
-        };
+        let status_msg = if is_recording { "started" } else { "stopped" };
 
         Ok(format!(
             "Successfully notified that recording {} for event {}",
