@@ -358,6 +358,8 @@ jobs:
         run: npm ci
 
       - name: Build Linux packages
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
         run: npx tauri build --target x86_64-unknown-linux-gnu
 
       - name: Upload to Gitea release
