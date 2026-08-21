@@ -245,7 +245,7 @@ jobs:
             *)
               API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
               BASE=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
-              EXISTING=$(curl -sf --retry 3 --retry-delay 2 --retry-connrefused "$API/tags?limit=50" \
+              EXISTING=$(curl -sf --retry 5 --retry-delay 3 --retry-all-errors "$API/tags?limit=50" \
                 -H "Authorization: token $RELEASE_TOKEN" \
                 | jq -r --arg prefix "v$BASE." '.[] | select(.name | startswith($prefix)) | .name')
               MAXPATCH=-1
@@ -364,18 +364,18 @@ jobs:
             BODY="_No changelog entry found in CHANGELOG.md._"
           fi
 
-          RELEASE_ID=$(curl -sf --retry 3 --retry-delay 2 --retry-connrefused "$API/releases/tags/$TAG" \
+          RELEASE_ID=$(curl -sf --retry 5 --retry-delay 3 --retry-all-errors "$API/releases/tags/$TAG" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
           if [ -z "$RELEASE_ID" ]; then
             RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" --arg body "$BODY" --arg sha "$GITHUB_SHA" \
               '{tag_name: $tag, target_commitish: $sha, name: $name, body: $body, draft: false, prerelease: ($tag | test("-"))}' \
-              | curl -sf --retry 3 --retry-delay 2 --retry-connrefused -X POST "$API/releases" \
+              | curl -sf --retry 5 --retry-delay 3 --retry-all-errors -X POST "$API/releases" \
                   -H "Authorization: token $RELEASE_TOKEN" \
                   -H "Content-Type: application/json" \
                   --data @- | jq -r '.id')
           else
             jq -n --arg body "$BODY" '{body: $body}' \
-              | curl -sf --retry 3 --retry-delay 2 --retry-connrefused -X PATCH "$API/releases/$RELEASE_ID" \
+              | curl -sf --retry 5 --retry-delay 3 --retry-all-errors -X PATCH "$API/releases/$RELEASE_ID" \
                   -H "Authorization: token $RELEASE_TOKEN" \
                   -H "Content-Type: application/json" \
                   --data @- > /dev/null
@@ -391,14 +391,14 @@ jobs:
             exit 1
           fi
           NAME="macos-arm64-$(basename "$DMG")"
-          EXISTING_ID=$(curl -sf --retry 3 --retry-delay 2 --retry-connrefused "$API/releases/$RELEASE_ID" \
+          EXISTING_ID=$(curl -sf --retry 5 --retry-delay 3 --retry-all-errors "$API/releases/$RELEASE_ID" \
             -H "Authorization: token $RELEASE_TOKEN" \
             | jq -r --arg name "$NAME" '.assets[]? | select(.name == $name) | .id')
           if [ -n "$EXISTING_ID" ]; then
-            curl -sf --retry 3 --retry-delay 2 --retry-connrefused -X DELETE "$API/releases/$RELEASE_ID/assets/$EXISTING_ID" \
+            curl -sf --retry 5 --retry-delay 3 --retry-all-errors -X DELETE "$API/releases/$RELEASE_ID/assets/$EXISTING_ID" \
               -H "Authorization: token $RELEASE_TOKEN"
           fi
-          curl -sf --retry 3 --retry-delay 2 --retry-connrefused -X POST "$API/releases/$RELEASE_ID/assets" \
+          curl -sf --retry 5 --retry-delay 3 --retry-all-errors -X POST "$API/releases/$RELEASE_ID/assets" \
             -H "Authorization: token $RELEASE_TOKEN" \
             -F "attachment=@$DMG;filename=$NAME"
           echo "✓ Uploaded $NAME"
@@ -410,19 +410,20 @@ jobs:
           TAG: ${{ needs.compute-version.outputs.tag }}
         run: |
           set -eu
+          RETRY="--retry 5 --retry-delay 3 --retry-all-errors"
           API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
-          RELEASE_ID=$(curl -sf "$API/releases/tags/$TAG" \
+          RELEASE_ID=$(curl -sf $RETRY "$API/releases/tags/$TAG" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
           if [ -z "$RELEASE_ID" ]; then
             echo "No release exists for $TAG, nothing to purge."
             exit 0
           fi
-          ASSET_COUNT=$(curl -sf "$API/releases/$RELEASE_ID" \
+          ASSET_COUNT=$(curl -sf $RETRY "$API/releases/$RELEASE_ID" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.assets | length')
           if [ "$ASSET_COUNT" = "0" ]; then
             echo "Release $TAG has no assets from any platform -- purging it and its tag so the next run can retry $TAG instead of skipping to the next patch version."
-            curl -sf -X DELETE "$API/releases/$RELEASE_ID" -H "Authorization: token $RELEASE_TOKEN" || true
-            curl -sf -X DELETE "$API/tags/$TAG" -H "Authorization: token $RELEASE_TOKEN" || true
+            curl -sf $RETRY -X DELETE "$API/releases/$RELEASE_ID" -H "Authorization: token $RELEASE_TOKEN" || true
+            curl -sf $RETRY -X DELETE "$API/tags/$TAG" -H "Authorization: token $RELEASE_TOKEN" || true
           else
             echo "Release $TAG already has $ASSET_COUNT asset(s) from other platform(s) -- leaving it in place. Only this platform's installer is missing; investigate this job's logs and either fix and re-dispatch or manually upload the missing asset."
           fi
@@ -506,18 +507,18 @@ jobs:
             BODY="_No changelog entry found in CHANGELOG.md._"
           fi
 
-          RELEASE_ID=$(curl -sf --retry 3 --retry-delay 2 --retry-connrefused "$API/releases/tags/$TAG" \
+          RELEASE_ID=$(curl -sf --retry 5 --retry-delay 3 --retry-all-errors "$API/releases/tags/$TAG" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
           if [ -z "$RELEASE_ID" ]; then
             RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" --arg body "$BODY" --arg sha "$GITHUB_SHA" \
               '{tag_name: $tag, target_commitish: $sha, name: $name, body: $body, draft: false, prerelease: ($tag | test("-"))}' \
-              | curl -sf --retry 3 --retry-delay 2 --retry-connrefused -X POST "$API/releases" \
+              | curl -sf --retry 5 --retry-delay 3 --retry-all-errors -X POST "$API/releases" \
                   -H "Authorization: token $RELEASE_TOKEN" \
                   -H "Content-Type: application/json" \
                   --data @- | jq -r '.id')
           else
             jq -n --arg body "$BODY" '{body: $body}' \
-              | curl -sf --retry 3 --retry-delay 2 --retry-connrefused -X PATCH "$API/releases/$RELEASE_ID" \
+              | curl -sf --retry 5 --retry-delay 3 --retry-all-errors -X PATCH "$API/releases/$RELEASE_ID" \
                   -H "Authorization: token $RELEASE_TOKEN" \
                   -H "Content-Type: application/json" \
                   --data @- > /dev/null
@@ -535,14 +536,14 @@ jobs:
           fi
           printf '%s\n' "$ARTIFACTS" | while IFS= read -r f; do
             NAME="linux-amd64-$(basename "$f")"
-            EXISTING_ID=$(curl -sf --retry 3 --retry-delay 2 --retry-connrefused "$API/releases/$RELEASE_ID" \
+            EXISTING_ID=$(curl -sf --retry 5 --retry-delay 3 --retry-all-errors "$API/releases/$RELEASE_ID" \
               -H "Authorization: token $RELEASE_TOKEN" \
               | jq -r --arg name "$NAME" '.assets[]? | select(.name == $name) | .id')
             if [ -n "$EXISTING_ID" ]; then
-              curl -sf --retry 3 --retry-delay 2 --retry-connrefused -X DELETE "$API/releases/$RELEASE_ID/assets/$EXISTING_ID" \
+              curl -sf --retry 5 --retry-delay 3 --retry-all-errors -X DELETE "$API/releases/$RELEASE_ID/assets/$EXISTING_ID" \
                 -H "Authorization: token $RELEASE_TOKEN"
             fi
-            curl -sf --retry 3 --retry-delay 2 --retry-connrefused -X POST "$API/releases/$RELEASE_ID/assets" \
+            curl -sf --retry 5 --retry-delay 3 --retry-all-errors -X POST "$API/releases/$RELEASE_ID/assets" \
               -H "Authorization: token $RELEASE_TOKEN" \
               -F "attachment=@$f;filename=$NAME"
             echo "✓ Uploaded $NAME"
@@ -555,19 +556,20 @@ jobs:
           TAG: ${{ needs.compute-version.outputs.tag }}
         run: |
           set -eu
+          RETRY="--retry 5 --retry-delay 3 --retry-all-errors"
           API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
-          RELEASE_ID=$(curl -sf "$API/releases/tags/$TAG" \
+          RELEASE_ID=$(curl -sf $RETRY "$API/releases/tags/$TAG" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
           if [ -z "$RELEASE_ID" ]; then
             echo "No release exists for $TAG, nothing to purge."
             exit 0
           fi
-          ASSET_COUNT=$(curl -sf "$API/releases/$RELEASE_ID" \
+          ASSET_COUNT=$(curl -sf $RETRY "$API/releases/$RELEASE_ID" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.assets | length')
           if [ "$ASSET_COUNT" = "0" ]; then
             echo "Release $TAG has no assets from any platform -- purging it and its tag so the next run can retry $TAG instead of skipping to the next patch version."
-            curl -sf -X DELETE "$API/releases/$RELEASE_ID" -H "Authorization: token $RELEASE_TOKEN" || true
-            curl -sf -X DELETE "$API/tags/$TAG" -H "Authorization: token $RELEASE_TOKEN" || true
+            curl -sf $RETRY -X DELETE "$API/releases/$RELEASE_ID" -H "Authorization: token $RELEASE_TOKEN" || true
+            curl -sf $RETRY -X DELETE "$API/tags/$TAG" -H "Authorization: token $RELEASE_TOKEN" || true
           else
             echo "Release $TAG already has $ASSET_COUNT asset(s) from other platform(s) -- leaving it in place. Only this platform's installer is missing; investigate this job's logs and either fix and re-dispatch or manually upload the missing asset."
           fi
@@ -645,18 +647,18 @@ jobs:
             BODY="_No changelog entry found in CHANGELOG.md._"
           fi
 
-          RELEASE_ID=$(curl -sf --retry 3 --retry-delay 2 --retry-connrefused "$API/releases/tags/$TAG" \
+          RELEASE_ID=$(curl -sf --retry 5 --retry-delay 3 --retry-all-errors "$API/releases/tags/$TAG" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
           if [ -z "$RELEASE_ID" ]; then
             RELEASE_ID=$(jq -n --arg tag "$TAG" --arg name "HiNotes Desktop $TAG" --arg body "$BODY" --arg sha "$GITHUB_SHA" \
               '{tag_name: $tag, target_commitish: $sha, name: $name, body: $body, draft: false, prerelease: ($tag | test("-"))}' \
-              | curl -sf --retry 3 --retry-delay 2 --retry-connrefused -X POST "$API/releases" \
+              | curl -sf --retry 5 --retry-delay 3 --retry-all-errors -X POST "$API/releases" \
                   -H "Authorization: token $RELEASE_TOKEN" \
                   -H "Content-Type: application/json" \
                   --data @- | jq -r '.id')
           else
             jq -n --arg body "$BODY" '{body: $body}' \
-              | curl -sf --retry 3 --retry-delay 2 --retry-connrefused -X PATCH "$API/releases/$RELEASE_ID" \
+              | curl -sf --retry 5 --retry-delay 3 --retry-all-errors -X PATCH "$API/releases/$RELEASE_ID" \
                   -H "Authorization: token $RELEASE_TOKEN" \
                   -H "Content-Type: application/json" \
                   --data @- > /dev/null
@@ -672,14 +674,14 @@ jobs:
             exit 1
           fi
           NAME="windows-x64-$(basename "$EXE")"
-          EXISTING_ID=$(curl -sf --retry 3 --retry-delay 2 --retry-connrefused "$API/releases/$RELEASE_ID" \
+          EXISTING_ID=$(curl -sf --retry 5 --retry-delay 3 --retry-all-errors "$API/releases/$RELEASE_ID" \
             -H "Authorization: token $RELEASE_TOKEN" \
             | jq -r --arg name "$NAME" '.assets[]? | select(.name == $name) | .id')
           if [ -n "$EXISTING_ID" ]; then
-            curl -sf --retry 3 --retry-delay 2 --retry-connrefused -X DELETE "$API/releases/$RELEASE_ID/assets/$EXISTING_ID" \
+            curl -sf --retry 5 --retry-delay 3 --retry-all-errors -X DELETE "$API/releases/$RELEASE_ID/assets/$EXISTING_ID" \
               -H "Authorization: token $RELEASE_TOKEN"
           fi
-          curl -sf --retry 3 --retry-delay 2 --retry-connrefused -X POST "$API/releases/$RELEASE_ID/assets" \
+          curl -sf --retry 5 --retry-delay 3 --retry-all-errors -X POST "$API/releases/$RELEASE_ID/assets" \
             -H "Authorization: token $RELEASE_TOKEN" \
             -F "attachment=@$EXE;filename=$NAME"
           echo "✓ Uploaded $NAME"
@@ -691,19 +693,20 @@ jobs:
           TAG: ${{ needs.compute-version.outputs.tag }}
         run: |
           set -eu
+          RETRY="--retry 5 --retry-delay 3 --retry-all-errors"
           API="https://gogs.tftsr.com/api/v1/repos/$GITHUB_REPOSITORY"
-          RELEASE_ID=$(curl -sf "$API/releases/tags/$TAG" \
+          RELEASE_ID=$(curl -sf $RETRY "$API/releases/tags/$TAG" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.id // empty')
           if [ -z "$RELEASE_ID" ]; then
             echo "No release exists for $TAG, nothing to purge."
             exit 0
           fi
-          ASSET_COUNT=$(curl -sf "$API/releases/$RELEASE_ID" \
+          ASSET_COUNT=$(curl -sf $RETRY "$API/releases/$RELEASE_ID" \
             -H "Authorization: token $RELEASE_TOKEN" | jq -r '.assets | length')
           if [ "$ASSET_COUNT" = "0" ]; then
             echo "Release $TAG has no assets from any platform -- purging it and its tag so the next run can retry $TAG instead of skipping to the next patch version."
-            curl -sf -X DELETE "$API/releases/$RELEASE_ID" -H "Authorization: token $RELEASE_TOKEN" || true
-            curl -sf -X DELETE "$API/tags/$TAG" -H "Authorization: token $RELEASE_TOKEN" || true
+            curl -sf $RETRY -X DELETE "$API/releases/$RELEASE_ID" -H "Authorization: token $RELEASE_TOKEN" || true
+            curl -sf $RETRY -X DELETE "$API/tags/$TAG" -H "Authorization: token $RELEASE_TOKEN" || true
           else
             echo "Release $TAG already has $ASSET_COUNT asset(s) from other platform(s) -- leaving it in place. Only this platform's installer is missing; investigate this job's logs and either fix and re-dispatch or manually upload the missing asset."
           fi
