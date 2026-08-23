@@ -1,4 +1,4 @@
-import { ConfigProvider } from '@arco-design/web-react';
+import { ConfigProvider, theme as antdTheme } from 'antd';
 import { useSettingsStore } from '../store/settingsStore';
 import { ReactNode, useEffect } from 'react';
 
@@ -11,13 +11,13 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   // Apply theme to document
   useEffect(() => {
-    document.documentElement.setAttribute('arco-theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
   return (
     <ConfigProvider
       theme={{
-        mode: theme,
+        algorithm: theme === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
       }}
     >
       {children}

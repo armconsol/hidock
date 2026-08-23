@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, Switch, Space, Message } from '@arco-design/web-react';
+import { Card, Button, Switch, Space, message } from 'antd';
 import { LanguageSelector } from './LanguageSelector';
 import { TranslationSettings as ITranslationSettings, DEFAULT_SETTINGS } from './types';
 import './TranslationSettings.css';
@@ -41,7 +41,7 @@ export function TranslationSettings({
       onSave(currentSettings);
     }
     setHasChanges(false);
-    Message.success('Settings saved successfully');
+    message.success('Settings saved successfully');
   };
 
   const handleReset = () => {

@@ -4,11 +4,11 @@ import {
   Input,
   Button,
   Checkbox,
-  Message,
+  message,
   Typography,
   Card,
-} from '@arco-design/web-react';
-import { IconSave, IconClose } from '@arco-design/web-react/icon';
+} from 'antd';
+import { SaveOutlined, CloseOutlined } from '@ant-design/icons';
 import { useTemplatesStore } from '../../store/templatesStore';
 import './TemplateEditor.css';
 
@@ -55,7 +55,7 @@ export function TemplateEditor({ templateId, onClose }: TemplateEditorProps) {
         setIsDefault(template.isDefault);
       }
     } catch (error) {
-      Message.error('Failed to load template');
+      message.error('Failed to load template');
     } finally {
       setIsLoading(false);
     }
@@ -63,12 +63,12 @@ export function TemplateEditor({ templateId, onClose }: TemplateEditorProps) {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      Message.warning('Please enter a title');
+      message.warning('Please enter a title');
       return;
     }
 
     if (!content.trim()) {
-      Message.warning('Please enter content');
+      message.warning('Please enter content');
       return;
     }
 
@@ -76,7 +76,7 @@ export function TemplateEditor({ templateId, onClose }: TemplateEditorProps) {
     try {
       if (isNewTemplate) {
         await createTemplate(title, content, isFavorite, isDefault);
-        Message.success('Template created successfully');
+        message.success('Template created successfully');
       } else if (templateId) {
         await updateTemplate(templateId, {
           title,
@@ -84,11 +84,11 @@ export function TemplateEditor({ templateId, onClose }: TemplateEditorProps) {
           isFavorite,
           isDefault,
         });
-        Message.success('Template updated successfully');
+        message.success('Template updated successfully');
       }
       onClose?.();
     } catch (error) {
-      Message.error(
+      message.error(
         isNewTemplate ? 'Failed to create template' : 'Failed to update template'
       );
     } finally {
@@ -126,14 +126,14 @@ export function TemplateEditor({ templateId, onClose }: TemplateEditorProps) {
     <div className="template-editor">
       <Card className="template-editor-card">
         <div className="template-editor-header">
-          <Title heading={5}>{isNewTemplate ? 'New Template' : 'Edit Template'}</Title>
+          <Title level={5}>{isNewTemplate ? 'New Template' : 'Edit Template'}</Title>
           <Space size={8}>
-            <Button icon={<IconClose />} onClick={handleCancel}>
+            <Button icon={<CloseOutlined />} onClick={handleCancel}>
               Cancel
             </Button>
             <Button
               type="primary"
-              icon={<IconSave />}
+              icon={<SaveOutlined />}
               loading={isSaving}
               onClick={handleSave}
             >
@@ -148,7 +148,7 @@ export function TemplateEditor({ templateId, onClose }: TemplateEditorProps) {
             <Input
               placeholder="Template title"
               value={title}
-              onChange={setTitle}
+              onChange={(e) => setTitle(e.target.value)}
               style={{ marginTop: 8 }}
             />
           </div>
@@ -158,17 +158,17 @@ export function TemplateEditor({ templateId, onClose }: TemplateEditorProps) {
             <TextArea
               placeholder="Template content"
               value={content}
-              onChange={setContent}
+              onChange={(e) => setContent(e.target.value)}
               style={{ marginTop: 8, minHeight: 300 }}
               autoSize={{ minRows: 10, maxRows: 20 }}
             />
           </div>
 
           <Space direction="vertical" size={8}>
-            <Checkbox checked={isFavorite} onChange={setIsFavorite}>
+            <Checkbox checked={isFavorite} onChange={(e) => setIsFavorite(e.target.checked)}>
               Mark as favorite
             </Checkbox>
-            <Checkbox checked={isDefault} onChange={setIsDefault}>
+            <Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)}>
               Set as default template
             </Checkbox>
           </Space>

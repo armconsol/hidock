@@ -8,18 +8,17 @@ import {
   Divider,
   Alert,
   Typography,
-} from '@arco-design/web-react';
+} from 'antd';
 import {
-  IconGoogleCircleFill,
-  IconUser,
-  IconEmail,
-  IconLock,
-} from '@arco-design/web-react/icon';
+  GoogleCircleFilled,
+  UserOutlined,
+  MailOutlined,
+  LockOutlined,
+} from '@ant-design/icons';
 import { useAuthStore } from '../../store/authStore';
 import './Login.css';
 
 const { Title, Text } = Typography;
-const FormItem = Form.Item;
 
 export const Login = () => {
   const [form] = Form.useForm();
@@ -40,7 +39,7 @@ export const Login = () => {
     <div className="login-container">
       <Card className="login-card" bordered={false}>
         <div className="login-header">
-          <Title heading={3}>Welcome to HiNotes</Title>
+          <Title level={3}>Welcome to HiNotes</Title>
           <Text type="secondary">Sign in to continue</Text>
         </div>
 
@@ -50,7 +49,7 @@ export const Login = () => {
             closable
             onClose={clearError}
             style={{ marginBottom: 20 }}
-            content={error}
+            message={error}
           />
         )}
 
@@ -59,8 +58,8 @@ export const Login = () => {
             <Button
               type="primary"
               size="large"
-              long
-              icon={<IconGoogleCircleFill />}
+              block
+              icon={<GoogleCircleFilled />}
               loading={isLoading}
               onClick={() => handleOAuthLogin('google')}
               className="oauth-button oauth-button-google"
@@ -71,8 +70,8 @@ export const Login = () => {
             <Button
               type="primary"
               size="large"
-              long
-              icon={<IconUser />}
+              block
+              icon={<UserOutlined />}
               loading={isLoading}
               onClick={() => handleOAuthLogin('apple')}
               className="oauth-button oauth-button-apple"
@@ -83,10 +82,10 @@ export const Login = () => {
             <Divider>or</Divider>
 
             <Button
-              type="outline"
+              type="default"
               size="large"
-              long
-              icon={<IconEmail />}
+              block
+              icon={<MailOutlined />}
               onClick={() => setIsEmailMode(true)}
             >
               Continue with Email
@@ -97,47 +96,47 @@ export const Login = () => {
             <Form
               form={form}
               layout="vertical"
-              onSubmit={handleEmailLogin}
+              onFinish={handleEmailLogin}
               autoComplete="off"
             >
-              <FormItem
+              <Form.Item
                 label="Email"
-                field="email"
+                name="email"
                 rules={[
                   { required: true, message: 'Email is required' },
                   { type: 'email', message: 'Invalid email format' },
                 ]}
               >
                 <Input
-                  prefix={<IconEmail />}
+                  prefix={<MailOutlined />}
                   placeholder="Enter your email"
                   size="large"
                   disabled={isLoading}
                 />
-              </FormItem>
+              </Form.Item>
 
-              <FormItem
+              <Form.Item
                 label="Password"
-                field="password"
+                name="password"
                 rules={[
                   { required: true, message: 'Password is required' },
-                  { minLength: 6, message: 'Password must be at least 6 characters' },
+                  { min: 6, message: 'Password must be at least 6 characters' },
                 ]}
               >
                 <Input.Password
-                  prefix={<IconLock />}
+                  prefix={<LockOutlined />}
                   placeholder="Enter your password"
                   size="large"
                   disabled={isLoading}
                 />
-              </FormItem>
+              </Form.Item>
 
-              <FormItem>
-                <Space direction="vertical" size="medium" style={{ width: '100%' }}>
+              <Form.Item>
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                   <Button
                     type="primary"
                     size="large"
-                    long
+                    block
                     htmlType="submit"
                     loading={isLoading}
                   >
@@ -146,14 +145,14 @@ export const Login = () => {
                   <Button
                     type="text"
                     size="large"
-                    long
+                    block
                     onClick={() => setIsEmailMode(false)}
                     disabled={isLoading}
                   >
                     Back to other options
                   </Button>
                 </Space>
-              </FormItem>
+              </Form.Item>
             </Form>
           </>
         )}

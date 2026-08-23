@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from './components/Layout/AppLayout';
 import { HomePage } from './pages/Home';
+import { TestPage } from './pages/TestPage';
 import { NotesPage } from './pages/Notes';
 import { NoteDetailPage } from './pages/NoteDetail';
 import { WhispersPage } from './pages/Whispers';
@@ -13,8 +14,13 @@ import { ProfilePage } from './pages/Profile';
 import { SecurityPage } from './pages/Security';
 import { LoginPage } from './pages/Login';
 import { SyncDemo } from './pages/SyncDemo';
+import OAuthSettings from './pages/OAuthSettings';
 
 export const router = createBrowserRouter([
+  {
+    path: '/test',
+    element: <TestPage />,
+  },
   {
     path: '/login',
     element: <LoginPage />,
@@ -74,6 +80,10 @@ export const router = createBrowserRouter([
       {
         path: '/sync-demo',
         element: <SyncDemo />,
+      },
+      {
+        path: '/oauth-settings',
+        element: <OAuthSettings />,
       },
     ],
   },

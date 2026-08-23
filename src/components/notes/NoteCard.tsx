@@ -1,5 +1,5 @@
-import { Card, Typography, Space, Tag } from '@arco-design/web-react';
-import { IconPushpin, IconClockCircle } from '@arco-design/web-react/icon';
+import { Card, Typography, Space, Tag } from 'antd';
+import { PushpinOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import type { Note } from '../../types/notes';
 import './NoteCard.css';
 
@@ -47,7 +47,7 @@ export function NoteCard({ note, isSelected, onClick }: NoteCardProps) {
         <div className="note-card-header">
           <Space>
             {note.isPinned && (
-              <IconPushpin style={{ fontSize: 14, color: 'var(--color-text-3)' }} />
+              <PushpinOutlined style={{ fontSize: 14, color: 'var(--color-text-3)' }} />
             )}
             <Text ellipsis className="note-card-title">
               {note.title}
@@ -61,7 +61,7 @@ export function NoteCard({ note, isSelected, onClick }: NoteCardProps) {
             </Text>
             {note.duration && (
               <Space size={4}>
-                <IconClockCircle style={{ fontSize: 12 }} />
+                <ClockCircleOutlined style={{ fontSize: 12 }} />
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {formatDuration(note.duration)}
                 </Text>
@@ -72,7 +72,7 @@ export function NoteCard({ note, isSelected, onClick }: NoteCardProps) {
         {note.tags && note.tags.length > 0 && (
           <Space size={4} wrap>
             {note.tags.slice(0, 3).map((tag) => (
-              <Tag key={tag} size="small" color="arcoblue">
+              <Tag key={tag} color="blue">
                 {tag}
               </Tag>
             ))}

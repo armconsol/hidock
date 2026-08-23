@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { WhisperRecorder } from './WhisperRecorder';
 
-// Mock Arco Design icons
-vi.mock('@arco-design/web-react/icon', () => ({
-  IconRecordStop: () => <span>Stop Icon</span>,
-  IconVoice: () => <span>Voice Icon</span>,
+// Mock Ant Design icons
+vi.mock('@ant-design/icons', () => ({
+  StopOutlined: () => <span>Stop Icon</span>,
+  AudioOutlined: () => <span>Voice Icon</span>,
 }));
 
 // Mock MediaRecorder
@@ -85,7 +85,7 @@ describe('WhisperRecorder Component', () => {
     render(<WhisperRecorder />);
 
     const recordButton = screen.getByTestId('record-button');
-    expect(recordButton).toHaveClass('arco-btn-shape-circle');
+    expect(recordButton).toHaveClass('ant-btn-circle');
   });
 
   it('displays correct instruction text', () => {
@@ -141,13 +141,13 @@ describe('WhisperRecorder Component', () => {
     render(<WhisperRecorder />);
 
     const recordButton = screen.getByTestId('record-button');
-    expect(recordButton).toHaveClass('arco-btn-primary');
+    expect(recordButton).toHaveClass('ant-btn-primary');
   });
 
   it('renders with large button size', () => {
     render(<WhisperRecorder />);
 
     const recordButton = screen.getByTestId('record-button');
-    expect(recordButton).toHaveClass('arco-btn-size-large');
+    expect(recordButton).toHaveClass('ant-btn-lg');
   });
 });

@@ -1,5 +1,5 @@
-import { Button, Message, Popover, Space, Typography, List } from '@arco-design/web-react';
-import { IconSync, IconClockCircle, IconDelete } from '@arco-design/web-react/icon';
+import { Button, message, Popover, Space, Typography, List } from 'antd';
+import { SyncOutlined, ClockCircleOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useSyncStore } from '../../store/syncStore';
 import type { SyncOperation } from '../../types/sync';
 import './SyncButton.css';
@@ -18,23 +18,23 @@ export function SyncButton() {
 
   const handleSync = async () => {
     if (!isOnline) {
-      Message.warning('Cannot sync while offline');
+      message.warning('Cannot sync while offline');
       return;
     }
 
     try {
       await triggerSync();
       if (status === 'synced') {
-        Message.success('Sync completed successfully');
+        message.success('Sync completed successfully');
       }
     } catch (err) {
-      Message.error('Sync failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      message.error('Sync failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 
   const handleClearPending = () => {
     clearPendingOperations();
-    Message.info('Cleared pending operations');
+    message.info('Cleared pending operations');
   };
 
   const formatOperationType = (type: SyncOperation['type']): string => {
@@ -59,12 +59,12 @@ export function SyncButton() {
   const popoverContent = (
     <div className="sync-button-popover">
       <div className="sync-button-popover-header">
-        <Text bold>Pending Operations</Text>
+        <Text strong>Pending Operations</Text>
         {pendingOperations.length > 0 && (
           <Button
             type="text"
-            size="mini"
-            icon={<IconDelete />}
+            size="small"
+            icon={<DeleteOutlined />}
             onClick={handleClearPending}
           >
             Clear All
@@ -80,21 +80,21 @@ export function SyncButton() {
         <List
           size="small"
           dataSource={pendingOperations}
-          render={(item) => (
+          renderItem={(item) => (
             <List.Item key={item.id}>
               <Space direction="vertical" size={0}>
                 <Text>
-                  <Text bold>{formatOperationType(item.type)}</Text>
+                  <Text strong>{formatOperationType(item.type)}</Text>
                   {' '}
                   {formatEntityType(item.entityType)}
                 </Text>
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  <IconClockCircle style={{ marginRight: 4 }} />
+                  <ClockCircleOutlined style={{ marginRight: 4 }} />
                   {formatTimestamp(item.timestamp)}
                   {item.retryCount > 0 && ` • Retry ${item.retryCount}`}
                 </Text>
                 {item.error && (
-                  <Text type="error" style={{ fontSize: 12 }}>
+                  <Text type="danger" style={{ fontSize: 12 }}>
                     {item.error}
                   </Text>
                 )}
@@ -106,7 +106,7 @@ export function SyncButton() {
 
       {error && (
         <div className="sync-button-error">
-          <Text type="error">{error}</Text>
+          <Text type="danger">{error}</Text>
         </div>
       )}
     </div>
@@ -114,13 +114,13 @@ export function SyncButton() {
 
   return (
     <Popover
-      position="bottom"
+      placement="bottom"
       trigger="click"
       content={popoverContent}
     >
       <Button
-        type="secondary"
-        icon={<IconSync />}
+        type="default"
+        icon={<SyncOutlined />}
         loading={status === 'syncing'}
         disabled={!isOnline}
         onClick={(e) => {

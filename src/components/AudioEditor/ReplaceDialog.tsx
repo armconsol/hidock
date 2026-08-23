@@ -1,5 +1,5 @@
-import { Modal, Button, Typography, Space, InputNumber, Spin } from '@arco-design/web-react';
-import { IconFile, IconPlayArrow, IconPause } from '@arco-design/web-react/icon';
+import { Modal, Button, Typography, Space, InputNumber, Spin } from 'antd';
+import { FileOutlined, PlayCircleOutlined, PauseCircleOutlined } from '@ant-design/icons';
 import { useState, useRef, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -175,8 +175,8 @@ export function ReplaceDialog({
 
   return (
     <Modal
-      title={<Title heading={5}>Replace Audio Segment</Title>}
-      visible={visible}
+      title={<Title level={5}>Replace Audio Segment</Title>}
+      open={visible}
       onCancel={handleClose}
       footer={
         <Space>
@@ -193,12 +193,12 @@ export function ReplaceDialog({
           </Button>
         </Space>
       }
-      style={{ width: 600 }}
+      width={600}
     >
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {/* Original Audio Info */}
         <div>
-          <Text bold style={{ marginBottom: 10, display: 'block' }}>
+          <Text strong style={{ marginBottom: 10, display: 'block' }}>
             Original Audio
           </Text>
           <div
@@ -218,7 +218,7 @@ export function ReplaceDialog({
             <div style={{ marginTop: 10 }}>
               <Button
                 size="small"
-                icon={isPlaying ? <IconPause /> : <IconPlayArrow />}
+                icon={isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
                 onClick={togglePlayback}
               >
                 {isPlaying ? 'Pause Preview' : 'Preview Selection'}
@@ -229,7 +229,7 @@ export function ReplaceDialog({
 
         {/* Time Range Selection */}
         <div>
-          <Text bold style={{ marginBottom: 10, display: 'block' }}>
+          <Text strong style={{ marginBottom: 10, display: 'block' }}>
             Select Time Range to Replace
           </Text>
           <Space size="medium">
@@ -276,7 +276,7 @@ export function ReplaceDialog({
 
         {/* Replacement Audio Selection */}
         <div>
-          <Text bold style={{ marginBottom: 10, display: 'block' }}>
+          <Text strong style={{ marginBottom: 10, display: 'block' }}>
             Replacement Audio
           </Text>
           {replacementFilePath ? (
@@ -289,7 +289,7 @@ export function ReplaceDialog({
                 borderRadius: '4px',
               }}
             >
-              <IconFile style={{ marginRight: 10 }} />
+              <FileOutlined style={{ marginRight: 10 }} />
               <Text style={{ flex: 1 }}>{replacementFileName}</Text>
               <Button
                 size="small"
@@ -319,7 +319,7 @@ export function ReplaceDialog({
               borderRadius: '4px',
             }}
           >
-            <Text type="error">{error}</Text>
+            <Text type="danger">{error}</Text>
           </div>
         )}
 

@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 /// Application state for auth operations
 pub struct AuthState {
     pub api_client: Arc<RwLock<HiNotesClient>>,
-    pub oauth_handler: Arc<OAuth2Handler>,
+    pub oauth_handler: Arc<Option<OAuth2Handler>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,7 +62,8 @@ pub async fn authenticate_with_credentials(
 /// Result containing OAuth token on success
 #[tauri::command]
 pub async fn authenticate_google(state: State<'_, AuthState>) -> Result<String, String> {
-    let oauth = &state.oauth_handler;
+    let oauth = state.oauth_handler.as_ref().as_ref()
+        .ok_or_else(|| "OAuth not configured. Please set GOOGLE_CLIENT_ID in settings.".to_string())?;
 
     let token_data = oauth
         .authenticate_google()
@@ -84,7 +85,8 @@ pub async fn authenticate_google(state: State<'_, AuthState>) -> Result<String, 
 /// Result containing OAuth token on success
 #[tauri::command]
 pub async fn authenticate_apple(state: State<'_, AuthState>) -> Result<String, String> {
-    let oauth = &state.oauth_handler;
+    let oauth = state.oauth_handler.as_ref().as_ref()
+        .ok_or_else(|| "OAuth not configured. Please set APPLE_CLIENT_ID in settings.".to_string())?;
 
     let token_data = oauth
         .authenticate_apple()

@@ -4,12 +4,12 @@ import '@testing-library/jest-dom';
 import { SyncButton } from './SyncButton';
 import { useSyncStore } from '../../store/syncStore';
 
-// Mock Arco Design Message component
-vi.mock('@arco-design/web-react', async () => {
-  const actual = await vi.importActual('@arco-design/web-react');
+// Mock Ant Design message component
+vi.mock('antd', async () => {
+  const actual = await vi.importActual('antd');
   return {
     ...actual,
-    Message: {
+    message: {
       success: vi.fn(),
       error: vi.fn(),
       warning: vi.fn(),
@@ -57,7 +57,7 @@ describe('SyncButton', () => {
 
     render(<SyncButton />);
     const button = screen.getByRole('button', { name: /sync/i });
-    expect(button).toHaveClass('arco-btn-loading');
+    expect(button).toHaveClass('ant-btn-loading');
   });
 
   it('should trigger sync on button click', async () => {

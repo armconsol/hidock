@@ -3,6 +3,7 @@
 pub mod audio;
 pub mod auth_commands;
 pub mod calendar_sync_commands; // Calendar sync commands module
+pub mod config_commands; // Configuration management commands module
 pub mod device_commands; // Device commands module
 pub mod ffmpeg; // FFmpeg commands module
 pub mod notes_commands; // Notes commands module
@@ -31,6 +32,7 @@ use tauri::State;
 pub use audio::*;
 pub use auth_commands::*;
 pub use calendar_sync_commands::*; // Re-export calendar sync commands
+pub use config_commands::*; // Re-export configuration commands
 pub use device_commands::*; // Re-export device commands
 pub use ffmpeg::*; // Re-export FFmpeg commands
 pub use notes_commands::*; // Re-export notes commands

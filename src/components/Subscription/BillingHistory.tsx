@@ -1,5 +1,5 @@
-import { Table, Button, Badge, Empty } from '@arco-design/web-react';
-import { IconDownload } from '@arco-design/web-react/icon';
+import { Table, Button, Badge, Empty } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
 import { Receipt } from '../../types/subscription';
 import './BillingHistory.css';
 
@@ -76,7 +76,7 @@ export function BillingHistory({ receipts, onDownloadReceipt }: BillingHistoryPr
       render: (record: Receipt) => (
         <Button
           type="text"
-          icon={<IconDownload />}
+          icon={<DownloadOutlined />}
           onClick={() => onDownloadReceipt(record.id)}
           disabled={!record.receiptUrl}
         >
@@ -105,13 +105,12 @@ export function BillingHistory({ receipts, onDownloadReceipt }: BillingHistoryPr
       </div>
       <Table
         columns={columns}
-        data={receipts}
+        dataSource={receipts}
         rowKey="id"
         pagination={{
           pageSize: 10,
           showTotal: (total) => `Total ${total} receipts`,
         }}
-        stripe
       />
     </div>
   );

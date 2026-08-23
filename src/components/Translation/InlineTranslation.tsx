@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button, Spin, Tooltip } from '@arco-design/web-react';
-import { IconTranslate, IconSwap } from '@arco-design/web-react/icon';
+import { Button, Spin, Tooltip } from 'antd';
+import { TranslationOutlined, SwapOutlined } from '@ant-design/icons';
 import './InlineTranslation.css';
 
 interface InlineTranslationProps {
@@ -43,7 +43,7 @@ export function InlineTranslation({
     >
       <div className="inline-translation-content">
         {isLoading ? (
-          <Spin size={16} />
+          <Spin size="small" />
         ) : showTranslation && translatedText ? (
           <span className="translated-text">{translatedText}</span>
         ) : (
@@ -77,11 +77,11 @@ export function InlineTranslation({
 
       <div className={`inline-translation-actions ${isHovered ? 'visible' : ''}`}>
         {!translatedText && !isLoading && (
-          <Tooltip content="Translate">
+          <Tooltip title="Translate">
             <Button
               type="text"
-              size="mini"
-              icon={<IconTranslate />}
+              size="small"
+              icon={<TranslationOutlined />}
               onClick={handleTranslate}
               aria-label="Translate"
             />
@@ -89,11 +89,11 @@ export function InlineTranslation({
         )}
 
         {translatedText && !isLoading && (
-          <Tooltip content={showTranslation ? 'Show original' : 'Show translation'}>
+          <Tooltip title={showTranslation ? 'Show original' : 'Show translation'}>
             <Button
               type="text"
-              size="mini"
-              icon={<IconSwap />}
+              size="small"
+              icon={<SwapOutlined />}
               onClick={toggleView}
               aria-label={showTranslation ? 'Show original' : 'Show translation'}
             />

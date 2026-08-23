@@ -1,5 +1,5 @@
-import { Alert, Button, Space, Progress } from '@arco-design/web-react';
-import { IconClockCircle, IconCheckCircle, IconCloseCircle } from '@arco-design/web-react/icon';
+import { Alert, Button, Space, Progress } from 'antd';
+import { ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { TrialStatus } from '../../types/subscription';
 import './TrialBanner.css';
 
@@ -19,9 +19,9 @@ export function TrialBanner({ trialStatus, onClaimTrial }: TrialBannerProps) {
     return (
       <Alert
         type="info"
-        icon={<IconCheckCircle />}
-        title="Free Trial Available"
-        content={
+        icon={<CheckCircleOutlined />}
+        message="Free Trial Available"
+        description={
           <div className="trial-banner-content">
             <p>Start your free trial to unlock premium features and transcription minutes.</p>
             <Button type="primary" onClick={onClaimTrial}>
@@ -44,9 +44,9 @@ export function TrialBanner({ trialStatus, onClaimTrial }: TrialBannerProps) {
     return (
       <Alert
         type={isExpiringSoon ? 'warning' : 'success'}
-        icon={isExpiringSoon ? <IconCloseCircle /> : <IconClockCircle />}
-        title={isExpiringSoon ? 'Trial Ending Soon' : 'Trial Active'}
-        content={
+        icon={isExpiringSoon ? <CloseCircleOutlined /> : <ClockCircleOutlined />}
+        message={isExpiringSoon ? 'Trial Ending Soon' : 'Trial Active'}
+        description={
           <div className="trial-banner-content">
             <Space direction="vertical" size={12} style={{ width: '100%' }}>
               <p>
@@ -56,8 +56,8 @@ export function TrialBanner({ trialStatus, onClaimTrial }: TrialBannerProps) {
               </p>
               <Progress
                 percent={progressPercent}
-                status={isExpiringSoon ? 'warning' : 'normal'}
-                showText={false}
+                status={isExpiringSoon ? 'exception' : 'normal'}
+                showInfo={false}
               />
               {trialStatus.expiryDate && (
                 <p className="trial-expiry-date">

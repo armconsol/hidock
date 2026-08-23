@@ -9,16 +9,16 @@ import {
   Space,
   Typography,
   Divider,
-  Message,
+  message,
   Spin,
-} from '@arco-design/web-react';
+} from 'antd';
 import {
-  IconSync,
-  IconCheck,
-  IconClose,
-  IconClockCircle,
-  IconRefresh,
-} from '@arco-design/web-react/icon';
+  SyncOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  ClockCircleOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
 import { invoke } from '@tauri-apps/api/core';
 import { useSyncStore } from '../store/syncStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -105,7 +105,7 @@ export function SettingsPage() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       setSettingsError(`Failed to load settings: ${errorMessage}`);
-      Message.error('Failed to load settings');
+      message.error('Failed to load settings');
       console.error('Error loading settings:', error);
     } finally {
       setLoading(false);
@@ -114,7 +114,7 @@ export function SettingsPage() {
 
   const handleSyncNow = async () => {
     if (!cloudSyncEnabled) {
-      Message.warning('Cloud sync is disabled');
+      message.warning('Cloud sync is disabled');
       return;
     }
 
@@ -126,11 +126,11 @@ export function SettingsPage() {
       setLastSyncResult(result);
 
       if (result.errors.length > 0) {
-        Message.warning(
+        message.warning(
           `Sync completed with ${result.errors.length} error(s). Check details below.`
         );
       } else {
-        Message.success(
+        message.success(
           `Synced ${result.synced_count} setting(s)${
             result.conflicts_resolved > 0
               ? `, resolved ${result.conflicts_resolved} conflict(s)`
@@ -161,7 +161,7 @@ export function SettingsPage() {
         syncToCloud: cloudSyncEnabled,
       });
 
-      Message.success('AI engine updated');
+      message.success('AI engine updated');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       Message.error(`Failed to update AI engine: ${errorMessage}`);
@@ -180,11 +180,11 @@ export function SettingsPage() {
       });
 
       if (enabled) {
-        Message.success('Cloud sync enabled');
+        message.success('Cloud sync enabled');
         // Auto-sync on enable
         await handleSyncNow();
       } else {
-        Message.info('Cloud sync disabled - settings will stay local only');
+        message.info('Cloud sync disabled - settings will stay local only');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -220,7 +220,7 @@ export function SettingsPage() {
       // Remove resolved conflict
       setConflicts((prev) => prev.filter((c) => c.key !== conflict.key));
 
-      Message.success(
+      message.success(
         `Conflict resolved: using ${useCloud ? 'cloud' : 'local'} value for ${conflict.key}`
       );
     } catch (error) {
@@ -251,7 +251,7 @@ export function SettingsPage() {
   if (loading) {
     return (
       <div className="settings-page loading">
-        <Spin size={40} />
+        <Spin size="large" />
       </div>
     );
   }
@@ -259,20 +259,20 @@ export function SettingsPage() {
   return (
     <div className="settings-page">
       <div className="settings-header">
-        <Title heading={1}>Settings</Title>
+        <Title level={1}>Settings</Title>
         <SyncIndicator />
       </div>
 
       {/* Sync Status Section */}
       <Card className="settings-section sync-status-section">
         <div className="section-header">
-          <Title heading={3}>
-            <IconSync style={{ marginRight: 8 }} />
+          <Title level={3}>
+            <SyncOutlined style={{ marginRight: 8 }} />
             Cloud Sync Status
           </Title>
           <Button
             type="primary"
-            icon={syncing ? <IconRefresh className="spinning" /> : <IconSync />}
+            icon={syncing ? <ReloadOutlined className="spinning" /> : <SyncOutlined />}
             loading={syncing}
             disabled={!cloudSyncEnabled || syncing}
             onClick={handleSyncNow}
@@ -285,7 +285,7 @@ export function SettingsPage() {
           {/* Last sync time */}
           <div className="sync-info-row">
             <Text type="secondary">
-              <IconClockCircle style={{ marginRight: 6 }} />
+              <ClockCircleOutlined style={{ marginRight: 6 }} />
               Last synced:
             </Text>
             <Text>{formatLastSyncTime(lastSyncTime)}</Text>
@@ -297,13 +297,13 @@ export function SettingsPage() {
             <Space>
               {syncStatus === 'synced' && (
                 <>
-                  <IconCheck style={{ color: 'rgb(var(--success-6))' }} />
+                  <CheckOutlined style={{ color: 'rgb(var(--success-6))' }} />
                   <Text>All changes synced</Text>
                 </>
               )}
               {syncStatus === 'syncing' && (
                 <>
-                  <IconSync className="spinning" style={{ color: 'rgb(var(--primary-6))' }} />
+                  <SyncOutlined className="spinning" style={{ color: 'rgb(var(--primary-6))' }} />
                   <Text>Syncing...</Text>
                 </>
               )}
@@ -314,8 +314,8 @@ export function SettingsPage() {
               )}
               {syncStatus === 'failed' && (
                 <>
-                  <IconClose style={{ color: 'rgb(var(--danger-6))' }} />
-                  <Text type="error">Sync failed</Text>
+                  <CloseOutlined style={{ color: 'rgb(var(--danger-6))' }} />
+                  <Text type="danger">Sync failed</Text>
                 </>
               )}
             </Space>
@@ -325,7 +325,7 @@ export function SettingsPage() {
           {lastSyncResult && (
             <Alert
               type={lastSyncResult.errors.length > 0 ? 'warning' : 'success'}
-              content={
+              message={
                 <Space direction="vertical" size="small">
                   <Text>
                     Synced {lastSyncResult.synced_count} setting(s)
@@ -334,11 +334,11 @@ export function SettingsPage() {
                   </Text>
                   {lastSyncResult.errors.length > 0 && (
                     <div>
-                      <Text type="error">Errors:</Text>
+                      <Text type="danger">Errors:</Text>
                       <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px' }}>
                         {lastSyncResult.errors.map((err, idx) => (
                           <li key={idx}>
-                            <Text type="error">{err}</Text>
+                            <Text type="danger">{err}</Text>
                           </li>
                         ))}
                       </ul>
@@ -355,9 +355,9 @@ export function SettingsPage() {
           {(syncError || settingsError) && (
             <Alert
               type="error"
-              content={
+              message={
                 <Space direction="vertical" size="small">
-                  <Text type="error">{syncError || settingsError}</Text>
+                  <Text type="danger">{syncError || settingsError}</Text>
                   <Button
                     type="text"
                     size="small"
@@ -378,7 +378,7 @@ export function SettingsPage() {
       {/* Conflicts Section */}
       {conflicts.length > 0 && (
         <Card className="settings-section conflicts-section">
-          <Title heading={3}>Sync Conflicts</Title>
+          <Title level={3}>Sync Conflicts</Title>
           <Paragraph type="secondary">
             The following settings have different values locally and in the cloud. Choose which
             value to keep.
@@ -387,7 +387,7 @@ export function SettingsPage() {
           <Space direction="vertical" size="medium" style={{ width: '100%' }}>
             {conflicts.map((conflict) => (
               <Card key={conflict.key} className="conflict-item">
-                <Title heading={4}>{conflict.key}</Title>
+                <Title level={4}>{conflict.key}</Title>
                 <div className="conflict-comparison">
                   <div className="conflict-value">
                     <Text type="secondary">Local:</Text>
@@ -435,8 +435,8 @@ export function SettingsPage() {
             <Switch
               checked={cloudSyncEnabled}
               onChange={handleCloudSyncToggle}
-              checkedText="On"
-              uncheckedText="Off"
+              checkedChildren="On"
+              unCheckedChildren="Off"
             />
           </div>
 
@@ -451,9 +451,9 @@ export function SettingsPage() {
               </Text>
             </div>
             <Radio.Group
-              type="button"
+              optionType="button"
               value={theme}
-              onChange={(value) => handleThemeChange(value as 'light' | 'dark')}
+              onChange={(e) => handleThemeChange(e.target.value as 'light' | 'dark')}
             >
               <Radio value="light">Light</Radio>
               <Radio value="dark">Dark</Radio>
@@ -515,7 +515,7 @@ export function SettingsPage() {
                   .find((e) => e.id === selectedEngine)
                   ?.capabilities?.map((cap) => (
                     <div key={cap} className="capability-tag">
-                      <IconCheck style={{ fontSize: 12, marginRight: 4 }} />
+                      <CheckOutlined style={{ fontSize: 12, marginRight: 4 }} />
                       <Text style={{ fontSize: 12 }}>{cap}</Text>
                     </div>
                   ))}

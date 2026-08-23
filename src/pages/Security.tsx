@@ -4,19 +4,19 @@ import {
   Form,
   Input,
   Button,
-  Message,
+  message,
   Divider,
   Space,
   Modal,
   Alert,
-} from '@arco-design/web-react';
+} from 'antd';
 import {
-  IconLock,
-  IconEmail,
-  IconDelete,
-  IconCheckCircleFill,
-  IconCloseCircleFill,
-} from '@arco-design/web-react/icon';
+  LockOutlined,
+  MailOutlined,
+  DeleteOutlined,
+  CheckCircleFilled,
+  CloseCircleFilled,
+} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { ChangePasswordRequest } from '../types/user';
@@ -60,12 +60,12 @@ export function SecurityPage() {
       const values = passwordForm.getFieldsValue() as ChangePasswordRequest;
 
       if (values.newPassword !== values.confirmPassword) {
-        Message.error('New passwords do not match');
+        message.error('New passwords do not match');
         return;
       }
 
       if (values.currentPassword === values.newPassword) {
-        Message.error('New password must be different from current password');
+        message.error('New password must be different from current password');
         return;
       }
 
@@ -76,10 +76,10 @@ export function SecurityPage() {
 
         await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
 
-        Message.success('Password changed successfully');
+        message.success('Password changed successfully');
         passwordForm.resetFields();
       } catch (error) {
-        Message.error('Failed to change password');
+        message.error('Failed to change password');
         console.error('Error changing password:', error);
       } finally {
         setChangingPassword(false);
@@ -99,9 +99,9 @@ export function SecurityPage() {
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
 
       setCodeSent(true);
-      Message.success('Verification code sent to your email');
+      message.success('Verification code sent to your email');
     } catch (error) {
-      Message.error('Failed to send verification code');
+      message.error('Failed to send verification code');
       console.error('Error sending verification code:', error);
     } finally {
       setSendingCode(false);
@@ -110,7 +110,7 @@ export function SecurityPage() {
 
   const handleVerifyEmail = async () => {
     if (!verificationCode || verificationCode.length !== 6) {
-      Message.error('Please enter a valid 6-digit code');
+      message.error('Please enter a valid 6-digit code');
       return;
     }
 
@@ -124,9 +124,9 @@ export function SecurityPage() {
       setEmailVerified(true);
       setCodeSent(false);
       setVerificationCode('');
-      Message.success('Email verified successfully');
+      message.success('Email verified successfully');
     } catch (error) {
-      Message.error('Invalid verification code');
+      message.error('Invalid verification code');
       console.error('Error verifying email:', error);
     } finally {
       setVerifyingCode(false);
@@ -135,7 +135,7 @@ export function SecurityPage() {
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== 'DELETE') {
-      Message.error('Please type DELETE to confirm');
+      message.error('Please type DELETE to confirm');
       return;
     }
 
@@ -146,14 +146,14 @@ export function SecurityPage() {
 
       await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
 
-      Message.success('Account deleted successfully');
+      message.success('Account deleted successfully');
       setDeleteModalVisible(false);
 
       // Logout and redirect to login
       await logout();
       navigate('/login');
     } catch (error) {
-      Message.error('Failed to delete account');
+      message.error('Failed to delete account');
       console.error('Error deleting account:', error);
     } finally {
       setDeleting(false);
@@ -173,7 +173,7 @@ export function SecurityPage() {
         >
           <FormItem
             label="Current Password"
-            field="currentPassword"
+            name="currentPassword"
             rules={[{ required: true, message: 'Current password is required' }]}
           >
             <Input.Password placeholder="Enter current password" />
@@ -181,12 +181,12 @@ export function SecurityPage() {
 
           <FormItem
             label="New Password"
-            field="newPassword"
+            name="newPassword"
             rules={[
               { required: true, message: 'New password is required' },
-              { minLength: 8, message: 'Password must be at least 8 characters' },
+              { min: 8, message: 'Password must be at least 8 characters' },
               {
-                match: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+                pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
                 message: 'Password must contain uppercase, lowercase, and number',
               },
             ]}
@@ -196,7 +196,7 @@ export function SecurityPage() {
 
           <FormItem
             label="Confirm New Password"
-            field="confirmPassword"
+            name="confirmPassword"
             rules={[{ required: true, message: 'Please confirm new password' }]}
           >
             <Input.Password placeholder="Confirm new password" />
@@ -204,7 +204,7 @@ export function SecurityPage() {
 
           <Button
             type="primary"
-            icon={<IconLock />}
+            icon={<LockOutlined />}
             onClick={handleChangePassword}
             loading={changingPassword}
             style={{ marginTop: 8 }}
@@ -219,16 +219,16 @@ export function SecurityPage() {
         <div className="email-verification-section">
           <div className="verification-status">
             <Space size="small">
-              <IconEmail style={{ fontSize: 18 }} />
+              <MailOutlined style={{ fontSize: 18 }} />
               <span className="email">{user?.email}</span>
               {emailVerified ? (
                 <span className="verified-badge">
-                  <IconCheckCircleFill style={{ marginRight: 4 }} />
+                  <CheckCircleFilled style={{ marginRight: 4 }} />
                   Verified
                 </span>
               ) : (
                 <span className="unverified-badge">
-                  <IconCloseCircleFill style={{ marginRight: 4 }} />
+                  <CloseCircleFilled style={{ marginRight: 4 }} />
                   Not Verified
                 </span>
               )}
@@ -285,7 +285,7 @@ export function SecurityPage() {
       <Card className="security-card danger-card" title="Delete Account">
         <Alert
           type="error"
-          content="This action is permanent and cannot be undone. All your data will be deleted."
+          message="This action is permanent and cannot be undone. All your data will be deleted."
           style={{ marginBottom: 16 }}
         />
         <p className="danger-text">
@@ -293,8 +293,8 @@ export function SecurityPage() {
         </p>
         <Button
           type="primary"
-          status="danger"
-          icon={<IconDelete />}
+          danger
+          icon={<DeleteOutlined />}
           onClick={() => setDeleteModalVisible(true)}
         >
           Delete Account
@@ -303,7 +303,7 @@ export function SecurityPage() {
 
       {/* Delete Confirmation Modal */}
       <Modal
-        visible={deleteModalVisible}
+        open={deleteModalVisible}
         title="Confirm Account Deletion"
         onCancel={() => {
           setDeleteModalVisible(false);
@@ -314,7 +314,7 @@ export function SecurityPage() {
       >
         <Alert
           type="error"
-          content="Warning: This action cannot be undone!"
+          message="Warning: This action cannot be undone!"
           style={{ marginBottom: 16 }}
         />
         <p>
@@ -346,7 +346,7 @@ export function SecurityPage() {
           </Button>
           <Button
             type="primary"
-            status="danger"
+            danger
             onClick={handleDeleteAccount}
             loading={deleting}
             disabled={deleteConfirmText !== 'DELETE'}

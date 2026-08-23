@@ -1,4 +1,4 @@
-import { Select } from '@arco-design/web-react';
+import { Select } from 'antd';
 import { SUPPORTED_LANGUAGES } from './types';
 
 interface LanguageSelectorProps {

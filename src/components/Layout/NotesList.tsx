@@ -1,5 +1,5 @@
-import { Card, Empty, Space } from '@arco-design/web-react';
-import { IconClockCircle, IconCalendar } from '@arco-design/web-react/icon';
+import { Card, Empty, Space } from 'antd';
+import { ClockCircleOutlined, CalendarOutlined } from '@ant-design/icons';
 import { useNotesStore } from '../../store/notesStore';
 import { useNavigate } from 'react-router-dom';
 import type { Note } from '../../types/notes';
@@ -86,12 +86,12 @@ export function NotesList({ showArchived = false, limit }: NotesListProps) {
                 <h3 className="note-title">{note.title || 'Untitled Note'}</h3>
                 <div className="note-meta">
                   <span className="note-meta-item">
-                    <IconCalendar className="note-meta-icon" />
+                    <CalendarOutlined className="note-meta-icon" />
                     {formatDate(note.updatedAt)}
                   </span>
                   {note.duration && (
                     <span className="note-meta-item">
-                      <IconClockCircle className="note-meta-icon" />
+                      <ClockCircleOutlined className="note-meta-icon" />
                       {formatDuration(note.duration)}
                     </span>
                   )}

@@ -8,23 +8,22 @@ import { NoteDetail } from './NoteDetail';
 import { useNotesStore } from '../../store/notesStore';
 import type { Note } from '../../types/notes';
 
-// Mock Arco Design icons
-vi.mock('@arco-design/web-react/icon', () => ({
-  IconSearch: () => <span>Search Icon</span>,
-  IconPlus: () => <span>Plus Icon</span>,
-  IconFilter: () => <span>Filter Icon</span>,
-  IconSort: () => <span>Sort Icon</span>,
-  IconPushpin: () => <span>Pin Icon</span>,
-  IconClock: () => <span>Clock Icon</span>,
-  IconClockCircle: () => <span>Clock Icon</span>,
-  IconMore: () => <span>More Icon</span>,
-  IconDelete: () => <span>Delete Icon</span>,
-  IconArchive: () => <span>Archive Icon</span>,
-  IconTag: () => <span>Tag Icon</span>,
-  IconSave: () => <span>Save Icon</span>,
+// Mock Ant Design icons
+vi.mock('@ant-design/icons', () => ({
+  SearchOutlined: () => <span>Search Icon</span>,
+  PlusOutlined: () => <span>Plus Icon</span>,
+  FilterOutlined: () => <span>Filter Icon</span>,
+  SortAscendingOutlined: () => <span>Sort Icon</span>,
+  PushpinOutlined: () => <span>Pin Icon</span>,
+  ClockCircleOutlined: () => <span>Clock Icon</span>,
+  MoreOutlined: () => <span>More Icon</span>,
+  DeleteOutlined: () => <span>Delete Icon</span>,
+  InboxOutlined: () => <span>Archive Icon</span>,
+  TagOutlined: () => <span>Tag Icon</span>,
+  SaveOutlined: () => <span>Save Icon</span>,
 }));
 
-// Note: Message component mock is handled globally in src/test/setup.ts
+// Note: message API mock is handled globally in src/test/setup.ts
 // to prevent ReactDOM.render() errors in React 19
 
 describe('NoteCard', () => {

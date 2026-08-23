@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Card, Input, Button, Space, Message, Tooltip } from '@arco-design/web-react';
-import { IconCopy, IconShareAlt, IconQrcode } from '@arco-design/web-react/icon';
+import { Card, Input, Button, Space, message, Tooltip } from 'antd';
+import { CopyOutlined, ShareAltOutlined, QrcodeOutlined } from '@ant-design/icons';
 import './ReferralLink.css';
 
 interface ReferralLinkProps {
@@ -14,32 +14,32 @@ export function ReferralLink({ referralCode, referralLink, onShare }: ReferralLi
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(referralCode);
-    Message.success('Referral code copied to clipboard!');
+    message.success('Referral code copied to clipboard!');
   };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(referralLink);
-    Message.success('Referral link copied to clipboard!');
+    message.success('Referral link copied to clipboard!');
   };
 
   const handleShare = (platform: 'twitter' | 'facebook' | 'whatsapp' | 'email') => {
-    const message = encodeURIComponent(
+    const messageText = encodeURIComponent(
       `Join HiNotes using my referral code: ${referralCode}\n${referralLink}`
     );
 
     let shareUrl = '';
     switch (platform) {
       case 'twitter':
-        shareUrl = `https://twitter.com/intent/tweet?text=${message}`;
+        shareUrl = `https://twitter.com/intent/tweet?text=${messageText}`;
         break;
       case 'facebook':
         shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`;
         break;
       case 'whatsapp':
-        shareUrl = `https://wa.me/?text=${message}`;
+        shareUrl = `https://wa.me/?text=${messageText}`;
         break;
       case 'email':
-        shareUrl = `mailto:?subject=${encodeURIComponent('Join HiNotes')}&body=${message}`;
+        shareUrl = `mailto:?subject=${encodeURIComponent('Join HiNotes')}&body=${messageText}`;
         break;
     }
 
@@ -58,16 +58,16 @@ export function ReferralLink({ referralCode, referralLink, onShare }: ReferralLi
         {/* Referral Code */}
         <div className="referral-code-section">
           <label className="referral-label">Referral Code</label>
-          <Input.Group compact>
+          <Space.Compact style={{ width: '100%' }}>
             <Input
               style={{ width: 'calc(100% - 100px)' }}
               value={referralCode}
               readOnly
               size="large"
             />
-            <Tooltip content="Copy code">
+            <Tooltip title="Copy code">
               <Button
-                icon={<IconCopy />}
+                icon={<CopyOutlined />}
                 onClick={handleCopyCode}
                 size="large"
                 type="primary"
@@ -75,57 +75,57 @@ export function ReferralLink({ referralCode, referralLink, onShare }: ReferralLi
                 Copy
               </Button>
             </Tooltip>
-          </Input.Group>
+          </Space.Compact>
         </div>
 
         {/* Referral Link */}
         <div className="referral-link-section">
           <label className="referral-label">Referral Link</label>
-          <Input.Group compact>
+          <Space.Compact style={{ width: '100%' }}>
             <Input
               style={{ width: 'calc(100% - 100px)' }}
               value={referralLink}
               readOnly
             />
-            <Tooltip content="Copy link">
+            <Tooltip title="Copy link">
               <Button
-                icon={<IconCopy />}
+                icon={<CopyOutlined />}
                 onClick={handleCopyLink}
-                type="outline"
+                type="default"
               >
                 Copy
               </Button>
             </Tooltip>
-          </Input.Group>
+          </Space.Compact>
         </div>
 
         {/* Share Buttons */}
         <div className="share-section">
           <label className="referral-label">Share via</label>
-          <Space size="medium" wrap>
+          <Space size="middle" wrap>
             <Button
-              icon={<IconShareAlt />}
+              icon={<ShareAltOutlined />}
               onClick={() => handleShare('twitter')}
               className="share-button twitter"
             >
               Twitter
             </Button>
             <Button
-              icon={<IconShareAlt />}
+              icon={<ShareAltOutlined />}
               onClick={() => handleShare('facebook')}
               className="share-button facebook"
             >
               Facebook
             </Button>
             <Button
-              icon={<IconShareAlt />}
+              icon={<ShareAltOutlined />}
               onClick={() => handleShare('whatsapp')}
               className="share-button whatsapp"
             >
               WhatsApp
             </Button>
             <Button
-              icon={<IconShareAlt />}
+              icon={<ShareAltOutlined />}
               onClick={() => handleShare('email')}
               className="share-button email"
             >
@@ -137,10 +137,10 @@ export function ReferralLink({ referralCode, referralLink, onShare }: ReferralLi
         {/* QR Code */}
         <div className="qr-code-section">
           <Button
-            icon={<IconQrcode />}
+            icon={<QrcodeOutlined />}
             onClick={() => setShowQR(!showQR)}
-            type="outline"
-            long
+            type="default"
+            block
           >
             {showQR ? 'Hide QR Code' : 'Show QR Code'}
           </Button>

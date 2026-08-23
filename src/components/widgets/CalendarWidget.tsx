@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Card, Empty, Typography, Space, Tag } from '@arco-design/web-react';
+import { Calendar, Card, Empty, Typography, Space, Tag } from 'antd';
 import { invoke } from '@tauri-apps/api/core';
+import dayjs, { Dayjs } from 'dayjs';
 import './CalendarWidget.css';
 
 const { Title, Text } = Typography;
@@ -55,9 +56,9 @@ export function CalendarWidget({ onEventClick }: CalendarWidgetProps) {
     }
   };
 
-  const handleDateChange = (date: any) => {
-    // dayjs object from Arco Design Calendar, convert to Date
-    const jsDate = date instanceof Date ? date : new Date(date.format('YYYY-MM-DD'));
+  const handleDateChange = (date: Dayjs) => {
+    // dayjs object from Ant Design Calendar, convert to Date
+    const jsDate = date.toDate();
     setSelectedDate(jsDate);
   };
 
@@ -81,23 +82,23 @@ export function CalendarWidget({ onEventClick }: CalendarWidgetProps) {
       title="Calendar"
       bordered={false}
     >
-      <Space direction="vertical" size="medium" style={{ width: '100%' }}>
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         <Calendar
-          panel
-          value={selectedDate}
+          fullscreen={false}
+          value={dayjs(selectedDate)}
           onChange={handleDateChange}
           style={{ width: '100%' }}
         />
 
         <div className="calendar-events">
-          <Title heading={6} style={{ marginBottom: 16 }}>
+          <Title level={5} style={{ marginBottom: 16 }}>
             Today's Events
           </Title>
 
           {loading && <Text>Loading events...</Text>}
 
           {error && (
-            <Text type="error">{error}</Text>
+            <Text type="danger">{error}</Text>
           )}
 
           {!loading && !error && todayEvents.length === 0 && (
@@ -114,7 +115,7 @@ export function CalendarWidget({ onEventClick }: CalendarWidgetProps) {
                   hoverable
                   onClick={() => onEventClick?.(event)}
                 >
-                  <Space direction="vertical" size="mini" style={{ width: '100%' }}>
+                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
                     <Space>
                       <Text style={{ fontWeight: 600 }}>{event.title}</Text>
                       <Tag color={event.source === 'google_calendar' ? 'blue' : 'green'}>

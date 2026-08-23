@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Form, Input, Message } from '@arco-design/web-react';
+import { Modal, Form, Input, message } from 'antd';
 import { useDevicesStore } from '../../store/devicesStore';
 
 interface BindDeviceDialogProps {
@@ -14,7 +14,7 @@ export function BindDeviceDialog({ visible, onClose }: BindDeviceDialogProps) {
 
   const handleSubmit = async () => {
     try {
-      const values = await form.validate();
+      const values = await form.validateFields();
       setLoading(true);
 
       await bindDevice({
@@ -22,12 +22,12 @@ export function BindDeviceDialog({ visible, onClose }: BindDeviceDialogProps) {
         name: values.deviceName,
       });
 
-      Message.success('Device bound successfully');
+      message.success('Device bound successfully');
       form.resetFields();
       onClose();
     } catch (error) {
       if (error instanceof Error) {
-        Message.error(`Failed to bind device: ${error.message}`);
+        message.error(`Failed to bind device: ${error.message}`);
       }
     } finally {
       setLoading(false);
@@ -42,7 +42,7 @@ export function BindDeviceDialog({ visible, onClose }: BindDeviceDialogProps) {
   return (
     <Modal
       title="Bind New Device"
-      visible={visible}
+      open={visible}
       onOk={handleSubmit}
       onCancel={handleCancel}
       confirmLoading={loading}
@@ -52,20 +52,20 @@ export function BindDeviceDialog({ visible, onClose }: BindDeviceDialogProps) {
       <Form form={form} layout="vertical">
         <Form.Item
           label="Device ID"
-          field="deviceId"
+          name="deviceId"
           rules={[
             { required: true, message: 'Please enter device ID' },
-            { minLength: 3, message: 'Device ID must be at least 3 characters' },
+            { min: 3, message: 'Device ID must be at least 3 characters' },
           ]}
         >
           <Input placeholder="Enter device ID (e.g., HIDOC-12345)" />
         </Form.Item>
         <Form.Item
           label="Device Name"
-          field="deviceName"
+          name="deviceName"
           rules={[
             { required: true, message: 'Please enter device name' },
-            { minLength: 2, message: 'Device name must be at least 2 characters' },
+            { min: 2, message: 'Device name must be at least 2 characters' },
           ]}
         >
           <Input placeholder="Enter a friendly name for this device" />

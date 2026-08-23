@@ -1,16 +1,15 @@
-import { Space, Input, Button, Select, Empty } from '@arco-design/web-react';
+import { Space, Input, Button, Select, Empty } from 'antd';
 import {
-  IconSearch,
-  IconPlus,
-  IconFilter,
-  IconSort,
-} from '@arco-design/web-react/icon';
+  SearchOutlined,
+  PlusOutlined,
+  FilterOutlined,
+  SortAscendingOutlined,
+} from '@ant-design/icons';
 import { useNotesStore } from '../../store/notesStore';
 import { NoteCard } from './NoteCard';
 import type { NoteSortBy, SortOrder } from '../../types/notes';
 import './NotesList.css';
 
-const { Option } = Select;
 
 export function NotesList() {
   const {
@@ -59,7 +58,7 @@ export function NotesList() {
           <div className="notes-list-actions">
             <Button
               type="primary"
-              icon={<IconPlus />}
+              icon={<PlusOutlined />}
               onClick={handleCreateNote}
               style={{ width: '100%' }}
             >
@@ -69,9 +68,9 @@ export function NotesList() {
           <Input
             allowClear
             placeholder="Search notes..."
-            prefix={<IconSearch />}
+            prefix={<SearchOutlined />}
             value={filter.searchQuery || ''}
-            onChange={handleSearch}
+            onChange={(e) => handleSearch(e.target.value)}
           />
           <Space size={8} style={{ width: '100%' }}>
             <Select
@@ -79,15 +78,10 @@ export function NotesList() {
               value={`${sortBy}-${sortOrder}`}
               onChange={handleSortChange}
               style={{ flex: 1 }}
-              prefix={<IconSort />}
-            >
-              {sortOptions.map((option) => (
-                <Option key={option.value} value={option.value}>
-                  {option.label}
-                </Option>
-              ))}
-            </Select>
-            <Button icon={<IconFilter />} />
+              suffixIcon={<SortAscendingOutlined />}
+              options={sortOptions}
+            />
+            <Button icon={<FilterOutlined />} />
           </Space>
         </Space>
       </div>

@@ -1,10 +1,10 @@
-import { Button, Slider, Space, Spin, Typography } from '@arco-design/web-react';
+import { Button, Slider, Space, Spin, Typography } from 'antd';
 import {
-  IconPause,
-  IconPlayArrow,
-  IconDownload,
-  IconSound,
-} from '@arco-design/web-react/icon';
+  PauseOutlined,
+  PlayCircleOutlined,
+  DownloadOutlined,
+  SoundOutlined,
+} from '@ant-design/icons';
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import './AudioPlayer.css';
@@ -158,7 +158,7 @@ export function AudioPlayer({ noteId, audioUrl, className = '' }: AudioPlayerPro
   if (error) {
     return (
       <div className={`audio-player ${className}`} data-testid="audio-player-error">
-        <Text type="error">{error}</Text>
+        <Text type="danger">{error}</Text>
       </div>
     );
   }
@@ -173,7 +173,7 @@ export function AudioPlayer({ noteId, audioUrl, className = '' }: AudioPlayerPro
           <Button
             type="primary"
             shape="circle"
-            icon={isPlaying ? <IconPause /> : <IconPlayArrow />}
+            icon={isPlaying ? <PauseOutlined /> : <PlayCircleOutlined />}
             onClick={togglePlayPause}
             data-testid="play-pause-button"
           />
@@ -196,7 +196,7 @@ export function AudioPlayer({ noteId, audioUrl, className = '' }: AudioPlayerPro
 
           {/* Volume Control */}
           <div className="audio-player-volume">
-            <IconSound style={{ marginRight: 8 }} />
+            <SoundOutlined style={{ marginRight: 8 }} />
             <Slider
               value={volume * 100}
               max={100}
@@ -223,7 +223,7 @@ export function AudioPlayer({ noteId, audioUrl, className = '' }: AudioPlayerPro
 
           {/* Download Button */}
           <Button
-            icon={<IconDownload />}
+            icon={<DownloadOutlined />}
             onClick={handleDownload}
             data-testid="download-button"
           >

@@ -1,15 +1,13 @@
-import { Card, Statistic, Space, Grid, Divider } from '@arco-design/web-react';
+import { Card, Statistic, Space, Row, Col, Divider } from 'antd';
 import {
-  IconUser,
-  IconUserAdd,
-  IconGift,
-  IconClockCircle,
-  IconCalendarClock,
-} from '@arco-design/web-react/icon';
+  UserOutlined,
+  UserAddOutlined,
+  GiftOutlined,
+  ClockCircleOutlined,
+  CalendarOutlined,
+} from '@ant-design/icons';
 import { ReferralStats as ReferralStatsType } from '../../types/referral';
 import './ReferralStats.css';
-
-const { Row, Col } = Grid;
 
 interface ReferralStatsProps {
   stats: ReferralStatsType;
@@ -30,8 +28,7 @@ export function ReferralStats({ stats }: ReferralStatsProps) {
             <Statistic
               title="Total Referrals"
               value={stats.total_referrals}
-              prefix={<IconUser style={{ color: 'var(--color-primary-6)' }} />}
-              countUp
+              prefix={<UserOutlined style={{ color: 'var(--color-primary-6)' }} />}
             />
           </div>
         </Col>
@@ -42,8 +39,7 @@ export function ReferralStats({ stats }: ReferralStatsProps) {
             <Statistic
               title="Successful Signups"
               value={stats.successful_conversions}
-              prefix={<IconUserAdd style={{ color: 'var(--color-success-6)' }} />}
-              countUp
+              prefix={<UserAddOutlined style={{ color: 'var(--color-success-6)' }} />}
             />
             <div className="stat-subtitle">
               {conversionRate}% conversion rate
@@ -57,8 +53,7 @@ export function ReferralStats({ stats }: ReferralStatsProps) {
             <Statistic
               title="Total Points Earned"
               value={stats.total_points_earned}
-              prefix={<IconGift style={{ color: 'var(--color-warning-6)' }} />}
-              countUp
+              prefix={<GiftOutlined style={{ color: 'var(--color-warning-6)' }} />}
             />
           </div>
         </Col>
@@ -69,7 +64,7 @@ export function ReferralStats({ stats }: ReferralStatsProps) {
             <Statistic
               title="Active Codes"
               value={stats.active_codes_count}
-              prefix={<IconUserAdd style={{ color: 'var(--color-primary-6)' }} />}
+              prefix={<UserAddOutlined style={{ color: 'var(--color-primary-6)' }} />}
             />
           </div>
         </Col>
@@ -82,7 +77,7 @@ export function ReferralStats({ stats }: ReferralStatsProps) {
         <h3 className="section-title">Rewards Earned</h3>
         <Space size="large" wrap>
           <div className="reward-stat">
-            <IconClockCircle style={{ fontSize: 24, color: 'var(--color-primary-6)' }} />
+            <ClockCircleOutlined style={{ fontSize: 24, color: 'var(--color-primary-6)' }} />
             <div className="reward-stat-content">
               <div className="reward-stat-label">Transcription Minutes</div>
               <div className="reward-stat-value">
@@ -92,7 +87,7 @@ export function ReferralStats({ stats }: ReferralStatsProps) {
           </div>
 
           <div className="reward-stat">
-            <IconGift style={{ fontSize: 24, color: 'var(--color-success-6)' }} />
+            <GiftOutlined style={{ fontSize: 24, color: 'var(--color-success-6)' }} />
             <div className="reward-stat-content">
               <div className="reward-stat-label">Credits</div>
               <div className="reward-stat-value">
@@ -102,7 +97,7 @@ export function ReferralStats({ stats }: ReferralStatsProps) {
           </div>
 
           <div className="reward-stat">
-            <IconCalendarClock style={{ fontSize: 24, color: 'var(--color-warning-6)' }} />
+            <CalendarOutlined style={{ fontSize: 24, color: 'var(--color-warning-6)' }} />
             <div className="reward-stat-content">
               <div className="reward-stat-label">Subscription Days</div>
               <div className="reward-stat-value">

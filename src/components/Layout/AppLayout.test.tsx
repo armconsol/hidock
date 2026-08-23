@@ -11,18 +11,18 @@ vi.mock('../ThemeProvider', () => ({
   ),
 }));
 
-// Mock Arco Design icons
-vi.mock('@arco-design/web-react/icon', () => ({
-  IconHome: () => <div data-testid="icon-home">Home Icon</div>,
-  IconFile: () => <div data-testid="icon-file">File Icon</div>,
-  IconLanguage: () => <div data-testid="icon-language">Language Icon</div>,
-  IconMessage: () => <div data-testid="icon-message">Message Icon</div>,
-  IconCheckSquare: () => (
+// Mock Ant Design icons
+vi.mock('@ant-design/icons', () => ({
+  HomeOutlined: () => <div data-testid="icon-home">Home Icon</div>,
+  FileOutlined: () => <div data-testid="icon-file">File Icon</div>,
+  GlobalOutlined: () => <div data-testid="icon-language">Language Icon</div>,
+  MessageOutlined: () => <div data-testid="icon-message">Message Icon</div>,
+  CheckSquareOutlined: () => (
     <div data-testid="icon-check-square">CheckSquare Icon</div>
   ),
-  IconSettings: () => <div data-testid="icon-settings">Settings Icon</div>,
-  IconUser: () => <div data-testid="icon-user">User Icon</div>,
-  IconSafe: () => <div data-testid="icon-safe">Safe Icon</div>,
+  SettingOutlined: () => <div data-testid="icon-settings">Settings Icon</div>,
+  UserOutlined: () => <div data-testid="icon-user">User Icon</div>,
+  SafetyOutlined: () => <div data-testid="icon-safe">Safe Icon</div>,
 }));
 
 describe('AppLayout', () => {
@@ -88,7 +88,7 @@ describe('AppLayout', () => {
       </MemoryRouter>
     );
 
-    const notesLink = screen.getByText('Notes').closest('.arco-menu-item');
+    const notesLink = screen.getByText('Notes').closest('.ant-menu-item');
     expect(notesLink).toBeInTheDocument();
 
     if (notesLink) {
@@ -105,8 +105,8 @@ describe('AppLayout', () => {
 
     const notesMenuItem = screen
       .getByText('Notes')
-      .closest('.arco-menu-item');
-    expect(notesMenuItem).toHaveClass('arco-menu-selected');
+      .closest('.ant-menu-item');
+    expect(notesMenuItem).toHaveClass('ant-menu-item-selected');
   });
 
   it('renders root path (/) as /home in navigation', () => {
@@ -116,8 +116,8 @@ describe('AppLayout', () => {
       </MemoryRouter>
     );
 
-    const homeMenuItem = screen.getByText('Home').closest('.arco-menu-item');
-    expect(homeMenuItem).toHaveClass('arco-menu-selected');
+    const homeMenuItem = screen.getByText('Home').closest('.ant-menu-item');
+    expect(homeMenuItem).toHaveClass('ant-menu-item-selected');
   });
 
   it('settings button is clickable', async () => {

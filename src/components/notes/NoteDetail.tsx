@@ -7,15 +7,15 @@ import {
   Tag,
   Dropdown,
   Menu,
-  Message,
-} from '@arco-design/web-react';
+  message,
+} from 'antd';
 import {
-  IconMore,
-  IconDelete,
-  IconArchive,
-  IconPushpin,
-  IconSave,
-} from '@arco-design/web-react/icon';
+  MoreOutlined,
+  DeleteOutlined,
+  InboxOutlined,
+  PushpinOutlined,
+  SaveOutlined,
+} from '@ant-design/icons';
 import { useNotesStore } from '../../store/notesStore';
 import './NoteDetail.css';
 
@@ -58,55 +58,67 @@ export function NoteDetail() {
     if (selectedNoteId && hasChanges) {
       updateNote(selectedNoteId, { title, content });
       setHasChanges(false);
-      Message.success('Note saved');
+      message.success('Note saved');
     }
   };
 
   const handleDelete = () => {
     if (selectedNoteId) {
       deleteNote(selectedNoteId);
-      Message.success('Note deleted');
+      message.success('Note deleted');
     }
   };
 
   const handlePin = () => {
     if (selectedNoteId) {
       togglePinNote(selectedNoteId);
-      Message.success(selectedNote?.isPinned ? 'Note unpinned' : 'Note pinned');
+      message.success(selectedNote?.isPinned ? 'Note unpinned' : 'Note pinned');
     }
   };
 
   const handleArchive = () => {
     if (selectedNoteId) {
       toggleArchiveNote(selectedNoteId);
-      Message.success(
+      message.success(
         selectedNote?.isArchived ? 'Note unarchived' : 'Note archived'
       );
     }
   };
 
-  const dropdownMenu = (
-    <Menu>
-      <Menu.Item key="pin" onClick={handlePin}>
-        <Space>
-          <IconPushpin />
-          {selectedNote?.isPinned ? 'Unpin' : 'Pin'}
-        </Space>
-      </Menu.Item>
-      <Menu.Item key="archive" onClick={handleArchive}>
-        <Space>
-          <IconArchive />
-          {selectedNote?.isArchived ? 'Unarchive' : 'Archive'}
-        </Space>
-      </Menu.Item>
-      <Menu.Item key="delete" onClick={handleDelete}>
-        <Space>
-          <IconDelete />
-          Delete
-        </Space>
-      </Menu.Item>
-    </Menu>
-  );
+  const dropdownMenu = {
+    items: [
+      {
+        key: 'pin',
+        label: (
+          <Space>
+            <PushpinOutlined />
+            {selectedNote?.isPinned ? 'Unpin' : 'Pin'}
+          </Space>
+        ),
+        onClick: handlePin,
+      },
+      {
+        key: 'archive',
+        label: (
+          <Space>
+            <InboxOutlined />
+            {selectedNote?.isArchived ? 'Unarchive' : 'Archive'}
+          </Space>
+        ),
+        onClick: handleArchive,
+      },
+      {
+        key: 'delete',
+        label: (
+          <Space>
+            <DeleteOutlined />
+            Delete
+          </Space>
+        ),
+        onClick: handleDelete,
+      },
+    ],
+  };
 
   if (!selectedNote) {
     return (
@@ -143,7 +155,7 @@ export function NoteDetail() {
             {selectedNote.tags && selectedNote.tags.length > 0 && (
               <>
                 {selectedNote.tags.map((tag) => (
-                  <Tag key={tag} size="small" color="arcoblue">
+                  <Tag key={tag} color="blue">
                     {tag}
                   </Tag>
                 ))}
@@ -153,12 +165,12 @@ export function NoteDetail() {
         </Space>
         <Space size={8}>
           {hasChanges && (
-            <Button type="primary" icon={<IconSave />} onClick={handleSave}>
+            <Button type="primary" icon={<SaveOutlined />} onClick={handleSave}>
               Save
             </Button>
           )}
-          <Dropdown droplist={dropdownMenu} position="br">
-            <Button icon={<IconMore />} />
+          <Dropdown menu={dropdownMenu} placement="bottomRight">
+            <Button icon={<MoreOutlined />} />
           </Dropdown>
         </Space>
       </div>

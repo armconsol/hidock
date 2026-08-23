@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { Button, Avatar, Message, Spin, Modal } from '@arco-design/web-react';
-import { IconCamera, IconUser } from '@arco-design/web-react/icon';
+import { Button, Avatar, message, Spin, Modal } from 'antd';
+import { CameraOutlined, UserOutlined } from '@ant-design/icons';
 import './AvatarUpload.css';
 
 interface AvatarUploadProps {
@@ -18,13 +18,13 @@ export function AvatarUpload({ currentAvatar, userName, onUpload }: AvatarUpload
   const handleFileSelect = async (file: File) => {
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      Message.error('Please select an image file');
+      message.error('Please select an image file');
       return false;
     }
 
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
-      Message.error('Image size must be less than 5MB');
+      message.error('Image size must be less than 5MB');
       return false;
     }
 
@@ -40,9 +40,9 @@ export function AvatarUpload({ currentAvatar, userName, onUpload }: AvatarUpload
     try {
       const avatarUrl = await onUpload(file);
       setPreviewUrl(avatarUrl);
-      Message.success('Avatar updated successfully');
+      message.success('Avatar updated successfully');
     } catch (error) {
-      Message.error('Failed to upload avatar');
+      message.error('Failed to upload avatar');
       console.error('Avatar upload error:', error);
       // Revert preview on error
       setPreviewUrl(currentAvatar);
@@ -72,9 +72,7 @@ export function AvatarUpload({ currentAvatar, userName, onUpload }: AvatarUpload
               <img src={previewUrl} alt={userName || 'User avatar'} />
             </Avatar>
           ) : (
-            <Avatar size={120} className="avatar-placeholder">
-              <IconUser style={{ fontSize: 48 }} />
-            </Avatar>
+            <Avatar size={120} className="avatar-placeholder" icon={<UserOutlined />} />
           )}
           {uploading && (
             <div className="avatar-loading-overlay">
@@ -97,8 +95,8 @@ export function AvatarUpload({ currentAvatar, userName, onUpload }: AvatarUpload
       </div>
 
       <Button
-        type="outline"
-        icon={<IconCamera />}
+        type="default"
+        icon={<CameraOutlined />}
         onClick={handleButtonClick}
         loading={uploading}
         disabled={uploading}
@@ -111,7 +109,7 @@ export function AvatarUpload({ currentAvatar, userName, onUpload }: AvatarUpload
       </p>
 
       <Modal
-        visible={showPreview}
+        open={showPreview}
         footer={null}
         onCancel={() => setShowPreview(false)}
         style={{ width: 'auto', maxWidth: '90vw' }}

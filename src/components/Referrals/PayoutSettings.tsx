@@ -4,13 +4,13 @@ import {
   Button,
   Input,
   Space,
-  Message,
+  message,
   Tag,
   Alert,
   Modal,
   Form,
-} from '@arco-design/web-react';
-import { IconLink, IconGift } from '@arco-design/web-react/icon';
+} from 'antd';
+import { LinkOutlined, GiftOutlined } from '@ant-design/icons';
 import { PayPalConnection } from '../../types/referral';
 import './PayoutSettings.css';
 
@@ -44,18 +44,18 @@ export function PayoutSettings({
 
   const handleConnectPayPal = async () => {
     try {
-      const values = await form.validate();
+      const values = await form.validateFields();
       setLoading(true);
       await onConnectPayPal(values.email, values.authCode || '');
-      Message.success('PayPal account connected successfully!');
+      message.success('PayPal account connected successfully!');
       setConnectModalVisible(false);
       form.resetFields();
     } catch (error) {
-      if (error instanceof Error && 'field' in error) {
-        // Form validation error - do nothing, Arco Design will show errors
+      if (error instanceof Error && 'errorFields' in error) {
+        // Form validation error - do nothing, Ant Design will show errors
         return;
       }
-      Message.error('Failed to connect PayPal account');
+      message.error('Failed to connect PayPal account');
       console.error('Error connecting PayPal:', error);
     } finally {
       setLoading(false);
@@ -70,9 +70,9 @@ export function PayoutSettings({
         setLoading(true);
         try {
           await onDisconnectPayPal();
-          Message.success('PayPal account disconnected');
+          message.success('PayPal account disconnected');
         } catch (error) {
-          Message.error('Failed to disconnect PayPal account');
+          message.error('Failed to disconnect PayPal account');
           console.error('Error disconnecting PayPal:', error);
         } finally {
           setLoading(false);
@@ -83,18 +83,18 @@ export function PayoutSettings({
 
   const handleRequestPayout = async () => {
     try {
-      const values = await payoutForm.validate();
+      const values = await payoutForm.validateFields();
       setLoading(true);
       await onRequestPayout(values.amount);
-      Message.success('Payout request submitted successfully!');
+      message.success('Payout request submitted successfully!');
       setPayoutModalVisible(false);
       payoutForm.resetFields();
     } catch (error) {
-      if (error instanceof Error && 'field' in error) {
+      if (error instanceof Error && 'errorFields' in error) {
         // Form validation error
         return;
       }
-      Message.error('Failed to request payout');
+      message.error('Failed to request payout');
       console.error('Error requesting payout:', error);
     } finally {
       setLoading(false);
@@ -107,7 +107,7 @@ export function PayoutSettings({
         {/* Available Cash */}
         <div className="available-cash-section">
           <div className="cash-display">
-            <IconGift style={{ fontSize: 32, color: 'var(--color-success-6)' }} />
+            <GiftOutlined style={{ fontSize: 32, color: 'var(--color-success-6)' }} />
             <div className="cash-content">
               <div className="cash-label">Available Cash</div>
               <div className="cash-amount">${availableCash.toFixed(2)}</div>
@@ -116,7 +116,7 @@ export function PayoutSettings({
           {availableCash < minimumPayout && (
             <Alert
               type="info"
-              content={`Minimum payout amount is $${minimumPayout.toFixed(2)}`}
+              message={`Minimum payout amount is $${minimumPayout.toFixed(2)}`}
               style={{ marginTop: 12 }}
             />
           )}
@@ -128,13 +128,13 @@ export function PayoutSettings({
             <label className="section-label">PayPal Account</label>
             {isConnected ? (
               <Space>
-                <Tag color="green" icon={<IconLink />}>
+                <Tag color="green" icon={<LinkOutlined />}>
                   Connected
                 </Tag>
                 <span className="paypal-email">{paypalConnection?.email}</span>
               </Space>
             ) : (
-              <Tag color="gray">
+              <Tag color="default">
                 Not Connected
               </Tag>
             )}
@@ -145,7 +145,7 @@ export function PayoutSettings({
               <>
                 <Button
                   type="primary"
-                  icon={<IconGift />}
+                  icon={<GiftOutlined />}
                   onClick={() => setPayoutModalVisible(true)}
                   disabled={!canRequestPayout}
                   loading={loading}
@@ -153,10 +153,9 @@ export function PayoutSettings({
                   Request Payout
                 </Button>
                 <Button
-                  type="outline"
                   onClick={handleDisconnectPayPal}
                   loading={loading}
-                  status="danger"
+                  danger
                 >
                   Disconnect PayPal
                 </Button>
@@ -164,7 +163,7 @@ export function PayoutSettings({
             ) : (
               <Button
                 type="primary"
-                icon={<IconLink />}
+                icon={<LinkOutlined />}
                 onClick={() => setConnectModalVisible(true)}
                 loading={loading}
               >
@@ -177,14 +176,14 @@ export function PayoutSettings({
         {/* Info Alert */}
         <Alert
           type="info"
-          content="Connect your PayPal account to receive cash rewards. Minimum payout is $10.00. Payouts are processed within 5-7 business days."
+          message="Connect your PayPal account to receive cash rewards. Minimum payout is $10.00. Payouts are processed within 5-7 business days."
         />
       </Space>
 
       {/* Connect PayPal Modal */}
       <Modal
         title="Connect PayPal Account"
-        visible={connectModalVisible}
+        open={connectModalVisible}
         onCancel={() => setConnectModalVisible(false)}
         onOk={handleConnectPayPal}
         confirmLoading={loading}
@@ -192,7 +191,7 @@ export function PayoutSettings({
         <Form form={form} layout="vertical">
           <FormItem
             label="PayPal Email"
-            field="email"
+            name="email"
             rules={[
               { required: true, message: 'Please enter your PayPal email' },
               { type: 'email', message: 'Please enter a valid email address' },
@@ -202,8 +201,8 @@ export function PayoutSettings({
           </FormItem>
           <FormItem
             label="Authorization Code (Optional)"
-            field="authCode"
-            extra="Leave blank for basic connection"
+            name="authCode"
+            tooltip="Leave blank for basic connection"
           >
             <Input.Password placeholder="Optional authorization code" />
           </FormItem>
@@ -213,7 +212,7 @@ export function PayoutSettings({
       {/* Request Payout Modal */}
       <Modal
         title="Request Payout"
-        visible={payoutModalVisible}
+        open={payoutModalVisible}
         onCancel={() => setPayoutModalVisible(false)}
         onOk={handleRequestPayout}
         confirmLoading={loading}
@@ -221,7 +220,7 @@ export function PayoutSettings({
         <Form form={payoutForm} layout="vertical">
           <FormItem
             label="Payout Amount"
-            field="amount"
+            name="amount"
             rules={[
               { required: true, message: 'Please enter payout amount' },
               {
@@ -243,7 +242,7 @@ export function PayoutSettings({
           </FormItem>
           <Alert
             type="info"
-            content={`Payout will be sent to ${paypalConnection?.email}`}
+            message={`Payout will be sent to ${paypalConnection?.email}`}
             style={{ marginTop: 12 }}
           />
         </Form>

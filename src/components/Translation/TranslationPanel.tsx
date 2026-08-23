@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, Input, Spin, Alert, Space } from '@arco-design/web-react';
+import { Card, Button, Input, Spin, Alert, Space } from 'antd';
 import {
-  IconSwap,
-  IconCopy,
-  IconTranslate,
-} from '@arco-design/web-react/icon';
+  SwapOutlined,
+  CopyOutlined,
+  TranslationOutlined,
+} from '@ant-design/icons';
 import { LanguageSelector } from './LanguageSelector';
 import './TranslationPanel.css';
 
@@ -96,7 +96,7 @@ export function TranslationPanel({
   return (
     <div className={`translation-panel ${layout}`} data-testid="translation-panel">
       {error && (
-        <Alert type="error" content={error} closable style={{ marginBottom: 16 }} />
+        <Alert type="error" message={error} closable style={{ marginBottom: 16 }} />
       )}
 
       <div className="language-selectors">
@@ -111,7 +111,7 @@ export function TranslationPanel({
 
         <Button
           type="text"
-          icon={<IconSwap />}
+          icon={<SwapOutlined />}
           onClick={handleSwapLanguages}
           aria-label="Swap languages"
           className="swap-button"
@@ -146,7 +146,7 @@ export function TranslationPanel({
           />
           <Button
             type="primary"
-            icon={<IconTranslate />}
+            icon={<TranslationOutlined />}
             onClick={handleTranslate}
             disabled={!sourceText || isLoading}
             style={{ marginTop: 12 }}
@@ -182,7 +182,7 @@ export function TranslationPanel({
               )}
               <Button
                 type="text"
-                icon={<IconCopy />}
+                icon={<CopyOutlined />}
                 onClick={handleCopy}
                 disabled={!translatedText}
                 aria-label="Copy translated text"

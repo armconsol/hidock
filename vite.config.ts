@@ -8,6 +8,24 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [react()],
 
+  // Fix for Arco Design production build issues
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'arco-design': ['@arco-design/web-react'],
+        },
+      },
+    },
+  },
+
+  optimizeDeps: {
+    include: ['@arco-design/web-react'],
+  },
+
   // Resolve aliases for test mocks
   resolve: {
     alias: {

@@ -1,9 +1,9 @@
-import { Button, Space, Tooltip } from '@arco-design/web-react';
+import { Button, Space, Tooltip } from 'antd';
 import {
-  IconFile,
-  IconCheckCircle,
-  IconCalendar,
-} from '@arco-design/web-react/icon';
+  FileOutlined,
+  CheckCircleOutlined,
+  CalendarOutlined,
+} from '@ant-design/icons';
 import './WhisperActions.css';
 
 interface WhisperActionsProps {
@@ -24,11 +24,11 @@ export function WhisperActions({
   return (
     <div className="whisper-actions" data-testid={`whisper-actions-${whisperId}`}>
       <Space size="small">
-        <Tooltip content="Convert to Note">
+        <Tooltip title="Convert to Note">
           <Button
-            type="outline"
+            type="default"
             size="small"
-            icon={<IconFile />}
+            icon={<FileOutlined />}
             onClick={() => handleConvert('note')}
             disabled={disabled}
             data-testid="convert-to-note"
@@ -37,11 +37,11 @@ export function WhisperActions({
           </Button>
         </Tooltip>
 
-        <Tooltip content="Convert to To-Do">
+        <Tooltip title="Convert to To-Do">
           <Button
-            type="outline"
+            type="default"
             size="small"
-            icon={<IconCheckCircle />}
+            icon={<CheckCircleOutlined />}
             onClick={() => handleConvert('todo')}
             disabled={disabled}
             data-testid="convert-to-todo"
@@ -50,11 +50,11 @@ export function WhisperActions({
           </Button>
         </Tooltip>
 
-        <Tooltip content="Extract Calendar Event">
+        <Tooltip title="Extract Calendar Event">
           <Button
-            type="outline"
+            type="default"
             size="small"
-            icon={<IconCalendar />}
+            icon={<CalendarOutlined />}
             onClick={() => handleConvert('calendar')}
             disabled={disabled}
             data-testid="convert-to-calendar"

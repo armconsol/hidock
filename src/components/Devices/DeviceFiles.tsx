@@ -6,22 +6,22 @@ import {
   Upload,
   Empty,
   Space,
-  Message,
+  message,
   Badge,
   Popconfirm,
   Card,
   Tooltip,
   Checkbox,
-} from '@arco-design/web-react';
+} from 'antd';
 import {
-  IconDownload,
-  IconSync,
-  IconUpload,
-  IconFile,
-  IconDelete,
-  IconRefresh,
-} from '@arco-design/web-react/icon';
-import type { ColumnProps } from '@arco-design/web-react/es/Table';
+  DownloadOutlined,
+  SyncOutlined,
+  UploadOutlined,
+  FileOutlined,
+  DeleteOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import { invoke } from '@tauri-apps/api/core';
 import './DeviceFiles.css';
 
@@ -84,7 +84,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
       setFiles(result);
     } catch (err) {
       setError(String(err));
-      Message.error('Failed to load device files');
+      message.error('Failed to load device files');
     } finally {
       setLoading(false);
     }
@@ -124,7 +124,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
         prev.map((file) => (file.id === fileId ? { ...file, synced: true } : file))
       );
 
-      Message.success(`Downloaded ${fileName}`);
+      message.success(`Downloaded ${fileName}`);
 
       // Clear transfer status after 2 seconds
       setTimeout(() => {
@@ -152,7 +152,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
   const syncAllFiles = async () => {
     const unsyncedFiles = files.filter((f) => !f.synced);
     if (unsyncedFiles.length === 0) {
-      Message.info('All files are already synced');
+      message.info('All files are already synced');
       return;
     }
 
@@ -172,9 +172,9 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
     setSyncingAll(false);
 
     if (errorCount === 0) {
-      Message.success(`Successfully synced ${successCount} files`);
+      message.success(`Successfully synced ${successCount} files`);
     } else {
-      Message.warning(
+      message.warning(
         `Synced ${successCount} files, ${errorCount} failed`
       );
     }
@@ -216,7 +216,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
         return next;
       });
 
-      Message.success(`Uploaded ${file.name}`);
+      message.success(`Uploaded ${file.name}`);
 
       setTimeout(() => {
         setTransfers((prev) => {
@@ -249,7 +249,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
     try {
       await invoke('delete_device_file', { deviceId, fileId });
       setFiles((prev) => prev.filter((f) => f.id !== fileId));
-      Message.success(`Deleted ${fileName}`);
+      message.success(`Deleted ${fileName}`);
       await fetchDeviceInfo();
     } catch (err) {
       Message.error(`Failed to delete ${fileName}`);
@@ -298,7 +298,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
 
   const downloadSelectedFiles = async () => {
     if (selectedFileIds.length === 0) {
-      Message.info('No files selected');
+      message.info('No files selected');
       return;
     }
 
@@ -310,7 +310,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
     setSelectedFileIds([]);
   };
 
-  const columns: ColumnProps<DeviceFile>[] = [
+  const columns: ColumnsType<DeviceFile> = [
     {
       title: (
         <Checkbox
@@ -336,7 +336,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
       sorter: (a, b) => a.name.localeCompare(b.name),
       render: (name) => (
         <Space>
-          <IconFile />
+          <FileOutlined />
           <span>{name}</span>
         </Space>
       ),
@@ -392,7 +392,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
               <Button
                 type="text"
                 size="small"
-                icon={<IconRefresh />}
+                icon={<ReloadOutlined />}
                 onClick={() => retryTransfer(record.id, record.name)}
               >
                 Retry
@@ -411,25 +411,25 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
 
         return (
           <Space>
-            <Tooltip content="Download file">
+            <Tooltip title="Download file">
               <Button
                 type="text"
                 size="small"
-                icon={<IconDownload />}
+                icon={<DownloadOutlined />}
                 onClick={() => downloadFile(record.id, record.name)}
               />
             </Tooltip>
             <Popconfirm
               title="Delete File"
-              content={`Are you sure you want to delete ${record.name}?`}
-              onOk={() => deleteFile(record.id, record.name)}
+              description={`Are you sure you want to delete ${record.name}?`}
+              onConfirm={() => deleteFile(record.id, record.name)}
             >
-              <Tooltip content="Delete file">
+              <Tooltip title="Delete file">
                 <Button
                   type="text"
                   size="small"
-                  status="danger"
-                  icon={<IconDelete />}
+                  danger
+                  icon={<DeleteOutlined />}
                 />
               </Tooltip>
             </Popconfirm>
@@ -482,7 +482,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
           <Space>
             <Button
               type="primary"
-              icon={<IconSync />}
+              icon={<SyncOutlined />}
               onClick={syncAllFiles}
               loading={syncingAll}
               disabled={unsyncedCount === 0}
@@ -490,52 +490,51 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
               Sync All {unsyncedCount > 0 && `(${unsyncedCount})`}
             </Button>
             <Button
-              icon={<IconDownload />}
+              icon={<DownloadOutlined />}
               onClick={downloadSelectedFiles}
               disabled={selectedFileIds.length === 0}
             >
               Download Selected ({selectedFileIds.length})
             </Button>
-            <Button icon={<IconRefresh />} onClick={fetchFiles} loading={loading}>
+            <Button icon={<ReloadOutlined />} onClick={fetchFiles} loading={loading}>
               Refresh
             </Button>
           </Space>
 
-          <Upload
-            drag
+          <Upload.Dragger
             multiple
             accept="audio/*"
             beforeUpload={handleFileUpload}
             showUploadList={false}
           >
             <div className="upload-drag-area">
-              <IconUpload style={{ fontSize: 32, color: 'var(--color-primary-6)' }} />
+              <UploadOutlined style={{ fontSize: 32, color: 'var(--color-primary-6)' }} />
               <p className="upload-drag-text">
                 Click or drag audio files here to upload
               </p>
             </div>
-          </Upload>
+          </Upload.Dragger>
         </div>
 
         {error ? (
           <Empty
             description={`Error loading files: ${error}`}
-            icon={<IconFile style={{ fontSize: 64, color: '#c9cdd4' }} />}
+            image={<FileOutlined style={{ fontSize: 64, color: '#c9cdd4' }} />}
           />
         ) : files.length === 0 ? (
           <Empty
             description="No files on this device. Upload files to get started."
-            icon={<IconFile style={{ fontSize: 64, color: '#c9cdd4' }} />}
+            image={<FileOutlined style={{ fontSize: 64, color: '#c9cdd4' }} />}
           />
         ) : (
           <Table
             columns={columns}
-            data={files}
+            dataSource={files}
             loading={loading}
             pagination={{
               pageSize: 20,
-              showTotal: true,
-              showJumper: true,
+              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+              showQuickJumper: true,
             }}
             rowKey="id"
             className="device-files-table"

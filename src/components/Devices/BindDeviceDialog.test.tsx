@@ -4,14 +4,14 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { BindDeviceDialog } from './BindDeviceDialog';
 import { useDevicesStore } from '../../store/devicesStore';
-import { Message } from '@arco-design/web-react';
+import { message } from 'antd';
 
 // Mock the store
 vi.mock('../../store/devicesStore');
 
-// Mock Arco Design icons
-vi.mock('@arco-design/web-react/icon', () => ({
-  IconPlus: () => <div>Plus Icon</div>,
+// Mock Ant Design icons
+vi.mock('@ant-design/icons', () => ({
+  PlusOutlined: () => <div>Plus Icon</div>,
 }));
 
 /**
@@ -20,9 +20,8 @@ vi.mock('@arco-design/web-react/icon', () => ({
  * These tests use React 18+ patterns with @testing-library/react, which
  * internally uses createRoot() instead of the deprecated ReactDOM.render().
  *
- * The Arco Design Message component is mocked in src/test/setup.ts because
- * Arco Design @2.66.16 still uses ReactDOM.render() which was removed in React 19.
- * The mock provides test-compatible implementations that avoid DOM rendering errors.
+ * The Ant Design message API is mocked in src/test/setup.ts to provide
+ * test-compatible implementations that avoid DOM rendering errors.
  */
 
 describe('BindDeviceDialog', () => {
@@ -128,9 +127,9 @@ describe('BindDeviceDialog', () => {
       });
     });
 
-    // Verify success message is displayed via mocked Message component
+    // Verify success message is displayed via mocked message API
     await waitFor(() => {
-      expect(Message.success).toHaveBeenCalledWith('Device bound successfully');
+      expect(message.success).toHaveBeenCalledWith('Device bound successfully');
     });
 
     await waitFor(() => {
@@ -158,10 +157,10 @@ describe('BindDeviceDialog', () => {
       expect(mockBindDevice).toHaveBeenCalled();
     });
 
-    // Verify error message is displayed via mocked Message component
-    // (Message.error is mocked in setup.ts for React 19 compatibility)
+    // Verify error message is displayed via mocked message API
+    // (message.error is mocked in setup.ts for React 19 compatibility)
     await waitFor(() => {
-      expect(Message.error).toHaveBeenCalledWith(
+      expect(message.error).toHaveBeenCalledWith(
         expect.stringContaining(errorMessage)
       );
     });
@@ -205,7 +204,7 @@ describe('BindDeviceDialog', () => {
 
     // Should show loading class
     await waitFor(() => {
-      expect(bindButton.classList.contains('arco-btn-loading')).toBe(true);
+      expect(bindButton.classList.contains('ant-btn-loading')).toBe(true);
     });
   });
 });

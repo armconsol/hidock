@@ -9,12 +9,12 @@ import type { Device } from '../../types/devices';
 // Mock the store
 vi.mock('../../store/devicesStore');
 
-// Mock Arco Design icons
-vi.mock('@arco-design/web-react/icon', () => ({
-  IconWifi: () => <div data-testid="icon-wifi">Wifi Icon</div>,
-  IconPoweroff: () => <div data-testid="icon-poweroff">Poweroff Icon</div>,
-  IconSync: () => <div data-testid="icon-sync">Sync Icon</div>,
-  IconDelete: () => <div data-testid="icon-delete">Delete Icon</div>,
+// Mock Ant Design icons
+vi.mock('@ant-design/icons', () => ({
+  WifiOutlined: () => <div data-testid="icon-wifi">Wifi Icon</div>,
+  PoweroffOutlined: () => <div data-testid="icon-poweroff">Poweroff Icon</div>,
+  SyncOutlined: () => <div data-testid="icon-sync">Sync Icon</div>,
+  DeleteOutlined: () => <div data-testid="icon-delete">Delete Icon</div>,
 }));
 
 describe('DeviceList', () => {
@@ -146,7 +146,7 @@ describe('DeviceList', () => {
     // Use fireEvent instead of user.click to bypass pointer-events check
     const confirmButtons = screen.getAllByRole('button', { name: /unbind/i });
     const okButton = confirmButtons.find((button) =>
-      button.classList.contains('arco-btn-primary')
+      button.classList.contains('ant-btn-primary')
     );
 
     if (okButton) {

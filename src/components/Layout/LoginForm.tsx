@@ -5,14 +5,12 @@ import {
   Button,
   Space,
   Divider,
-  Message,
-} from '@arco-design/web-react';
-import { IconGoogleCircleFill } from '@arco-design/web-react/icon';
+  message,
+} from 'antd';
+import { GoogleCircleFilled } from '@ant-design/icons';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import './LoginForm.css';
-
-const FormItem = Form.Item;
 
 export function LoginForm() {
   const [form] = Form.useForm();
@@ -29,10 +27,10 @@ export function LoginForm() {
     clearError();
     try {
       await loginWithEmail(values.email, values.password);
-      Message.success(`${mode === 'login' ? 'Login' : 'Sign up'} successful!`);
+      message.success(`${mode === 'login' ? 'Login' : 'Sign up'} successful!`);
       navigate('/home');
     } catch (err) {
-      Message.error(
+      message.error(
         err instanceof Error ? err.message : 'Authentication failed'
       );
     }
@@ -42,10 +40,10 @@ export function LoginForm() {
     clearError();
     try {
       await loginWithOAuth(provider);
-      Message.success(`Successfully logged in with ${provider}!`);
+      message.success(`Successfully logged in with ${provider}!`);
       navigate('/home');
     } catch (err) {
-      Message.error(
+      message.error(
         err instanceof Error ? err.message : `${provider} login failed`
       );
     }
@@ -65,12 +63,12 @@ export function LoginForm() {
           </p>
         </div>
 
-        <Space direction="vertical" size="large" className="login-oauth-buttons">
+        <Space direction="vertical" size="large" className="login-oauth-buttons" style={{ width: '100%' }}>
           <Button
-            type="outline"
+            type="default"
             size="large"
-            long
-            icon={<IconGoogleCircleFill />}
+            block
+            icon={<GoogleCircleFilled />}
             onClick={() => handleOAuthLogin('google')}
             loading={isLoading}
             className="oauth-button google-button"
@@ -79,9 +77,9 @@ export function LoginForm() {
           </Button>
 
           <Button
-            type="outline"
+            type="default"
             size="large"
-            long
+            block
             icon={
               <span className="apple-icon" role="img" aria-label="Apple">
 
@@ -95,9 +93,7 @@ export function LoginForm() {
           </Button>
         </Space>
 
-        <Divider className="login-divider">
-          <span className="divider-text">or</span>
-        </Divider>
+        <Divider className="login-divider">or</Divider>
 
         {error && (
           <div className="login-error" role="alert">
@@ -108,13 +104,13 @@ export function LoginForm() {
         <Form
           form={form}
           layout="vertical"
-          onSubmit={handleEmailSubmit}
+          onFinish={handleEmailSubmit}
           className="login-form"
         >
           {mode === 'signup' && (
-            <FormItem
+            <Form.Item
               label="Name"
-              field="name"
+              name="name"
               rules={[{ required: true, message: 'Please enter your name' }]}
             >
               <Input
@@ -122,12 +118,12 @@ export function LoginForm() {
                 size="large"
                 disabled={isLoading}
               />
-            </FormItem>
+            </Form.Item>
           )}
 
-          <FormItem
+          <Form.Item
             label="Email"
-            field="email"
+            name="email"
             rules={[
               { required: true, message: 'Please enter your email' },
               {
@@ -141,15 +137,15 @@ export function LoginForm() {
               size="large"
               disabled={isLoading}
             />
-          </FormItem>
+          </Form.Item>
 
-          <FormItem
+          <Form.Item
             label="Password"
-            field="password"
+            name="password"
             rules={[
               { required: true, message: 'Please enter your password' },
               {
-                minLength: 8,
+                min: 8,
                 message: 'Password must be at least 8 characters',
               },
             ]}
@@ -159,20 +155,20 @@ export function LoginForm() {
               size="large"
               disabled={isLoading}
             />
-          </FormItem>
+          </Form.Item>
 
-          <FormItem>
+          <Form.Item>
             <Button
               type="primary"
               htmlType="submit"
               size="large"
-              long
+              block
               loading={isLoading}
               className="submit-button"
             >
               {mode === 'login' ? 'Sign In' : 'Sign Up'}
             </Button>
-          </FormItem>
+          </Form.Item>
         </Form>
 
         <div className="login-footer">
@@ -182,7 +178,7 @@ export function LoginForm() {
               : 'Already have an account?'}
           </span>
           <Button
-            type="text"
+            type="link"
             onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
             disabled={isLoading}
             className="toggle-mode-button"

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Space, Message, Spin, Alert } from '@arco-design/web-react';
+import { Space, message, Spin, Alert } from 'antd';
 import { invoke } from '@tauri-apps/api/core';
 import { ReferralLink } from '../components/Referrals/ReferralLink';
 import { ReferralStats } from '../components/Referrals/ReferralStats';
@@ -46,7 +46,7 @@ export function ReferralsPage() {
       setPaypalConnection(undefined); // Not connected by default
       setAvailableCash(0);
     } catch (error) {
-      Message.error('Failed to load referral data');
+      message.error('Failed to load referral data');
       console.error('Error loading referral data:', error);
     } finally {
       setLoading(false);

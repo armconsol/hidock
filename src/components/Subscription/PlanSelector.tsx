@@ -1,5 +1,5 @@
-import { Card, Button, Badge, Space, Tag } from '@arco-design/web-react';
-import { IconCheck } from '@arco-design/web-react/icon';
+import { Card, Button, Badge, Space, Tag } from 'antd';
+import { CheckOutlined } from '@ant-design/icons';
 import { SubscriptionPlan } from '../../types/subscription';
 import './PlanSelector.css';
 
@@ -56,7 +56,7 @@ export function PlanSelector({ plans, currentPlanId, onSelectPlan }: PlanSelecto
                     </div>
                   )}
                   {plan.transcriptionMinutes && (
-                    <Tag color="arcoblue">
+                    <Tag color="blue">
                       {plan.transcriptionMinutes} minutes
                     </Tag>
                   )}
@@ -67,7 +67,7 @@ export function PlanSelector({ plans, currentPlanId, onSelectPlan }: PlanSelecto
                 <ul>
                   {plan.features.map((feature, index) => (
                     <li key={index}>
-                      <IconCheck style={{ color: 'var(--accent-color)' }} />
+                      <CheckOutlined style={{ color: 'var(--accent-color)' }} />
                       <span>{feature}</span>
                     </li>
                   ))}
@@ -76,14 +76,14 @@ export function PlanSelector({ plans, currentPlanId, onSelectPlan }: PlanSelecto
 
               <div className="plan-action">
                 {isCurrentPlan ? (
-                  <Button type="outline" disabled style={{ width: '100%' }}>
+                  <Button disabled block>
                     Current Plan
                   </Button>
                 ) : (
                   <Button
                     type="primary"
                     onClick={() => onSelectPlan(plan.id)}
-                    style={{ width: '100%' }}
+                    block
                   >
                     {plan.type === 'trial' ? 'Start Trial' : 'Upgrade'}
                   </Button>

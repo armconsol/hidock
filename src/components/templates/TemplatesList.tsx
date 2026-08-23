@@ -10,23 +10,22 @@ import {
   Typography,
   Tag,
   Popconfirm,
-  Message,
-} from '@arco-design/web-react';
+  message,
+} from 'antd';
 import {
-  IconSearch,
-  IconPlus,
-  IconSort,
-  IconStar,
-  IconStarFill,
-  IconCheck,
-  IconEdit,
-  IconDelete,
-} from '@arco-design/web-react/icon';
+  SearchOutlined,
+  PlusOutlined,
+  SortAscendingOutlined,
+  StarOutlined,
+  StarFilled,
+  CheckOutlined,
+  EditOutlined,
+  DeleteOutlined,
+} from '@ant-design/icons';
 import { useTemplatesStore } from '../../store/templatesStore';
 import type { TemplateSortBy, SortOrder } from '../../types/templates';
 import './TemplatesList.css';
 
-const { Option } = Select;
 const { Title, Text } = Typography;
 
 export function TemplatesList() {
@@ -66,9 +65,9 @@ export function TemplatesList() {
     e.stopPropagation();
     try {
       await toggleFavorite(id);
-      Message.success('Favorite status updated');
+      message.success('Favorite status updated');
     } catch (err) {
-      Message.error('Failed to update favorite status');
+      message.error('Failed to update favorite status');
     }
   };
 
@@ -76,9 +75,9 @@ export function TemplatesList() {
     e.stopPropagation();
     try {
       await setAsDefault(id);
-      Message.success('Default template updated');
+      message.success('Default template updated');
     } catch (err) {
-      Message.error('Failed to set default template');
+      message.error('Failed to set default template');
     }
   };
 
@@ -86,9 +85,9 @@ export function TemplatesList() {
     e.stopPropagation();
     try {
       await deleteTemplate(id);
-      Message.success('Template deleted');
+      message.success('Template deleted');
     } catch (err) {
-      Message.error('Failed to delete template');
+      message.error('Failed to delete template');
     }
   };
 
@@ -108,7 +107,7 @@ export function TemplatesList() {
   if (error) {
     return (
       <div className="templates-list-error">
-        <Text type="error">{error}</Text>
+        <Text type="danger">{error}</Text>
       </div>
     );
   }
@@ -120,7 +119,7 @@ export function TemplatesList() {
           <div className="templates-list-actions">
             <Button
               type="primary"
-              icon={<IconPlus />}
+              icon={<PlusOutlined />}
               onClick={() => selectTemplate('new')}
               style={{ width: '100%' }}
             >
@@ -130,9 +129,9 @@ export function TemplatesList() {
           <Input
             allowClear
             placeholder="Search templates..."
-            prefix={<IconSearch />}
+            prefix={<SearchOutlined />}
             value={filter.searchQuery || ''}
-            onChange={handleSearch}
+            onChange={(e) => handleSearch(e.target.value)}
           />
           <Space size={8} style={{ width: '100%' }}>
             <Select
@@ -140,16 +139,11 @@ export function TemplatesList() {
               value={`${sortBy}-${sortOrder}`}
               onChange={handleSortChange}
               style={{ flex: 1 }}
-              prefix={<IconSort />}
-            >
-              {sortOptions.map((option) => (
-                <Option key={option.value} value={option.value}>
-                  {option.label}
-                </Option>
-              ))}
-            </Select>
+              suffixIcon={<SortAscendingOutlined />}
+              options={sortOptions}
+            />
             <Button
-              icon={filter.favoriteOnly ? <IconStarFill /> : <IconStar />}
+              icon={filter.favoriteOnly ? <StarFilled /> : <StarOutlined />}
               type={filter.favoriteOnly ? 'primary' : 'default'}
               onClick={handleFilterFavorites}
             />
@@ -182,28 +176,28 @@ export function TemplatesList() {
                 onClick={() => selectTemplate(template.id)}
               >
                 <div className="template-card-header">
-                  <Title heading={6} ellipsis={{ rows: 1 }}>
+                  <Title level={5} ellipsis={{ rows: 1 }}>
                     {template.title}
                   </Title>
                   <Space size={4}>
                     <Button
                       size="small"
                       type="text"
-                      icon={template.isFavorite ? <IconStarFill /> : <IconStar />}
+                      icon={template.isFavorite ? <StarFilled /> : <StarOutlined />}
                       onClick={(e) => handleToggleFavorite(template.id, e as unknown as React.MouseEvent)}
                     />
                     {!template.isDefault && (
                       <Button
                         size="small"
                         type="text"
-                        icon={<IconCheck />}
+                        icon={<CheckOutlined />}
                         onClick={(e) => handleSetDefault(template.id, e as unknown as React.MouseEvent)}
                       />
                     )}
                     <Button
                       size="small"
                       type="text"
-                      icon={<IconEdit />}
+                      icon={<EditOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();
                         selectTemplate(template.id);
@@ -211,15 +205,15 @@ export function TemplatesList() {
                     />
                     <Popconfirm
                       title="Are you sure you want to delete this template?"
-                      onOk={(e) => handleDelete(template.id, e as React.MouseEvent<Element, MouseEvent>)}
+                      onConfirm={(e) => handleDelete(template.id, e as React.MouseEvent<Element, MouseEvent>)}
                       okText="Delete"
                       cancelText="Cancel"
                     >
                       <Button
                         size="small"
                         type="text"
-                        status="danger"
-                        icon={<IconDelete />}
+                        danger
+                        icon={<DeleteOutlined />}
                         onClick={(e) => e.stopPropagation()}
                       />
                     </Popconfirm>
@@ -233,8 +227,8 @@ export function TemplatesList() {
                 </Text>
                 <div className="template-card-footer">
                   <Space size={8}>
-                    {template.isDefault && <Tag color="arcoblue">Default</Tag>}
-                    {template.isFavorite && <Tag color="orangered">Favorite</Tag>}
+                    {template.isDefault && <Tag color="blue">Default</Tag>}
+                    {template.isFavorite && <Tag color="orange">Favorite</Tag>}
                   </Space>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     {new Date(template.updatedAt).toLocaleDateString()}

@@ -1,9 +1,8 @@
-import { Modal, Button, Typography, Space, Select, Slider, Spin } from '@arco-design/web-react';
+import { Modal, Button, Typography, Space, Select, Slider, Spin } from 'antd';
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
 const { Text, Title } = Typography;
-const Option = Select.Option;
 
 interface SaveAsNewDialogProps {
   visible: boolean;
@@ -107,8 +106,8 @@ export function SaveAsNewDialog({
 
   return (
     <Modal
-      title={<Title heading={5}>Save As New</Title>}
-      visible={visible}
+      title={<Title level={5}>Save As New</Title>}
+      open={visible}
       onCancel={handleClose}
       footer={
         <Space>
@@ -125,12 +124,12 @@ export function SaveAsNewDialog({
           </Button>
         </Space>
       }
-      style={{ width: 600 }}
+      width={600}
     >
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {/* Format Selection */}
         <div>
-          <Text bold style={{ marginBottom: 10, display: 'block' }}>
+          <Text strong style={{ marginBottom: 10, display: 'block' }}>
             Format
           </Text>
           <Select
@@ -140,20 +139,18 @@ export function SaveAsNewDialog({
             style={{ width: '100%' }}
             disabled={isProcessing}
             aria-label="Format"
-          >
-            {FORMATS.map((fmt) => (
-              <Option key={fmt.value} value={fmt.value}>
-                {fmt.label} {fmt.lossy ? '(Lossy)' : '(Lossless)'}
-              </Option>
-            ))}
-          </Select>
+            options={FORMATS.map((fmt) => ({
+              value: fmt.value,
+              label: `${fmt.label} ${fmt.lossy ? '(Lossy)' : '(Lossless)'}`,
+            }))}
+          />
         </div>
 
         {/* Quality Settings - Only for lossy formats */}
         {isLossy && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text bold>Quality</Text>
+              <Text strong>Quality</Text>
               <Text type="secondary">{getQualityLabel(quality)}</Text>
             </div>
             <Slider
@@ -211,17 +208,17 @@ export function SaveAsNewDialog({
           <Space direction="vertical" size="small">
             <div>
               <Text type="secondary">Format: </Text>
-              <Text bold>{selectedFormat?.label}</Text>
+              <Text strong>{selectedFormat?.label}</Text>
             </div>
             {isLossy && (
               <div>
                 <Text type="secondary">Bitrate: </Text>
-                <Text bold>{quality}k</Text>
+                <Text strong>{quality}k</Text>
               </div>
             )}
             <div>
               <Text type="secondary">Estimated size: </Text>
-              <Text bold>{getEstimatedSize()}</Text>
+              <Text strong>{getEstimatedSize()}</Text>
             </div>
           </Space>
         </div>
@@ -258,7 +255,7 @@ export function SaveAsNewDialog({
               borderRadius: '4px',
             }}
           >
-            <Text type="error">{error}</Text>
+            <Text type="danger">{error}</Text>
           </div>
         )}
 

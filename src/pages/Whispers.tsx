@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Space, Typography, Message, Modal } from '@arco-design/web-react';
+import { Card, Space, Typography, message, Modal } from 'antd';
 import { WhisperList } from '../components/Whispers/WhisperList';
 import { WhisperRecorder } from '../components/Whispers/WhisperRecorder';
 import type { Whisper } from '../types/whispers';
@@ -69,7 +69,7 @@ export function WhispersPage() {
       };
 
       setWhispers((prev) => [newWhisper, ...prev]);
-      Message.success('Whisper recorded successfully');
+      message.success('Whisper recorded successfully');
 
       // Simulate transcription delay
       setTimeout(() => {
@@ -82,7 +82,7 @@ export function WhispersPage() {
         );
       }, 2000);
     } catch (err) {
-      Message.error('Failed to save recording');
+      message.error('Failed to save recording');
       console.error('Recording save error:', err);
     }
   };
@@ -97,9 +97,9 @@ export function WhispersPage() {
           // await api.delete(`/v1/note/delete`, { data: { id: whisperId } });
 
           setWhispers((prev) => prev.filter((w) => w.id !== whisperId));
-          Message.success('Whisper deleted');
+          message.success('Whisper deleted');
         } catch (err) {
-          Message.error('Failed to delete whisper');
+          message.error('Failed to delete whisper');
           console.error('Delete error:', err);
         }
       },
@@ -124,9 +124,9 @@ export function WhispersPage() {
 
       console.log(`Converting whisper ${whisperId} to ${targetType} via ${apiEndpoints[targetType]}`);
 
-      Message.success(`Whisper converted to ${targetType}`);
+      message.success(`Whisper converted to ${targetType}`);
     } catch (err) {
-      Message.error(`Failed to convert to ${targetType}`);
+      message.error(`Failed to convert to ${targetType}`);
       console.error('Conversion error:', err);
     }
   };
@@ -139,7 +139,7 @@ export function WhispersPage() {
   return (
     <div className="whispers-page">
       <div className="whispers-header">
-        <Title heading={3}>Whispers</Title>
+        <Title level={3}>Whispers</Title>
       </div>
 
       <div className="whispers-content">
@@ -168,10 +168,10 @@ export function WhispersPage() {
       {/* Audio Playback Modal */}
       <Modal
         title="Play Audio"
-        visible={audioModalVisible}
+        open={audioModalVisible}
         onCancel={() => setAudioModalVisible(false)}
         footer={null}
-        style={{ width: 600 }}
+        width={600}
       >
         {currentAudioUrl && (
           <audio controls style={{ width: '100%' }}>

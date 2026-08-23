@@ -4,13 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { WhisperList } from './WhisperList';
 import type { Whisper } from '../../types/whispers';
 
-// Mock Arco Design icons
-vi.mock('@arco-design/web-react/icon', () => ({
-  IconClockCircle: () => <span>Clock Icon</span>,
-  IconDelete: () => <span>Delete Icon</span>,
-  IconFile: () => <span>File Icon</span>,
-  IconCheckCircle: () => <span>Check Icon</span>,
-  IconCalendar: () => <span>Calendar Icon</span>,
+// Mock Ant Design icons
+vi.mock('@ant-design/icons', () => ({
+  ClockCircleOutlined: () => <span>Clock Icon</span>,
+  DeleteOutlined: () => <span>Delete Icon</span>,
+  FileOutlined: () => <span>File Icon</span>,
+  CheckCircleOutlined: () => <span>Check Icon</span>,
+  CalendarOutlined: () => <span>Calendar Icon</span>,
 }));
 
 describe('WhisperList Component', () => {

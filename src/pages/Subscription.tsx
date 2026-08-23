@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, Space, Statistic, Progress, Divider, Message, Spin } from '@arco-design/web-react';
-import { IconClockCircle, IconCalendar, IconLink } from '@arco-design/web-react/icon';
+import { Card, Button, Space, Statistic, Progress, Divider, Spin, message } from 'antd';
+import { ClockCircleOutlined, CalendarOutlined, LinkOutlined } from '@ant-design/icons';
 import { PlanSelector } from '../components/Subscription/PlanSelector';
 import { BillingHistory } from '../components/Subscription/BillingHistory';
 import { TrialBanner } from '../components/Subscription/TrialBanner';
@@ -125,7 +125,7 @@ export function SubscriptionPage() {
       setReceipts(mockReceipts);
       setAvailablePlans(mockPlans);
     } catch (error) {
-      Message.error('Failed to load subscription data');
+      message.error('Failed to load subscription data');
       console.error('Error loading subscription:', error);
     } finally {
       setLoading(false);
@@ -135,10 +135,10 @@ export function SubscriptionPage() {
   const handleClaimTrial = async () => {
     try {
       // API call: POST /v1/user/trial/claim
-      Message.success('Trial claimed successfully!');
+      message.success('Trial claimed successfully!');
       await loadSubscriptionData();
     } catch (error) {
-      Message.error('Failed to claim trial');
+      message.error('Failed to claim trial');
       console.error('Error claiming trial:', error);
     }
   };
@@ -147,10 +147,10 @@ export function SubscriptionPage() {
     try {
       // This would typically open RevenueCat billing portal
       // API call: GET /v1/payment/rc/portal
-      Message.info('Redirecting to billing portal...');
+      message.info('Redirecting to billing portal...');
       console.log('Selected plan:', planId);
     } catch (error) {
-      Message.error('Failed to open billing portal');
+      message.error('Failed to open billing portal');
       console.error('Error selecting plan:', error);
     }
   };
@@ -158,10 +158,10 @@ export function SubscriptionPage() {
   const handleDownloadReceipt = async (receiptId: string) => {
     try {
       // Download receipt PDF/file
-      Message.success('Downloading receipt...');
+      message.success('Downloading receipt...');
       console.log('Download receipt:', receiptId);
     } catch (error) {
-      Message.error('Failed to download receipt');
+      message.error('Failed to download receipt');
       console.error('Error downloading receipt:', error);
     }
   };
@@ -169,10 +169,10 @@ export function SubscriptionPage() {
   const handleOpenBillingPortal = async () => {
     try {
       // API call: GET /v1/payment/rc/portal
-      Message.info('Opening RevenueCat billing portal...');
+      message.info('Opening RevenueCat billing portal...');
       // window.open(portalUrl, '_blank');
     } catch (error) {
-      Message.error('Failed to open billing portal');
+      message.error('Failed to open billing portal');
       console.error('Error opening billing portal:', error);
     }
   };
@@ -180,7 +180,7 @@ export function SubscriptionPage() {
   if (loading) {
     return (
       <div className="subscription-page loading">
-        <Spin size={40} />
+        <Spin size="large" />
       </div>
     );
   }
@@ -204,8 +204,8 @@ export function SubscriptionPage() {
       <div className="subscription-header">
         <h1>Subscription</h1>
         <Button
-          type="outline"
-          icon={<IconLink />}
+          type="default"
+          icon={<LinkOutlined />}
           onClick={handleOpenBillingPortal}
         >
           Manage Billing
@@ -238,7 +238,7 @@ export function SubscriptionPage() {
             <Divider type="vertical" style={{ height: '60px' }} />
             <div className="info-item">
               <label>
-                <IconCalendar style={{ marginRight: 4 }} />
+                <CalendarOutlined style={{ marginRight: 4 }} />
                 Renewal Date
               </label>
               <div className="renewal-date">
@@ -265,7 +265,7 @@ export function SubscriptionPage() {
 
       <Card className="usage-stats-card">
         <h2>
-          <IconClockCircle style={{ marginRight: 8 }} />
+          <ClockCircleOutlined style={{ marginRight: 8 }} />
           Transcription Usage
         </h2>
         <div className="usage-content">
@@ -285,8 +285,8 @@ export function SubscriptionPage() {
           <div className="usage-progress">
             <Progress
               percent={usagePercent}
-              status={usagePercent > 90 ? 'warning' : 'normal'}
-              formatText={(percent) => `${percent?.toFixed(0)}% used`}
+              status={usagePercent > 90 ? 'exception' : 'normal'}
+              format={(percent) => `${percent?.toFixed(0)}% used`}
             />
           </div>
           {subscriberInfo.usageStats.resetDate && (

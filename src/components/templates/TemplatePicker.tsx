@@ -9,8 +9,8 @@ import {
   Typography,
   Tag,
   Radio,
-} from '@arco-design/web-react';
-import { IconSearch, IconStar, IconStarFill } from '@arco-design/web-react/icon';
+} from 'antd';
+import { SearchOutlined, StarOutlined, StarFilled } from '@ant-design/icons';
 import { useTemplatesStore } from '../../store/templatesStore';
 import type { Template } from '../../types/templates';
 import './TemplatePicker.css';
@@ -96,25 +96,25 @@ export function TemplatePicker({
   return (
     <Modal
       title="Select Template"
-      visible={visible}
+      open={visible}
       onCancel={handleClose}
       onOk={handleSelect}
       okText="Use Template"
       okButtonProps={{ disabled: !selectedTemplateId }}
-      style={{ width: 600 }}
+      width={600}
     >
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         <Space size={8} style={{ width: '100%' }}>
           <Input
             allowClear
             placeholder="Search templates..."
-            prefix={<IconSearch />}
+            prefix={<SearchOutlined />}
             value={searchQuery}
-            onChange={setSearchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             style={{ flex: 1 }}
           />
           <Button
-            icon={filterFavorite ? <IconStarFill /> : <IconStar />}
+            icon={filterFavorite ? <StarFilled /> : <StarOutlined />}
             type={filterFavorite ? 'primary' : 'default'}
             onClick={() => setFilterFavorite(!filterFavorite)}
           />
@@ -132,20 +132,20 @@ export function TemplatePicker({
           ) : (
             <Radio.Group
               value={selectedTemplateId}
-              onChange={setSelectedTemplateId}
+              onChange={(e) => setSelectedTemplateId(e.target.value)}
               style={{ width: '100%' }}
             >
               <List
                 dataSource={filteredTemplates}
-                render={(template) => (
+                renderItem={(template) => (
                   <List.Item key={template.id} className="template-picker-item">
                     <Radio value={template.id}>
                       <div className="template-picker-item-content">
                         <div className="template-picker-item-header">
                           <Text style={{ fontWeight: 500 }}>{template.title}</Text>
                           <Space size={4}>
-                            {template.isDefault && <Tag color="arcoblue">Default</Tag>}
-                            {template.isFavorite && <Tag color="orangered">Favorite</Tag>}
+                            {template.isDefault && <Tag color="blue">Default</Tag>}
+                            {template.isFavorite && <Tag color="orange">Favorite</Tag>}
                           </Space>
                         </div>
                         <Text

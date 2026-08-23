@@ -1,4 +1,4 @@
-import { Calendar } from '@arco-design/web-react';
+import { Calendar } from 'antd';
 import { useEffect, useState } from 'react';
 import './CalendarWidget.css';
 

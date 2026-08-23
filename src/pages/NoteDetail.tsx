@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Card, Button, Space, Divider } from '@arco-design/web-react';
-import { IconTranslate } from '@arco-design/web-react/icon';
+import { Card, Button, Space, Divider } from 'antd';
+import { TranslationOutlined } from '@ant-design/icons';
 import { InlineTranslation } from '../components/Translation/InlineTranslation';
 import { useTranslationStore } from '../store/translationStore';
 import './NoteDetail.css';
@@ -37,7 +37,7 @@ export function NoteDetailPage() {
       <Card
         title="Note Detail"
         extra={
-          <Button type="primary" icon={<IconTranslate />}>
+          <Button type="primary" icon={<TranslationOutlined />}>
             Translate All
           </Button>
         }

@@ -1,4 +1,4 @@
-import { Card, Space, Button, Divider, Typography, Switch } from '@arco-design/web-react';
+import { Card, Space, Button, Divider, Typography, Switch } from 'antd';
 import { SyncIndicator, SyncButton } from '../components/Sync';
 import { useSyncStore } from '../store/syncStore';
 import type { SyncStatus, SyncOperationType } from '../types/sync';
@@ -37,7 +37,7 @@ export function SyncDemo() {
     <div style={{ padding: 24 }}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         <div>
-          <Title heading={2}>Sync Status UI Demo</Title>
+          <Title level={2}>Sync Status UI Demo</Title>
           <Paragraph>
             This page demonstrates the sync status indicator and manual sync button components.
           </Paragraph>
@@ -46,7 +46,7 @@ export function SyncDemo() {
         <Card title="Sync Components">
           <Space size="large">
             <div>
-              <Text bold>Status Indicator:</Text>
+              <Text strong>Status Indicator:</Text>
               <div style={{ marginTop: 8 }}>
                 <SyncIndicator />
               </div>
@@ -55,7 +55,7 @@ export function SyncDemo() {
             <Divider type="vertical" style={{ height: 60 }} />
 
             <div>
-              <Text bold>Manual Sync Button:</Text>
+              <Text strong>Manual Sync Button:</Text>
               <div style={{ marginTop: 8 }}>
                 <SyncButton />
               </div>
@@ -66,14 +66,14 @@ export function SyncDemo() {
         <Card title="Current State">
           <Space direction="vertical" size="medium" style={{ width: '100%' }}>
             <div>
-              <Text bold>Status: </Text>
-              <Text type={status === 'failed' ? 'error' : status === 'synced' ? 'success' : undefined}>
+              <Text strong>Status: </Text>
+              <Text type={status === 'failed' ? 'danger' : status === 'synced' ? 'success' : undefined}>
                 {status}
               </Text>
             </div>
 
             <div>
-              <Text bold>Online: </Text>
+              <Text strong>Online: </Text>
               <Switch
                 checked={isOnline}
                 onChange={setOnline}
@@ -81,12 +81,12 @@ export function SyncDemo() {
             </div>
 
             <div>
-              <Text bold>Pending Operations: </Text>
+              <Text strong>Pending Operations: </Text>
               <Text>{pendingOperations.length}</Text>
             </div>
 
             <div>
-              <Text bold>Last Sync: </Text>
+              <Text strong>Last Sync: </Text>
               <Text>
                 {lastSyncTime
                   ? new Date(lastSyncTime).toLocaleString()
@@ -96,8 +96,8 @@ export function SyncDemo() {
 
             {error && (
               <div>
-                <Text bold>Error: </Text>
-                <Text type="error">{error}</Text>
+                <Text strong>Error: </Text>
+                <Text type="danger">{error}</Text>
               </div>
             )}
           </Space>
@@ -106,7 +106,7 @@ export function SyncDemo() {
         <Card title="Test Controls">
           <Space direction="vertical" size="medium" style={{ width: '100%' }}>
             <div>
-              <Text bold>Change Status:</Text>
+              <Text strong>Change Status:</Text>
               <div style={{ marginTop: 8 }}>
                 <Space>
                   <Button
@@ -144,7 +144,7 @@ export function SyncDemo() {
             <Divider />
 
             <div>
-              <Text bold>Add Pending Operations:</Text>
+              <Text strong>Add Pending Operations:</Text>
               <div style={{ marginTop: 8 }}>
                 <Space wrap>
                   <Button
@@ -184,7 +184,7 @@ export function SyncDemo() {
             <Divider />
 
             <div>
-              <Text bold>Actions:</Text>
+              <Text strong>Actions:</Text>
               <div style={{ marginTop: 8 }}>
                 <Space>
                   <Button
@@ -197,7 +197,7 @@ export function SyncDemo() {
                   </Button>
                   <Button
                     size="small"
-                    status="danger"
+                    danger
                     onClick={clearPendingOperations}
                   >
                     Clear Pending
@@ -216,7 +216,7 @@ export function SyncDemo() {
               {pendingOperations.map((op, index) => (
                 <Card key={op.id} size="small" bordered>
                   <Space direction="vertical" size={0}>
-                    <Text bold>
+                    <Text strong>
                       #{index + 1}: {op.type} {op.entityType}
                     </Text>
                     <Text type="secondary" style={{ fontSize: 12 }}>
@@ -231,7 +231,7 @@ export function SyncDemo() {
                       </Text>
                     )}
                     {op.error && (
-                      <Text type="error" style={{ fontSize: 12 }}>
+                      <Text type="danger" style={{ fontSize: 12 }}>
                         Error: {op.error}
                       </Text>
                     )}

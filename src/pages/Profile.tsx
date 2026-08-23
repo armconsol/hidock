@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Card, Form, Input, Select, Button, Message, Spin, Divider } from '@arco-design/web-react';
-import { IconEdit, IconSave, IconClose } from '@arco-design/web-react/icon';
+import { Card, Form, Input, Select, Button, message, Spin, Divider } from 'antd';
+import { EditOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons';
 import { AvatarUpload } from '../components/Profile/AvatarUpload';
 import { useAuthStore } from '../store/authStore';
 import { UserProfile } from '../types/user';
 import './Profile.css';
 
 const FormItem = Form.Item;
-const Option = Select.Option;
+const { Option } = Select;
 
 export function ProfilePage() {
   const [form] = Form.useForm();
@@ -45,7 +45,7 @@ export function ProfilePage() {
         region: mockProfile.region,
       });
     } catch (error) {
-      Message.error('Failed to load profile');
+      message.error('Failed to load profile');
       console.error('Error loading profile:', error);
     } finally {
       setLoading(false);
@@ -54,7 +54,7 @@ export function ProfilePage() {
 
   const handleSave = async () => {
     try {
-      await form.validate();
+      await form.validateFields();
       const values = form.getFieldsValue();
 
       setSaving(true);
@@ -80,7 +80,7 @@ export function ProfilePage() {
           });
         }
 
-        Message.success('Profile updated successfully');
+        message.success('Profile updated successfully');
         setEditing(false);
       } catch (error) {
         Message.error('Failed to update profile');
@@ -167,17 +167,17 @@ export function ProfilePage() {
         >
           <FormItem
             label="Name"
-            field="name"
+            name="name"
             rules={[
               { required: true, message: 'Name is required' },
-              { minLength: 2, message: 'Name must be at least 2 characters' },
-              { maxLength: 50, message: 'Name must be less than 50 characters' },
+              { min: 2, message: 'Name must be at least 2 characters' },
+              { max: 50, message: 'Name must be less than 50 characters' },
             ]}
           >
             <Input placeholder="Enter your name" />
           </FormItem>
 
-          <FormItem label="Email" field="email">
+          <FormItem label="Email" name="email">
             <Input
               placeholder="Email"
               disabled
@@ -193,7 +193,7 @@ export function ProfilePage() {
 
           <FormItem
             label="Region"
-            field="region"
+            name="region"
             rules={[{ required: true, message: 'Region is required' }]}
           >
             <Select placeholder="Select region">
@@ -209,14 +209,14 @@ export function ProfilePage() {
               <>
                 <Button
                   type="primary"
-                  icon={<IconSave />}
+                  icon={<SaveOutlined />}
                   onClick={handleSave}
                   loading={saving}
                 >
                   Save Changes
                 </Button>
                 <Button
-                  icon={<IconClose />}
+                  icon={<CloseOutlined />}
                   onClick={handleCancel}
                   disabled={saving}
                 >
@@ -226,7 +226,7 @@ export function ProfilePage() {
             ) : (
               <Button
                 type="primary"
-                icon={<IconEdit />}
+                icon={<EditOutlined />}
                 onClick={() => setEditing(true)}
               >
                 Edit Profile

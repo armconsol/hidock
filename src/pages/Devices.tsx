@@ -1,13 +1,11 @@
 import { useState } from 'react';
-import { Button, Tabs } from '@arco-design/web-react';
-import { IconPlus, IconList, IconFolder } from '@arco-design/web-react/icon';
+import { Button, Tabs } from 'antd';
+import { PlusOutlined, UnorderedListOutlined, FolderOutlined } from '@ant-design/icons';
 import { DeviceList } from '../components/Devices/DeviceList';
 import { DeviceFiles } from '../components/Devices/DeviceFiles';
 import { BindDeviceDialog } from '../components/Devices/BindDeviceDialog';
 import { useDevicesStore } from '../store/devicesStore';
 import './Devices.css';
-
-const TabPane = Tabs.TabPane;
 
 export function DevicesPage() {
   const [bindDialogVisible, setBindDialogVisible] = useState(false);
@@ -33,7 +31,7 @@ export function DevicesPage() {
         </div>
         <Button
           type="primary"
-          icon={<IconPlus />}
+          icon={<PlusOutlined />}
           onClick={() => setBindDialogVisible(true)}
         >
           Bind Device
@@ -41,42 +39,40 @@ export function DevicesPage() {
       </div>
 
       <Tabs
-        activeTab={activeTab}
+        activeKey={activeTab}
         onChange={setActiveTab}
-        type="card-gutter"
+        type="card"
         className="devices-tabs"
-      >
-        <TabPane
-          key="list"
-          title={
-            <span>
-              <IconList style={{ marginRight: 6 }} />
-              Device List
-            </span>
-          }
-        >
-          <DeviceList onDeviceSelect={handleDeviceSelect} />
-        </TabPane>
-
-        <TabPane
-          key="files"
-          title={
-            <span>
-              <IconFolder style={{ marginRight: 6 }} />
-              Files {connectedDevice ? `- ${connectedDevice.name}` : ''}
-            </span>
-          }
-          disabled={!connectedDevice}
-        >
-          {connectedDevice ? (
-            <DeviceFiles deviceId={connectedDevice.id} />
-          ) : (
-            <div className="device-files-empty">
-              <p>Select a connected device to view files</p>
-            </div>
-          )}
-        </TabPane>
-      </Tabs>
+        items={[
+          {
+            key: 'list',
+            label: (
+              <span>
+                <UnorderedListOutlined style={{ marginRight: 6 }} />
+                Device List
+              </span>
+            ),
+            children: <DeviceList onDeviceSelect={handleDeviceSelect} />,
+          },
+          {
+            key: 'files',
+            label: (
+              <span>
+                <FolderOutlined style={{ marginRight: 6 }} />
+                Files {connectedDevice ? `- ${connectedDevice.name}` : ''}
+              </span>
+            ),
+            disabled: !connectedDevice,
+            children: connectedDevice ? (
+              <DeviceFiles deviceId={connectedDevice.id} />
+            ) : (
+              <div className="device-files-empty">
+                <p>Select a connected device to view files</p>
+              </div>
+            ),
+          },
+        ]}
+      />
 
       <BindDeviceDialog
         visible={bindDialogVisible}

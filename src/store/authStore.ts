@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { invoke } from '@tauri-apps/api/core';
 
 export type AuthProvider = 'google' | 'apple' | 'email';
@@ -43,9 +42,7 @@ const TOKEN_KEY = 'hidoc_auth_token';
 const TOKEN_EXPIRY_KEY = 'hidoc_auth_token_expiry';
 const TOKEN_REFRESH_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
+export const useAuthStore = create<AuthState>()((set, get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
@@ -226,19 +223,4 @@ export const useAuthStore = create<AuthState>()(
           );
         }
       },
-    }),
-    {
-      name: 'auth-storage',
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-      }),
-      onRehydrateStorage: () => (state) => {
-        // After rehydration, sync with localStorage token
-        if (state) {
-          state.hydrateAuth();
-        }
-      },
-    }
-  )
-);
+}));

@@ -1,5 +1,5 @@
-import { Modal, Button, Typography, Space, Spin } from '@arco-design/web-react';
-import { IconUp, IconDown, IconDelete, IconFile } from '@arco-design/web-react/icon';
+import { Modal, Button, Typography, Space, Spin } from 'antd';
+import { UpOutlined, DownOutlined, DeleteOutlined, FileOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -142,8 +142,8 @@ export function MergeDialog({ visible, onClose, onComplete }: MergeDialogProps) 
 
   return (
     <Modal
-      title={<Title heading={5}>Merge Audio Files</Title>}
-      visible={visible}
+      title={<Title level={5}>Merge Audio Files</Title>}
+      open={visible}
       onCancel={handleClose}
       footer={
         <Space>
@@ -160,7 +160,7 @@ export function MergeDialog({ visible, onClose, onComplete }: MergeDialogProps) 
           </Button>
         </Space>
       }
-      style={{ width: 600 }}
+      width={600}
     >
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         {/* File Selection */}
@@ -171,7 +171,7 @@ export function MergeDialog({ visible, onClose, onComplete }: MergeDialogProps) 
         {/* Selected Files List */}
         {selectedFiles.length > 0 && (
           <div>
-            <Text bold style={{ marginBottom: 10, display: 'block' }}>
+            <Text strong style={{ marginBottom: 10, display: 'block' }}>
               Selected Files ({selectedFiles.length})
             </Text>
             <Space direction="vertical" size="small" style={{ width: '100%' }}>
@@ -186,10 +186,10 @@ export function MergeDialog({ visible, onClose, onComplete }: MergeDialogProps) 
                     borderRadius: '4px',
                   }}
                 >
-                  <Text style={{ marginRight: 10, fontWeight: 'bold', minWidth: 30 }}>
+                  <Text strong style={{ marginRight: 10, minWidth: 30 }}>
                     {index + 1}
                   </Text>
-                  <IconFile style={{ marginRight: 10 }} />
+                  <FileOutlined style={{ marginRight: 10 }} />
                   <div style={{ flex: 1 }}>
                     <Text>{file.name}</Text>
                     <br />
@@ -200,20 +200,20 @@ export function MergeDialog({ visible, onClose, onComplete }: MergeDialogProps) 
                   <Space>
                     <Button
                       size="small"
-                      icon={<IconUp />}
+                      icon={<UpOutlined />}
                       onClick={() => handleMoveUp(index)}
                       disabled={index === 0 || isProcessing}
                     />
                     <Button
                       size="small"
-                      icon={<IconDown />}
+                      icon={<DownOutlined />}
                       onClick={() => handleMoveDown(index)}
                       disabled={index === selectedFiles.length - 1 || isProcessing}
                     />
                     <Button
                       size="small"
-                      icon={<IconDelete />}
-                      status="danger"
+                      icon={<DeleteOutlined />}
+                      danger
                       onClick={() => handleRemoveFile(file.id)}
                       disabled={isProcessing}
                     />
@@ -236,11 +236,11 @@ export function MergeDialog({ visible, onClose, onComplete }: MergeDialogProps) 
             <Space direction="vertical" size="small">
               <div>
                 <Text type="secondary">Total files: </Text>
-                <Text bold>{selectedFiles.length}</Text>
+                <Text strong>{selectedFiles.length}</Text>
               </div>
               <div>
                 <Text type="secondary">Combined duration: </Text>
-                <Text bold>{formatDuration(getTotalDuration())}</Text>
+                <Text strong>{formatDuration(getTotalDuration())}</Text>
               </div>
             </Space>
           </div>
@@ -255,7 +255,7 @@ export function MergeDialog({ visible, onClose, onComplete }: MergeDialogProps) 
               borderRadius: '4px',
             }}
           >
-            <Text type="error">{error}</Text>
+            <Text type="danger">{error}</Text>
           </div>
         )}
 

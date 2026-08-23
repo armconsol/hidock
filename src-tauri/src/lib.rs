@@ -64,8 +64,16 @@ pub fn run() {
     // Initialize API client and OAuth handler
     // Uses HINOTES_API_URL environment variable or defaults to production
     let api_client = Arc::new(HiNotesClient::new());
-    let oauth_handler = OAuth2Handler::from_env()
-        .expect("Failed to initialize OAuth2Handler - ensure GOOGLE_CLIENT_ID is set");
+
+    // Try to initialize OAuth handler, but don't panic if credentials are missing
+    // This allows the app to start and show a configuration screen
+    let oauth_handler = match OAuth2Handler::from_env() {
+        Ok(handler) => Some(handler),
+        Err(e) => {
+            log::warn!("OAuth2Handler initialization failed: {}. App will start without OAuth support. Please configure credentials through the settings UI.", e);
+            None
+        }
+    };
 
     let auth_state = AuthState {
         api_client: Arc::new(RwLock::new(HiNotesClient::new())),
@@ -225,7 +233,14 @@ pub fn run() {
             commands::request_payout,
             commands::get_reward_history,
             commands::expire_rewards,
-            commands::add_reward
+            commands::add_reward,
+            // Configuration commands
+            commands::load_config,
+            commands::save_config,
+            commands::get_config_file_path,
+            commands::is_oauth_configured,
+            commands::get_google_oauth_instructions,
+            commands::get_apple_oauth_instructions
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

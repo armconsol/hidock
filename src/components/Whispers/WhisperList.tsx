@@ -1,5 +1,5 @@
-import { List, Card, Typography, Space, Empty, Spin, Button } from '@arco-design/web-react';
-import { IconClockCircle, IconDelete } from '@arco-design/web-react/icon';
+import { List, Card, Typography, Space, Empty, Spin, Button } from 'antd';
+import { ClockCircleOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { Whisper } from '../../types/whispers';
 import { WhisperActions } from './WhisperActions';
 import './WhisperList.css';
@@ -58,7 +58,7 @@ export function WhisperList({
   if (loading) {
     return (
       <div className="whisper-list-loading" data-testid="whisper-list-loading">
-        <Spin size={40} />
+        <Spin size="large" />
         <Text type="secondary" style={{ marginTop: 16 }}>
           Loading whispers...
         </Text>
@@ -70,7 +70,6 @@ export function WhisperList({
     return (
       <Empty
         description="No whispers yet"
-        imgSrc="//p1-arco.byteimg.com/tos-cn-i-uwbnlip3yd/e278888093bef8910e0f3ee29cd950a2.png~tplv-uwbnlip3yd-webp.webp"
         style={{ marginTop: 100 }}
         data-testid="whisper-list-empty"
       />
@@ -82,7 +81,7 @@ export function WhisperList({
       className="whisper-list"
       dataSource={whispers}
       data-testid="whisper-list"
-      render={(whisper, index) => (
+      renderItem={(whisper, index) => (
         <Card
           key={whisper.id}
           className="whisper-card"
@@ -90,11 +89,11 @@ export function WhisperList({
           bordered={false}
           data-testid={`whisper-card-${index}`}
         >
-          <Space direction="vertical" size="medium" style={{ width: '100%' }}>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             {/* Header with timestamp and duration */}
             <div className="whisper-card-header">
               <Space size="small">
-                <IconClockCircle style={{ fontSize: 14, color: 'var(--color-text-3)' }} />
+                <ClockCircleOutlined style={{ fontSize: 14, color: 'rgba(0, 0, 0, 0.45)' }} />
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {formatTimestamp(whisper.createdAt)}
                 </Text>
@@ -105,10 +104,10 @@ export function WhisperList({
               <Button
                 type="text"
                 size="small"
-                icon={<IconDelete />}
+                icon={<DeleteOutlined />}
                 onClick={() => onDelete?.(whisper.id)}
                 data-testid={`delete-button-${index}`}
-                status="warning"
+                danger
               />
             </div>
 
@@ -118,7 +117,6 @@ export function WhisperList({
               ellipsis={{
                 rows: 3,
                 expandable: true,
-                showTooltip: false,
               }}
               style={{ margin: 0 }}
             >
@@ -128,7 +126,7 @@ export function WhisperList({
             {/* Audio playback */}
             <div className="whisper-audio">
               <Button
-                type="outline"
+                type="default"
                 size="small"
                 onClick={() => onPlayAudio?.(whisper.audioUrl)}
                 data-testid={`play-button-${index}`}

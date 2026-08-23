@@ -1,22 +1,20 @@
-import { Layout, Menu } from '@arco-design/web-react';
+import { Layout, Menu } from 'antd';
 import {
-  IconHome,
-  IconFile,
-  IconLanguage,
-  IconMessage,
-  IconCheckSquare,
-  IconSettings,
-  IconUser,
-  IconSafe,
-} from '@arco-design/web-react/icon';
+  HomeOutlined,
+  FileOutlined,
+  TranslationOutlined,
+  MessageOutlined,
+  CheckSquareOutlined,
+  SettingOutlined,
+  UserOutlined,
+  SafetyOutlined,
+} from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '../ThemeProvider';
 import { useAuthLifecycle } from '../../hooks/useAuthLifecycle';
 import './AppLayout.css';
 
-const MenuItem = Menu.Item;
-const Sider = Layout.Sider;
-const Content = Layout.Content;
+const { Sider, Content } = Layout;
 
 export function AppLayout() {
   const navigate = useNavigate();
@@ -28,27 +26,27 @@ export function AppLayout() {
   const menuItems = [
     {
       key: '/home',
-      icon: <IconHome />,
+      icon: <HomeOutlined />,
       label: 'Home',
     },
     {
       key: '/notes',
-      icon: <IconFile />,
+      icon: <FileOutlined />,
       label: 'Notes',
     },
     {
       key: '/live',
-      icon: <IconLanguage />,
+      icon: <TranslationOutlined />,
       label: 'Translate',
     },
     {
       key: '/whispers',
-      icon: <IconMessage />,
+      icon: <MessageOutlined />,
       label: 'Whispers',
     },
     {
       key: '/todo',
-      icon: <IconCheckSquare />,
+      icon: <CheckSquareOutlined />,
       label: 'To-Do',
     },
   ];
@@ -73,21 +71,22 @@ export function AppLayout() {
             <Menu
               className="sidebar-menu"
               selectedKeys={[selectedKey]}
-              onClickMenuItem={handleMenuClick}
+              onClick={({ key }) => handleMenuClick(key)}
               style={{
                 width: '100%',
                 height: '100%',
               }}
-            >
-              {menuItems.map((item) => (
-                <MenuItem key={item.key} className="sidebar-menu-item">
+              items={menuItems.map((item) => ({
+                key: item.key,
+                icon: item.icon,
+                label: (
                   <div className="menu-item-content">
-                    {item.icon}
                     <span className="menu-item-label">{item.label}</span>
                   </div>
-                </MenuItem>
-              ))}
-            </Menu>
+                ),
+                className: 'sidebar-menu-item',
+              }))}
+            />
 
             <div className="sidebar-footer">
               <div
@@ -101,7 +100,7 @@ export function AppLayout() {
                   }
                 }}
               >
-                <IconUser />
+                <UserOutlined />
                 <span className="menu-item-label">Profile</span>
               </div>
               <div
@@ -115,7 +114,7 @@ export function AppLayout() {
                   }
                 }}
               >
-                <IconSafe />
+                <SafetyOutlined />
                 <span className="menu-item-label">Security</span>
               </div>
               <div
@@ -129,7 +128,7 @@ export function AppLayout() {
                   }
                 }}
               >
-                <IconSettings />
+                <SettingOutlined />
                 <span className="menu-item-label">Settings</span>
               </div>
             </div>

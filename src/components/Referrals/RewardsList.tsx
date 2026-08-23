@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Card, Table, Button, Tag, Space, Message, Modal, TableColumnProps } from '@arco-design/web-react';
-import { IconGift, IconClockCircle } from '@arco-design/web-react/icon';
+import { Card, Table, Button, Tag, Space, message, Modal } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { GiftOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { RewardItem } from '../../types/referral';
 import './RewardsList.css';
 
@@ -21,9 +22,9 @@ export function RewardsList({ rewards, onRedeemReward, loading = false }: Reward
         setRedeemingId(reward.id);
         try {
           await onRedeemReward(reward.id, reward.amount);
-          Message.success('Reward redeemed successfully!');
+          message.success('Reward redeemed successfully!');
         } catch (error) {
-          Message.error('Failed to redeem reward');
+          message.error('Failed to redeem reward');
           console.error('Error redeeming reward:', error);
         } finally {
           setRedeemingId(null);
@@ -35,9 +36,9 @@ export function RewardsList({ rewards, onRedeemReward, loading = false }: Reward
   const getRewardIcon = (type: string) => {
     switch (type) {
       case 'cash':
-        return <IconGift style={{ color: 'var(--color-success-6)' }} />;
+        return <GiftOutlined style={{ color: 'var(--color-success-6)' }} />;
       case 'minutes':
-        return <IconClockCircle style={{ color: 'var(--color-primary-6)' }} />;
+        return <ClockCircleOutlined style={{ color: 'var(--color-primary-6)' }} />;
       default:
         return null;
     }
@@ -84,7 +85,7 @@ export function RewardsList({ rewards, onRedeemReward, loading = false }: Reward
     });
   };
 
-  const availableColumns: TableColumnProps<RewardItem>[] = [
+  const availableColumns: ColumnsType<RewardItem> = [
     {
       title: 'Type',
       dataIndex: 'reward_type',
@@ -135,7 +136,7 @@ export function RewardsList({ rewards, onRedeemReward, loading = false }: Reward
     },
   ];
 
-  const historyColumns: TableColumnProps<RewardItem>[] = [
+  const historyColumns: ColumnsType<RewardItem> = [
     {
       title: 'Type',
       dataIndex: 'reward_type',
@@ -180,7 +181,7 @@ export function RewardsList({ rewards, onRedeemReward, loading = false }: Reward
     <Card className="rewards-list-card" title="Your Rewards">
       {availableRewards.length === 0 && otherRewards.length === 0 ? (
         <div className="empty-rewards">
-          <IconGift style={{ fontSize: 48, color: 'var(--color-text-4)' }} />
+          <GiftOutlined style={{ fontSize: 48, color: 'var(--color-text-4)' }} />
           <p>No rewards yet. Start referring friends to earn rewards!</p>
         </div>
       ) : (
@@ -191,7 +192,7 @@ export function RewardsList({ rewards, onRedeemReward, loading = false }: Reward
               <h3 className="section-title">Available to Redeem</h3>
               <Table
                 columns={availableColumns}
-                data={availableRewards}
+                dataSource={availableRewards}
                 loading={loading}
                 pagination={false}
                 rowKey="id"
@@ -206,7 +207,7 @@ export function RewardsList({ rewards, onRedeemReward, loading = false }: Reward
               <h3 className="section-title">Reward History</h3>
               <Table
                 columns={historyColumns}
-                data={otherRewards}
+                dataSource={otherRewards}
                 loading={loading}
                 pagination={{ pageSize: 5 }}
                 rowKey="id"

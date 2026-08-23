@@ -3,11 +3,11 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WhisperActions } from './WhisperActions';
 
-// Mock Arco Design icons
-vi.mock('@arco-design/web-react/icon', () => ({
-  IconFile: () => <span>File Icon</span>,
-  IconCheckCircle: () => <span>Check Icon</span>,
-  IconCalendar: () => <span>Calendar Icon</span>,
+// Mock Ant Design icons
+vi.mock('@ant-design/icons', () => ({
+  FileOutlined: () => <span>File Icon</span>,
+  CheckCircleOutlined: () => <span>Check Icon</span>,
+  CalendarOutlined: () => <span>Calendar Icon</span>,
 }));
 
 describe('WhisperActions Component', () => {
@@ -163,9 +163,9 @@ describe('WhisperActions Component', () => {
     const todoButton = screen.getByTestId('convert-to-todo');
     const calendarButton = screen.getByTestId('convert-to-calendar');
 
-    expect(noteButton).toHaveClass('arco-btn-outline');
-    expect(todoButton).toHaveClass('arco-btn-outline');
-    expect(calendarButton).toHaveClass('arco-btn-outline');
+    expect(noteButton).toHaveClass('ant-btn-default');
+    expect(todoButton).toHaveClass('ant-btn-default');
+    expect(calendarButton).toHaveClass('ant-btn-default');
   });
 
   it('renders with small size', () => {
@@ -175,8 +175,8 @@ describe('WhisperActions Component', () => {
     const todoButton = screen.getByTestId('convert-to-todo');
     const calendarButton = screen.getByTestId('convert-to-calendar');
 
-    expect(noteButton).toHaveClass('arco-btn-size-small');
-    expect(todoButton).toHaveClass('arco-btn-size-small');
-    expect(calendarButton).toHaveClass('arco-btn-size-small');
+    expect(noteButton).toHaveClass('ant-btn-sm');
+    expect(todoButton).toHaveClass('ant-btn-sm');
+    expect(calendarButton).toHaveClass('ant-btn-sm');
   });
 });

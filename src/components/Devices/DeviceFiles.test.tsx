@@ -9,12 +9,12 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: any[]) => mockInvoke(...args),
 }));
 
-// Mock Arco Message
-vi.mock('@arco-design/web-react', async () => {
-  const actual = await vi.importActual('@arco-design/web-react');
+// Mock Ant Design message
+vi.mock('antd', async () => {
+  const actual = await vi.importActual('antd');
   return {
     ...actual,
-    Message: {
+    message: {
       success: vi.fn(),
       error: vi.fn(),
       info: vi.fn(),
@@ -127,7 +127,7 @@ describe('DeviceFiles', () => {
 
     // Find and click download button for first file
     const table = document.querySelector('.device-files-table');
-    const downloadButtons = table!.querySelectorAll('button[aria-label*="download"], button .arco-icon-download');
+    const downloadButtons = table!.querySelectorAll('button[aria-label*="download"], button .anticon-download');
     fireEvent.click(downloadButtons[0].closest('button')!);
 
     await waitFor(() => {
@@ -217,7 +217,7 @@ describe('DeviceFiles', () => {
 
     // Verify delete buttons are present
     const table = document.querySelector('.device-files-table');
-    const deleteButtons = table!.querySelectorAll('button .arco-icon-delete');
+    const deleteButtons = table!.querySelectorAll('button .anticon-delete');
     expect(deleteButtons.length).toBeGreaterThan(0);
   });
 
@@ -355,7 +355,7 @@ describe('DeviceFiles', () => {
 
     // Attempt download
     const table = document.querySelector('.device-files-table');
-    const downloadButtons = table!.querySelectorAll('button .arco-icon-download');
+    const downloadButtons = table!.querySelectorAll('button .anticon-download');
     fireEvent.click(downloadButtons[0].closest('button')!);
 
     // Wait for error and retry button

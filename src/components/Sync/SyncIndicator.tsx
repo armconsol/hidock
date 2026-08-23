@@ -1,5 +1,5 @@
-import { Badge, Tooltip, Typography } from '@arco-design/web-react';
-import { IconSync, IconCheck, IconClose, IconWifi } from '@arco-design/web-react/icon';
+import { Badge, Tooltip, Typography } from 'antd';
+import { SyncOutlined, CheckOutlined, CloseOutlined, WifiOutlined } from '@ant-design/icons';
 import { useSyncStore } from '../../store/syncStore';
 import './SyncIndicator.css';
 
@@ -12,29 +12,29 @@ export function SyncIndicator() {
     switch (status) {
       case 'synced':
         return {
-          icon: <IconCheck />,
-          color: 'green',
+          icon: <CheckOutlined />,
+          color: 'success',
           text: 'Synced',
           className: 'sync-indicator-synced',
         };
       case 'syncing':
         return {
-          icon: <IconSync className="sync-indicator-spinning" />,
-          color: 'blue',
+          icon: <SyncOutlined spin className="sync-indicator-spinning" />,
+          color: 'processing',
           text: 'Syncing...',
           className: 'sync-indicator-syncing',
         };
       case 'offline':
         return {
-          icon: <IconWifi />,
-          color: 'gray',
+          icon: <WifiOutlined />,
+          color: 'default',
           text: 'Offline',
           className: 'sync-indicator-offline',
         };
       case 'failed':
         return {
-          icon: <IconClose />,
-          color: 'red',
+          icon: <CloseOutlined />,
+          color: 'error',
           text: 'Failed',
           className: 'sync-indicator-failed',
         };
@@ -78,7 +78,7 @@ export function SyncIndicator() {
   };
 
   return (
-    <Tooltip content={getTooltipContent()} position="bottom">
+    <Tooltip title={getTooltipContent()} placement="bottom">
       <div className={`sync-indicator ${config.className}`}>
         <Badge
           count={pendingOperations.length}

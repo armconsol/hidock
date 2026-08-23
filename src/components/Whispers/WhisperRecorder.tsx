@@ -1,5 +1,5 @@
-import { Button, Space, Typography, Modal, Message } from '@arco-design/web-react';
-import { IconRecordStop, IconVoice } from '@arco-design/web-react/icon';
+import { Button, Space, Typography, Modal, message } from 'antd';
+import { StopOutlined, AudioOutlined } from '@ant-design/icons';
 import { useState, useRef, useEffect } from 'react';
 import './WhisperRecorder.css';
 
@@ -62,7 +62,7 @@ export function WhisperRecorder({
 
         if (duration > 0) {
           onRecordingComplete?.(audioBlob, duration);
-          Message.success('Recording completed');
+          message.success('Recording completed');
         }
 
         setIsRecording(false);
@@ -85,14 +85,14 @@ export function WhisperRecorder({
         // Auto-stop at max duration
         if (elapsed >= maxDuration) {
           stopRecording();
-          Message.warning(`Recording stopped: ${maxDuration}s limit reached`);
+          message.warning(`Recording stopped: ${maxDuration}s limit reached`);
         }
       }, 100);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to access microphone';
       setError(errorMessage);
-      Message.error(errorMessage);
+      message.error(errorMessage);
       console.error('Recording error:', err);
     }
   };
@@ -141,7 +141,7 @@ export function WhisperRecorder({
             type="primary"
             size="large"
             shape="circle"
-            icon={isRecording ? <IconRecordStop /> : <IconVoice />}
+            icon={isRecording ? <StopOutlined /> : <AudioOutlined />}
             className={`whisper-record-button ${isRecording ? 'recording' : ''}`}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
@@ -161,7 +161,7 @@ export function WhisperRecorder({
         <div className="whisper-recorder-instructions">
           {isRecording ? (
             <Space direction="vertical" align="center" size="small">
-              <Text type="error" style={{ fontSize: 16, fontWeight: 500 }}>
+              <Text type="danger" style={{ fontSize: 16, fontWeight: 500 }}>
                 Recording... {formatDuration(recordingDuration)}
               </Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
@@ -181,7 +181,7 @@ export function WhisperRecorder({
         {/* Error display */}
         {error && (
           <div className="whisper-recorder-error" data-testid="recorder-error">
-            <Text type="error">{error}</Text>
+            <Text type="danger">{error}</Text>
           </div>
         )}
       </Space>

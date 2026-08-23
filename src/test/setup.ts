@@ -1,12 +1,12 @@
 import { expect, afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import * as matchers from '@testing-library/jest-dom/matchers';
-import '@arco-design/web-react/dist/css/arco.css';
+import 'antd/dist/reset.css';
 
 // Extend Vitest's expect with Testing Library matchers
 expect.extend(matchers);
 
-// Mock window.matchMedia for Arco Design components
+// Mock window.matchMedia for Ant Design components
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: vi.fn().mockImplementation((query) => ({
@@ -32,16 +32,16 @@ Object.defineProperty(navigator, 'clipboard', {
 });
 
 /**
- * Mock Arco Design Message component
+ * Mock Ant Design message component
  *
- * Arco Design's Message component uses the deprecated ReactDOM.render() API
- * which is not available in React 19. This mock provides a test-compatible
- * implementation that captures Message calls without triggering DOM rendering errors.
+ * Ant Design's message component may use APIs that need mocking in the test environment.
+ * This mock provides a test-compatible implementation that captures message calls
+ * without triggering DOM rendering errors.
  */
-vi.mock('@arco-design/web-react', async () => {
-  const actual = await vi.importActual('@arco-design/web-react');
+vi.mock('antd', async () => {
+  const actual = await vi.importActual('antd');
 
-  // Create mock Message methods that return a cleanup function
+  // Create mock message methods that return a cleanup function
   const createMessageMethod = (_type: string) => vi.fn((_content: string) => {
     return {
       close: vi.fn(),
@@ -50,13 +50,13 @@ vi.mock('@arco-design/web-react', async () => {
 
   return {
     ...actual,
-    Message: {
+    message: {
       success: createMessageMethod('success'),
       error: createMessageMethod('error'),
       warning: createMessageMethod('warning'),
       info: createMessageMethod('info'),
       loading: createMessageMethod('loading'),
-      clear: vi.fn(),
+      destroy: vi.fn(),
     },
   };
 });

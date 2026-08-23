@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { Card, Button, Badge, Space, Empty, Spin, Message, Popconfirm } from '@arco-design/web-react';
-import { IconWifi, IconPoweroff, IconSync, IconDelete } from '@arco-design/web-react/icon';
+import { Card, Button, Badge, Space, Empty, Spin, message, Popconfirm } from 'antd';
+import { WifiOutlined, PoweroffOutlined, SyncOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useDevicesStore } from '../../store/devicesStore';
 import type { Device } from '../../types/devices';
 import './DeviceList.css';
@@ -19,9 +19,9 @@ export function DeviceList({ onDeviceSelect }: DeviceListProps) {
   const handleUnbind = async (deviceId: string) => {
     try {
       await unbindDevice(deviceId);
-      Message.success('Device unbound successfully');
+      message.success('Device unbound successfully');
     } catch (error) {
-      Message.error('Failed to unbind device');
+      message.error('Failed to unbind device');
     }
   };
 
@@ -55,9 +55,9 @@ export function DeviceList({ onDeviceSelect }: DeviceListProps) {
 
   const getStatusIcon = (status: Device['status']) => {
     if (status === 'connected') {
-      return <IconWifi style={{ color: '#00b42a', fontSize: 24 }} />;
+      return <WifiOutlined style={{ color: '#52c41a', fontSize: 24 }} />;
     }
-    return <IconPoweroff style={{ color: '#86909c', fontSize: 24 }} />;
+    return <PoweroffOutlined style={{ color: '#8c8c8c', fontSize: 24 }} />;
   };
 
   if (loading && devices.length === 0) {
@@ -81,7 +81,7 @@ export function DeviceList({ onDeviceSelect }: DeviceListProps) {
       <div className="device-list-empty">
         <Empty
           description="No devices bound yet. Click 'Bind Device' to add your first HiDoc P1 device."
-          icon={<IconWifi style={{ fontSize: 64, color: '#c9cdd4' }} />}
+          image={<WifiOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />}
         />
       </div>
     );
@@ -110,7 +110,7 @@ export function DeviceList({ onDeviceSelect }: DeviceListProps) {
                 <div className="device-meta">
                   <span className="device-id">ID: {device.id}</span>
                   <span className="device-sync">
-                    <IconSync className="sync-icon" />
+                    <SyncOutlined className="sync-icon" />
                     Last sync: {formatLastSync(device.last_sync)}
                   </span>
                 </div>
@@ -121,15 +121,15 @@ export function DeviceList({ onDeviceSelect }: DeviceListProps) {
               <div className="device-actions" onClick={(e) => e.stopPropagation()}>
                 <Popconfirm
                   title="Unbind Device"
-                  content={`Are you sure you want to unbind ${device.name}? This will remove all device settings.`}
-                  onOk={() => handleUnbind(device.id)}
+                  description={`Are you sure you want to unbind ${device.name}? This will remove all device settings.`}
+                  onConfirm={() => handleUnbind(device.id)}
                   okText="Unbind"
                   cancelText="Cancel"
                 >
                   <Button
                     type="text"
-                    status="danger"
-                    icon={<IconDelete />}
+                    danger
+                    icon={<DeleteOutlined />}
                     className="unbind-button"
                   >
                     Unbind

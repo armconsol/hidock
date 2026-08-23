@@ -1,11 +1,11 @@
-import { Button, Space, Spin, Typography, Message } from '@arco-design/web-react';
+import { Button, Space, Spin, Typography, message } from 'antd';
 import {
-  IconPlayArrow,
-  IconPause,
-  IconCopy,
-  IconSwap,
-  IconSave,
-} from '@arco-design/web-react/icon';
+  PlayCircleOutlined,
+  PauseCircleOutlined,
+  CopyOutlined,
+  SwapOutlined,
+  SaveOutlined,
+} from '@ant-design/icons';
 import { useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { MergeDialog } from './MergeDialog';
@@ -242,21 +242,21 @@ export function AudioEditor({
   };
 
   const handleMergeComplete = (outputPath: string) => {
-    Message.success('Audio files merged successfully');
+    message.success('Audio files merged successfully');
     if (onOperationComplete) {
       onOperationComplete(outputPath);
     }
   };
 
   const handleReplaceComplete = (outputPath: string) => {
-    Message.success('Audio segment replaced successfully');
+    message.success('Audio segment replaced successfully');
     if (onOperationComplete) {
       onOperationComplete(outputPath);
     }
   };
 
   const handleSaveAsNewComplete = (outputPath: string) => {
-    Message.success('Audio saved as new file');
+    message.success('Audio saved as new file');
     if (onOperationComplete) {
       onOperationComplete(outputPath);
     }
@@ -276,7 +276,7 @@ export function AudioEditor({
   if (error) {
     return (
       <div className={`audio-editor ${className}`}>
-        <Text type="error">{error}</Text>
+        <Text type="danger">{error}</Text>
       </div>
     );
   }
@@ -355,13 +355,13 @@ export function AudioEditor({
           <Button
             type="primary"
             shape="circle"
-            icon={isPlaying ? <IconPause /> : <IconPlayArrow />}
+            icon={isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
             onClick={togglePlayPause}
             data-testid="play-pause-button"
           />
 
           <Button
-            icon={<IconCopy />}
+            icon={<CopyOutlined />}
             onClick={addMarker}
             data-testid="add-marker-button"
           >
@@ -369,7 +369,7 @@ export function AudioEditor({
           </Button>
 
           <Button
-            icon={<IconCopy />}
+            icon={<CopyOutlined />}
             onClick={() => setMergeDialogVisible(true)}
             data-testid="merge-button"
           >
@@ -377,7 +377,7 @@ export function AudioEditor({
           </Button>
 
           <Button
-            icon={<IconSwap />}
+            icon={<SwapOutlined />}
             onClick={() => setReplaceDialogVisible(true)}
             data-testid="replace-button"
           >
@@ -385,7 +385,7 @@ export function AudioEditor({
           </Button>
 
           <Button
-            icon={<IconSave />}
+            icon={<SaveOutlined />}
             onClick={() => setSaveAsNewDialogVisible(true)}
             data-testid="save-as-new-button"
             disabled={!audioData}
