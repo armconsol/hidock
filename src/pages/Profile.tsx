@@ -83,7 +83,7 @@ export function ProfilePage() {
         message.success('Profile updated successfully');
         setEditing(false);
       } catch (error) {
-        Message.error('Failed to update profile');
+        message.error('Failed to update profile');
         console.error('Error updating profile:', error);
       } finally {
         setSaving(false);
@@ -128,7 +128,7 @@ export function ProfilePage() {
   if (loading) {
     return (
       <div className="profile-page loading">
-        <Spin size={40} />
+        <Spin size="large" />
       </div>
     );
   }

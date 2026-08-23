@@ -63,7 +63,7 @@ export function DeviceList({ onDeviceSelect }: DeviceListProps) {
   if (loading && devices.length === 0) {
     return (
       <div className="device-list-loading" data-testid="loading-spinner">
-        <Spin size={40} />
+        <Spin size="large" />
       </div>
     );
   }

@@ -175,7 +175,7 @@ export function SaveAsNewDialog({
         {/* Bitrate Selection - Alternative to slider */}
         {isLossy && (
           <div>
-            <Text bold style={{ marginBottom: 10, display: 'block' }}>
+            <Text strong style={{ marginBottom: 10, display: 'block' }}>
               Bitrate
             </Text>
             <Space>

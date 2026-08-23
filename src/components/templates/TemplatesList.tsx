@@ -220,8 +220,8 @@ export function TemplatesList() {
                   </Space>
                 </div>
                 <Text
-                  ellipsis={{ rows: 2, expandable: false }}
-                  style={{ color: 'var(--color-text-2)' }}
+                  ellipsis={{ tooltip: template.content }}
+                  style={{ color: 'var(--color-text-2)', display: 'block' }}
                 >
                   {template.content}
                 </Text>

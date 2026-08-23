@@ -150,7 +150,7 @@ export function TemplatePicker({
                         </div>
                         <Text
                           type="secondary"
-                          ellipsis={{ rows: 2, expandable: false }}
+                          ellipsis={{ tooltip: template.content }}
                           style={{ fontSize: 12, marginTop: 4 }}
                         >
                           {template.content}

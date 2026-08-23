@@ -185,7 +185,7 @@ export function ReferralsPage() {
   if (loading) {
     return (
       <div className="referrals-page loading">
-        <Spin size={40} />
+        <Spin size="large" />
       </div>
     );
   }
@@ -196,7 +196,7 @@ export function ReferralsPage() {
         <h1>Referral Program</h1>
         <Alert
           type="error"
-          content="Failed to load referral information. Please try again later."
+          message="Failed to load referral information. Please try again later."
         />
       </div>
     );

@@ -6,7 +6,6 @@ import {
   Typography,
   Tag,
   Dropdown,
-  Menu,
   message,
 } from 'antd';
 import {
@@ -144,7 +143,7 @@ export function NoteDetail() {
         <Space direction="vertical" size={8} style={{ flex: 1 }}>
           <Input
             value={title}
-            onChange={setTitle}
+            onChange={(e) => setTitle(e.target.value)}
             placeholder="Note title"
             style={{ fontSize: 20, fontWeight: 600 }}
           />
@@ -178,7 +177,7 @@ export function NoteDetail() {
       <div className="note-detail-content">
         <TextArea
           value={content}
-          onChange={setContent}
+          onChange={(e) => setContent(e.target.value)}
           placeholder="Start writing..."
           autoSize={{ minRows: 10 }}
           style={{ fontSize: 14, lineHeight: 1.6 }}

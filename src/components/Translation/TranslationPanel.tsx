@@ -47,8 +47,8 @@ export function TranslationPanel({
     setSourceText(initialText);
   }, [initialText]);
 
-  const handleTextChange = (value: string) => {
-    const truncated = value.slice(0, maxLength);
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const truncated = e.target.value.slice(0, maxLength);
     setSourceText(truncated);
   };
 

@@ -13,6 +13,7 @@ import {
   Tooltip,
   Checkbox,
 } from 'antd';
+import type { CheckboxChangeEvent } from 'antd/es/checkbox';
 import {
   DownloadOutlined,
   SyncOutlined,
@@ -145,7 +146,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
         });
         return next;
       });
-      Message.error(`Failed to download ${fileName}`);
+      message.error(`Failed to download ${fileName}`);
     }
   };
 
@@ -239,7 +240,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
         });
         return next;
       });
-      Message.error(`Failed to upload ${file.name}`);
+      message.error(`Failed to upload ${file.name}`);
     }
 
     return false; // Prevent default upload behavior
@@ -252,7 +253,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
       message.success(`Deleted ${fileName}`);
       await fetchDeviceInfo();
     } catch (err) {
-      Message.error(`Failed to delete ${fileName}`);
+      message.error(`Failed to delete ${fileName}`);
     }
   };
 
@@ -280,16 +281,16 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
+  const handleSelectAll = (e: CheckboxChangeEvent) => {
+    if (e.target.checked) {
       setSelectedFileIds(files.map((f) => f.id));
     } else {
       setSelectedFileIds([]);
     }
   };
 
-  const handleSelectFile = (fileId: string, checked: boolean) => {
-    if (checked) {
+  const handleSelectFile = (fileId: string, e: CheckboxChangeEvent) => {
+    if (e.target.checked) {
       setSelectedFileIds((prev) => [...prev, fileId]);
     } else {
       setSelectedFileIds((prev) => prev.filter((id) => id !== fileId));
@@ -326,7 +327,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
       render: (_, record) => (
         <Checkbox
           checked={selectedFileIds.includes(record.id)}
-          onChange={(checked) => handleSelectFile(record.id, checked)}
+          onChange={(e) => handleSelectFile(record.id, e)}
         />
       ),
     },
@@ -458,7 +459,7 @@ export function DeviceFiles({ deviceId }: DeviceFilesProps) {
               <Progress
                 percent={storagePercent}
                 style={{ width: 200 }}
-                status={storagePercent > 90 ? 'error' : undefined}
+                status={storagePercent > 90 ? 'exception' : undefined}
               />
               <p className="device-info-text">
                 {formatFileSize(deviceInfo.storage_used)} /{' '}

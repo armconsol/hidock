@@ -144,7 +144,7 @@ export function SettingsPage() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       setSettingsError(`Sync failed: ${errorMessage}`);
-      Message.error('Failed to sync settings');
+      message.error('Failed to sync settings');
       console.error('Error syncing settings:', error);
     } finally {
       setSyncing(false);
@@ -164,7 +164,7 @@ export function SettingsPage() {
       message.success('AI engine updated');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      Message.error(`Failed to update AI engine: ${errorMessage}`);
+      message.error(`Failed to update AI engine: ${errorMessage}`);
       console.error('Error updating AI engine:', error);
     }
   };
@@ -188,7 +188,7 @@ export function SettingsPage() {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      Message.error(`Failed to update cloud sync setting: ${errorMessage}`);
+      message.error(`Failed to update cloud sync setting: ${errorMessage}`);
       console.error('Error updating cloud sync:', error);
     }
   };
@@ -225,7 +225,7 @@ export function SettingsPage() {
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      Message.error(`Failed to resolve conflict: ${errorMessage}`);
+      message.error(`Failed to resolve conflict: ${errorMessage}`);
       console.error('Error resolving conflict:', error);
     }
   };
@@ -421,7 +421,7 @@ export function SettingsPage() {
 
       {/* General Settings Section */}
       <Card className="settings-section general-settings-section">
-        <Title heading={3}>General Settings</Title>
+        <Title level={3}>General Settings</Title>
 
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           {/* Cloud Sync Toggle */}

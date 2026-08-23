@@ -177,7 +177,7 @@ export default function OAuthSettings() {
             >
               <Input
                 value={config.google_client_id || ''}
-                onChange={(value) => setConfig({ ...config, google_client_id: value })}
+                onChange={(e) => setConfig({ ...config, google_client_id: e.target.value })}
                 placeholder="xxxxx.apps.googleusercontent.com"
                 suffix={
                   config.google_client_id && (
@@ -198,7 +198,7 @@ export default function OAuthSettings() {
             >
               <Input.Password
                 value={config.google_client_secret || ''}
-                onChange={(value) => setConfig({ ...config, google_client_secret: value })}
+                onChange={(e) => setConfig({ ...config, google_client_secret: e.target.value })}
                 placeholder="Enter Google Client Secret"
               />
             </Form.Item>
@@ -213,7 +213,7 @@ export default function OAuthSettings() {
             >
               <Input
                 value={config.apple_client_id || ''}
-                onChange={(value) => setConfig({ ...config, apple_client_id: value })}
+                onChange={(e) => setConfig({ ...config, apple_client_id: e.target.value })}
                 placeholder="com.yourcompany.hinotes.signin"
               />
             </Form.Item>
@@ -221,7 +221,7 @@ export default function OAuthSettings() {
             <Form.Item label="Apple Team ID" extra="10-character Team ID">
               <Input
                 value={config.apple_team_id || ''}
-                onChange={(value) => setConfig({ ...config, apple_team_id: value })}
+                onChange={(e) => setConfig({ ...config, apple_team_id: e.target.value })}
                 placeholder="ABC1234567"
                 maxLength={10}
               />
@@ -230,7 +230,7 @@ export default function OAuthSettings() {
             <Form.Item label="Apple Key ID" extra="10-character Key ID from your .p8 file">
               <Input
                 value={config.apple_key_id || ''}
-                onChange={(value) => setConfig({ ...config, apple_key_id: value })}
+                onChange={(e) => setConfig({ ...config, apple_key_id: e.target.value })}
                 placeholder="XYZ9876543"
                 maxLength={10}
               />
@@ -246,7 +246,7 @@ export default function OAuthSettings() {
             >
               <Input
                 value={config.api_base_url || ''}
-                onChange={(value) => setConfig({ ...config, api_base_url: value })}
+                onChange={(e) => setConfig({ ...config, api_base_url: e.target.value })}
                 placeholder="https://hinotes.hidock.com/v1"
               />
             </Form.Item>

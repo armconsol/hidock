@@ -56,7 +56,7 @@ export function SecurityPage() {
 
   const handleChangePassword = async () => {
     try {
-      await passwordForm.validate();
+      await passwordForm.validateFields();
       const values = passwordForm.getFieldsValue() as ChangePasswordRequest;
 
       if (values.newPassword !== values.confirmPassword) {
@@ -256,7 +256,7 @@ export function SecurityPage() {
                     <Input
                       placeholder="Enter 6-digit code"
                       value={verificationCode}
-                      onChange={setVerificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value)}
                       maxLength={6}
                       style={{ width: 200 }}
                     />
@@ -332,7 +332,7 @@ export function SecurityPage() {
         <Input
           placeholder="Type DELETE"
           value={deleteConfirmText}
-          onChange={setDeleteConfirmText}
+          onChange={(e) => setDeleteConfirmText(e.target.value)}
           style={{ marginBottom: 16 }}
         />
         <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
