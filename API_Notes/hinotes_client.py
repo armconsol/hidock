@@ -89,6 +89,24 @@ class HiNotesClient:
         resp.raise_for_status()
         return resp.json()
 
+    def _post_json(self, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """POST with a genuine JSON body. A handful of endpoints require
+        this instead of multipart/form-data (confirmed live: sending
+        form-data to these gets a 415 Unsupported Media Type). Known
+        JSON-body endpoints: /v1/note/whisper/paragraph/update,
+        /v1/calendar/event/add, /v1/audio/merge|replace|saveAsNew,
+        /v1/note/whisper/create/note. If a NEW endpoint 415s on
+        _post_form, retry it here instead of assuming form-data always
+        works."""
+        if endpoint.startswith("/v1/") or endpoint.startswith("/v2/"):
+            url = f"https://hinotes.hidock.com{endpoint}"
+        else:
+            url = f"{self.BASE_URL}/{endpoint.lstrip('/')}"
+        clean = {k: v for k, v in (data or {}).items() if v is not None}
+        resp = self.session.post(url, json=clean, headers=self._headers("application/json"))
+        resp.raise_for_status()
+        return resp.json()
+
     def is_token_valid(self) -> bool:
         """Cheap check: does the current token still work?
 
@@ -245,6 +263,44 @@ class HiNotesClient:
             "sortField": sort_field,
         })["data"]
 
+    def get_whisper_detail(self, note_id: str) -> Dict[str, Any]:
+        """GET /v1/note/whisper/detail?noteId= -- confirmed live (NOT POST,
+        despite superficially resembling the recording-note pattern)."""
+        return self._get("/note/whisper/detail", params={"noteId": note_id})["data"]
+
+    def get_whisper_transcript(self, note_id: str) -> List[Dict[str, Any]]:
+        """GET /v1/note/whisper/transcriptions?noteId= -- confirmed live."""
+        resp = self._get("/note/whisper/transcriptions", params={"noteId": note_id})
+        data = resp.get("data", [])
+        return [data] if isinstance(data, dict) else data
+
+    def update_whisper_title(self, note_id: str, title: str) -> Dict[str, Any]:
+        """POST /v1/note/whisper/title/update?noteId=&title= -- params go
+        in the query string, not the body. Confirmed live update+revert."""
+        url = f"https://hinotes.hidock.com/v1/note/whisper/title/update"
+        resp = self.session.post(url, params={"noteId": note_id, "title": title}, headers=self._headers())
+        resp.raise_for_status()
+        return resp.json()
+
+    def update_whisper_paragraph(self, note_id: str, sentence_id: str, paragraph: str) -> Dict[str, Any]:
+        """Requires a genuine JSON body -- confirmed live (form-data gets
+        415 Unsupported Media Type on this one specific endpoint)."""
+        return self._post_json("/v1/note/whisper/paragraph/update", {
+            "noteId": note_id, "sentenceId": sentence_id, "paragraph": paragraph,
+        })
+
+    def add_whisper_to_todo(self, note_id: str, tz_offset: int = 0) -> Dict[str, Any]:
+        """Creates a real todo item from a whisper note's content.
+        Confirmed live -- this is the only way todos get created (no
+        standalone create-todo endpoint exists)."""
+        return self._post_form("/note/whisper/add/todo", {"noteId": note_id, "tzOffset": tz_offset})
+
+    def extract_calendar_from_whisper(self, note_id: str) -> Dict[str, Any]:
+        """GET /v1/note/whisper/extract/calendar?id= -- note the param is
+        `id`, NOT `noteId`. Returns an AI-extracted calendar event
+        suggestion (title/start/end/outline) from the whisper's content."""
+        return self._get("/note/whisper/extract/calendar", params={"id": note_id})["data"]
+
     # --- To-Do ----------------------------------------------------------
 
     def list_todos(
@@ -313,6 +369,103 @@ class HiNotesClient:
         return self._post_form("/user/device/file/list", {
             "deviceSn": device_sn, "pageIndex": page_index, "pageSize": page_size,
         })["data"]
+
+    # --- Search, note metadata, speakers, sharing (verified round 2) ----
+
+    def search_notes(self, keyword: str) -> Dict[str, Any]:
+        """Full-text search across all recording notes (title, summary,
+        transcription). Confirmed live: real path is
+        POST /v1/note/recording/find (NOT a type-templated path). Matches
+        include <b> highlight markup around the keyword in the response
+        text -- strip if displaying to a user."""
+        return self._post_form("/note/recording/find", {"keyword": keyword})["data"]
+
+    def get_note_meta(self, note_id: str) -> Dict[str, Any]:
+        """POST /v2/note/meta (confirmed POST, not GET -- GET 405s).
+        Returns {aiModel, templateCode, templateTitle}."""
+        return self._post_form("/v2/note/meta", {"noteId": note_id})["data"]
+
+    def list_note_speakers(self, note_id: str) -> List[Dict[str, Any]]:
+        """POST /v2/note/speaker/list (confirmed POST, not GET -- GET 405s)."""
+        resp = self._post_form("/v2/note/speaker/list", {"noteId": note_id})
+        data = resp.get("data", [])
+        return [data] if isinstance(data, dict) else data
+
+    def rename_speaker_in_sentence(self, note_id: str, sentence_id: str, name: str) -> Dict[str, Any]:
+        """Relabels ONE sentence's speaker. Confirmed live (rename+revert
+        tested clean). For relabeling ALL instances of a speaker name at
+        once, use rename_speaker_globally() instead."""
+        return self._post_form("/v2/note/speaker/change", {
+            "noteId": note_id, "sentenceId": sentence_id, "name": name,
+        })
+
+    def rename_speaker_globally(self, note_id: str, old_name: str, new_name: str) -> Dict[str, Any]:
+        """NOT LIVE-TESTED. Shape confirmed from bundle:
+        POST /v2/note/speaker/rename {noteId,oldName,newName}."""
+        return self._post_form("/v2/note/speaker/rename", {
+            "noteId": note_id, "oldName": old_name, "newName": new_name,
+        })
+
+    def create_share_link(self, note_id: str, is_public: bool = True,
+                           expire_time: str = "", verify_code: str = "") -> str:
+        """Creates a public share link for a note. Confirmed live.
+        IMPORTANT: calling this again on the same note generates a NEW
+        shortId rather than updating/disabling the previous one -- there
+        is no revoke/list-shares endpoint in this API. Returns the full
+        share URL string."""
+        resp = self._post_form("/v1/share/create", {
+            "noteId": note_id, "isPublic": is_public,
+            "expireTime": expire_time, "verifyCode": verify_code,
+        })
+        return resp.get("data", "")
+
+    def get_shared_note(self, short_id: str, verify_code: str = "") -> Dict[str, Any]:
+        """Confirmed live. Note: still requires the accesstoken header
+        even though this is meant to be a public share page -- untested
+        whether a genuinely logged-out browser session works differently."""
+        params = {"shortId": short_id}
+        if verify_code:
+            params["verifyCode"] = verify_code
+        return self._get("/share/note", params=params)["data"]
+
+    def get_shared_transcript(self, short_id: str) -> List[Dict[str, Any]]:
+        resp = self._get("/share/transcription/list", params={"shortId": short_id})
+        data = resp.get("data", [])
+        return [data] if isinstance(data, dict) else data
+
+    # --- Smart labels (verified round 2) ---------------------------------
+
+    def create_smart_label(self, name: str, prompt: str, color: str) -> str:
+        """Confirmed live (create->update->delete cycle tested clean).
+        Unlike folder/create, this returns the new ID directly in `data`."""
+        resp = self._post_form("/smart_label/create", {"name": name, "prompt": prompt, "color": color})
+        return resp.get("data", "")
+
+    def update_smart_label(self, label_id: str, name: str, prompt: str, color: str) -> Dict[str, Any]:
+        return self._post_form("/smart_label/update", {
+            "id": label_id, "name": name, "prompt": prompt, "color": color,
+        })
+
+    def delete_smart_label(self, label_id: str) -> Dict[str, Any]:
+        return self._post_form("/smart_label/delete", {"id": label_id})
+
+    # --- Todo lifecycle (verified round 2, beyond list_todos) ------------
+
+    def update_todo_description(self, todo_id: str, description: str) -> Dict[str, Any]:
+        return self._post_form("/todo/update/description", {"id": todo_id, "description": description})
+
+    def update_todo_due_date(self, todo_id: str, due_date: str, tz_offset: int = 0) -> Dict[str, Any]:
+        """due_date format: 'YYYY-MM-DD HH:MM:SS'."""
+        return self._post_form("/todo/update/dueDate", {"id": todo_id, "dueDate": due_date, "tzOffset": tz_offset})
+
+    def change_todo_status(self, todo_id: str, status: str) -> Dict[str, Any]:
+        """status is a literal URL path segment (confirmed: 'completed'
+        works; 'open'/'archived' assumed from bundle, not independently
+        tested)."""
+        return self._post_form(f"/todo/{status}", {"id": todo_id})
+
+    def delete_todo(self, todo_id: str) -> Dict[str, Any]:
+        return self._post_form("/todo/delete", {"id": todo_id})
 
 
 if __name__ == "__main__":
