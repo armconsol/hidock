@@ -76,8 +76,13 @@ class HiNotesClient:
         return resp.json()
 
     def _post_form(self, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """POST as multipart/form-data, matching the real web client."""
-        url = f"{self.BASE_URL}/{endpoint.lstrip('/')}"
+        """POST as multipart/form-data, matching the real web client.
+        `endpoint` starting with /v1/ or /v2/ is treated as absolute
+        (relative to the host, not BASE_URL) so v2 endpoints work too."""
+        if endpoint.startswith("/v1/") or endpoint.startswith("/v2/"):
+            url = f"https://hinotes.hidock.com{endpoint}"
+        else:
+            url = f"{self.BASE_URL}/{endpoint.lstrip('/')}"
         clean = {k: v for k, v in (data or {}).items() if v is not None}
         resp = self.session.post(url, files={k: (None, str(v)) for k, v in clean.items()},
                                   headers=self._headers())
@@ -85,10 +90,18 @@ class HiNotesClient:
         return resp.json()
 
     def is_token_valid(self) -> bool:
-        """Cheap check: does the current token still work?"""
+        """Cheap check: does the current token still work?
+
+        IMPORTANT: do NOT use get_user_info()/`/v1/user/info` for this --
+        confirmed live that with a dead token it silently returns
+        error:0 for a freshly auto-provisioned anonymous Guest account
+        instead of failing. `folder/list` correctly returns
+        {"error":10000,"message":"session_timeout"} on a dead token, so
+        we use that instead.
+        """
         try:
-            info = self.get_user_info()
-            return info.get("error") == 0
+            resp = self._post_form("/folder/list")
+            return resp.get("error") == 0
         except requests.HTTPError:
             return False
 
@@ -170,10 +183,16 @@ class HiNotesClient:
 
     def get_note_detail(self, note_id: str) -> Dict[str, Any]:
         """Metadata for one meeting recording (title, duration, folder, etc).
-        Does NOT include the summary text or transcript -- see
-        list_notes()'s `conciseSummary` field for the AI summary, and
-        get_transcript() for the full transcript."""
+        For the full AI summary text, prefer get_note_info() (v2) which
+        includes the rendered markdown summary; this v1 endpoint only has
+        bare metadata fields."""
         return self._get("/note/recording/detail", params={"noteId": note_id})["data"]
+
+    def get_note_info(self, note_id: str) -> Dict[str, Any]:
+        """Richer note detail via v2 API: includes full `markdown` summary,
+        `conciseSummary`, `tags`, `shortId`, `sourceDevice`, `deviceType`.
+        Prefer this over get_note_detail() when you need the summary text."""
+        return self._post_form("/v2/note/info", {"id": note_id})["data"]
 
     def get_transcript(self, note_id: str) -> List[Dict[str, Any]]:
         """Full per-sentence transcript with speaker labels and timestamps
@@ -187,11 +206,36 @@ class HiNotesClient:
             data = [data]
         return data
 
-    def delete_note(self, note_id: str) -> Dict[str, Any]:
-        return self._post_form("/note/delete", {"noteId": note_id})
+    def download_audio(self, note_id: str, dest_path: str) -> str:
+        """Download the note's audio file (MP3) to dest_path. Confirmed
+        live: returns a real MP3 with Content-Disposition: attachment.
+        Token is passed as a query param here since this is normally
+        triggered via window.open() in the browser (no custom header)."""
+        url = "https://hinotes.hidock.com/v2/note/audio/download"
+        resp = self.session.get(url, params={"noteId": note_id, "accesstoken": self.auth_token}, stream=True)
+        resp.raise_for_status()
+        with open(dest_path, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=65536):
+                f.write(chunk)
+        return dest_path
 
-    def rate_note(self, note_id: str, rating: int) -> Dict[str, Any]:
-        return self._post_form("/note/rate", {"noteId": note_id, "rating": rating})
+    def get_audio_stream_url(self, note_id: str) -> str:
+        """Build a seekable streaming URL (supports Range requests / ETag)
+        for embedding in an <audio> player, e.g. for a web UI."""
+        return (f"https://hinotes.hidock.com/v2/note/audio/stream"
+                f"?noteId={note_id}&accesstoken={self.auth_token}")
+
+    def delete_note(self, note_id: str) -> Dict[str, Any]:
+        """NOT LIVE-TESTED (destructive). Confirmed field name from the
+        JS bundle is `id`, NOT `noteId` -- the original client had this
+        wrong."""
+        return self._post_form("/note/delete", {"id": note_id})
+
+    def rate_note(self, note_id: str, level: int, remark: Optional[str] = None) -> Dict[str, Any]:
+        """NOT LIVE-TESTED. Confirmed field names from the JS bundle are
+        `id`, `level`, `remark` -- NOT `noteId`/`rating` as the original
+        client assumed."""
+        return self._post_form("/note/rate", {"id": note_id, "level": level, "remark": remark})
 
     # --- Whisper notes (quick voice notes) -----------------------------
 
@@ -234,6 +278,41 @@ class HiNotesClient:
 
     def get_entry_info(self) -> Dict[str, Any]:
         return self._post_form("/entry/info")
+
+    # --- Settings / templates / vocabulary (read-only, verified) --------
+
+    def list_templates(self, page_size: int = 100, language: str = "en") -> Dict[str, Any]:
+        return self._post_form("/template/list", {"pageSize": page_size, "language": language})["data"]
+
+    def list_vocabulary(self) -> List[Dict[str, Any]]:
+        resp = self._post_form("/vocabulary/list")
+        data = resp.get("data", [])
+        return [data] if isinstance(data, dict) else data
+
+    def list_ai_engines(self) -> List[Dict[str, Any]]:
+        resp = self._post_form("/user/setting/ai_engine/list")
+        data = resp.get("data", [])
+        return [data] if isinstance(data, dict) else data
+
+    def get_user_setting(self, group: str, code: str) -> Any:
+        return self._post_form("/user/setting/get", {"group": group, "code": code}).get("data")
+
+    def list_devices_v1(self) -> List[Dict[str, Any]]:
+        """Alias retained for clarity alongside list_devices(). Confirmed
+        live: returns deviceSn, name, accessibility, firmwareVersion,
+        deviceType per device."""
+        resp = self._post_form("/user/device/list")
+        data = resp.get("data", [])
+        return [data] if isinstance(data, dict) else data
+
+    def list_device_recordings(self, device_sn: str, page_index: int = 0, page_size: int = 10) -> Dict[str, Any]:
+        """List raw recording files on a bound device (signature, fileName,
+        matches noteId to the processed note). Different from
+        list_device_files() which used a GET that isn't confirmed working;
+        this POST form is live-verified."""
+        return self._post_form("/user/device/file/list", {
+            "deviceSn": device_sn, "pageIndex": page_index, "pageSize": page_size,
+        })["data"]
 
 
 if __name__ == "__main__":
