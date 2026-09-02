@@ -1,18 +1,42 @@
 """
-HiNotes API Client (Unofficial)
+HiNotes API Client (Unofficial) - v2
 
-A Python client for interacting with the HiNotes API.
-Created through reverse engineering - USE AT YOUR OWN RISK.
+A Python client for interacting with the HiNotes API (used with the HiDoc P1
+USB audio transcription device). Reverse-engineered from the live app bundle
+and confirmed against the real backend on 2026-09-02.
 
-This may violate HiNotes Terms of Service. Consider contacting
-HiDock for official API access before using in production.
+USE AT YOUR OWN RISK. This may violate HiNotes Terms of Service. Consider
+contacting HiDock for official API access before using in production.
+
+KEY CORRECTIONS FROM v1 (do not regress these):
+1. Auth is NOT a cookie session and NOT a standard `Authorization: Bearer`
+   header. The web app stores the raw token in `localStorage['accessToken']`
+   and sends it back on every request as a custom header: `accesstoken: <token>`.
+2. POST requests from the real client are sent as `multipart/form-data`
+   (via FormData), not JSON. Sending JSON bodies gets a generic 400.
+3. `/v1/user/signin` requires a Google reCAPTCHA v2 token
+   (`{"email":..., "password":..., "captcha": <recaptcha_response>}`) and
+   the server enforces it (confirmed: returns `{"error":10002,
+   "message":"captcha_required"}` without one). There is NO way to fully
+   automate this endpoint headlessly without a working captcha solve.
+   >>> Practical workaround: log in manually in a real browser once, then
+   >>> run `localStorage.getItem('accessToken')` in DevTools console and
+   >>> pass that string into HiNotesClient(auth_token=...). Repeat when it
+   >>> expires (401/403 on any call = dead token, unknown fixed TTL).
+4. List/filter params matter: passing `folderId=-1` on
+   `/v1/note/recording/list` returns EMPTY results, despite docs implying
+   -1 means "all folders". Omit `folderId` entirely to get all notes.
+5. Per-note detail is `GET /v1/note/recording/detail?noteId=<id>` (NOT
+   `/v1/note/{id}/detail` as the raw bundle template suggests -- that
+   template's first segment is a literal type keyword: "recording" or
+   "whisper", not the note id).
+6. Full per-sentence transcript (speaker-labelled, timestamped) is
+   `GET /v1/note/recording/transcriptions?noteId=<id>`.
 """
 
 import requests
 from typing import Optional, Dict, List, Any
-from datetime import datetime, timedelta
-from dateutil import parser as dateparser
-import json
+from datetime import datetime
 
 
 class HiNotesClient:
@@ -20,278 +44,164 @@ class HiNotesClient:
     Unofficial HiNotes API Client
 
     Usage:
-        client = HiNotesClient()
-        client.authenticate_with_credentials("email@example.com", "password")
+        # Obtain a token once via manual browser login + DevTools:
+        #   localStorage.getItem('accessToken')
+        client = HiNotesClient(auth_token="<token from browser>")
         notes = client.list_notes()
+        detail = client.get_note_detail(notes['content'][0]['id'])
+        transcript = client.get_transcript(notes['content'][0]['id'])
     """
 
     BASE_URL = "https://hinotes.hidock.com/v1"
 
     def __init__(self, auth_token: Optional[str] = None):
-        """
-        Initialize the HiNotes client
-
-        Args:
-            auth_token: Optional authentication token. If not provided,
-                       you'll need to authenticate using one of the auth methods.
-        """
         self.session = requests.Session()
         self.auth_token = auth_token
 
-        if auth_token:
-            self.session.headers.update({
-                'Authorization': f'Bearer {auth_token}'
-            })
+    def _headers(self, content_type: Optional[str] = None) -> Dict[str, str]:
+        headers = {
+            "Accept": "application/json",
+            "Interface-Language": "en",
+        }
+        if self.auth_token:
+            headers["accesstoken"] = self.auth_token
+        if content_type:
+            headers["Content-Type"] = content_type
+        return headers
 
-    def _request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
-        """
-        Make an API request
-
-        Args:
-            method: HTTP method (GET, POST, etc.)
-            endpoint: API endpoint (without /v1 prefix)
-            **kwargs: Additional arguments to pass to requests
-
-        Returns:
-            JSON response as dictionary
-
-        Raises:
-            requests.HTTPError: If the request fails
-        """
+    def _get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         url = f"{self.BASE_URL}/{endpoint.lstrip('/')}"
+        resp = self.session.get(url, params=params, headers=self._headers())
+        resp.raise_for_status()
+        return resp.json()
 
-        response = self.session.request(method, url, **kwargs)
-        response.raise_for_status()
+    def _post_form(self, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """POST as multipart/form-data, matching the real web client."""
+        url = f"{self.BASE_URL}/{endpoint.lstrip('/')}"
+        clean = {k: v for k, v in (data or {}).items() if v is not None}
+        resp = self.session.post(url, files={k: (None, str(v)) for k, v in clean.items()},
+                                  headers=self._headers())
+        resp.raise_for_status()
+        return resp.json()
 
-        return response.json()
+    def is_token_valid(self) -> bool:
+        """Cheap check: does the current token still work?"""
+        try:
+            info = self.get_user_info()
+            return info.get("error") == 0
+        except requests.HTTPError:
+            return False
 
-    # Authentication Methods
+    # --- Authentication -----------------------------------------------
+    # NOTE: signin requires a live reCAPTCHA token; not practical to
+    # automate headlessly. Get the token manually instead (see module
+    # docstring). Left here for completeness / if you solve the captcha
+    # some other way (e.g. a captcha-solving service you're authorized
+    # to use).
 
-    def authenticate_with_credentials(self, email: str, password: str) -> Dict[str, Any]:
-        """
-        Authenticate with email and password
-
-        Args:
-            email: User email address
-            password: User password
-
-        Returns:
-            Authentication response with token
-        """
-        response = self._request('POST', '/user/signin', json={
-            'email': email,
-            'password': password
+    def authenticate_with_credentials(self, email: str, password: str, captcha: str) -> Dict[str, Any]:
+        resp = self._post_form("/user/signin", {
+            "email": email,
+            "password": password,
+            "captcha": captcha,
         })
-
-        # Extract token from response (exact field name unknown - adjust as needed)
-        if 'token' in response:
-            self.auth_token = response['token']
-            self.session.headers.update({
-                'Authorization': f'Bearer {self.auth_token}'
-            })
-
-        return response
-
-    def register_user(self, email: str, password: str, name: str) -> Dict[str, Any]:
-        """
-        Register a new user account
-
-        Args:
-            email: Email address
-            password: Password
-            name: Display name
-
-        Returns:
-            Registration response
-        """
-        return self._request('POST', '/user/register', json={
-            'email': email,
-            'password': password,
-            'name': name
-        })
+        return resp
 
     def logout(self) -> Dict[str, Any]:
-        """Logout current user"""
-        return self._request('POST', '/user/logout')
+        return self._post_form("/user/logout")
 
-    # User Management
+    # --- User -----------------------------------------------------------
 
     def get_user_info(self) -> Dict[str, Any]:
-        """Get current user information"""
-        return self._request('POST', '/user/info')
+        return self._post_form("/user/info")
 
-    def update_user_name(self, name: str) -> Dict[str, Any]:
-        """
-        Update user display name
+    # --- Devices ----------------------------------------------------------
 
-        Args:
-            name: New display name
-        """
-        return self._request('POST', '/user/rename', json={'name': name})
-
-    # Device Management
-
-    def list_devices(self) -> List[Dict[str, Any]]:
-        """List connected HiDoc devices"""
-        response = self._request('POST', '/user/device/list')
-        return response.get('devices', [])
-
-    def bind_device(self, device_id: str, device_name: str) -> Dict[str, Any]:
-        """
-        Connect a new HiDoc device
-
-        Args:
-            device_id: Device identifier
-            device_name: Display name for device
-        """
-        return self._request('POST', '/user/device/bind', json={
-            'deviceId': device_id,
-            'deviceName': device_name
-        })
-
-    def unbind_device(self, device_id: str) -> Dict[str, Any]:
-        """
-        Disconnect a HiDoc device
-
-        Args:
-            device_id: Device identifier
-        """
-        return self._request('POST', '/user/device/unbind', json={
-            'deviceId': device_id
-        })
+    def list_devices(self) -> Dict[str, Any]:
+        return self._post_form("/user/device/list")
 
     def get_device_status(self) -> Dict[str, Any]:
-        """Get device connection status"""
-        return self._request('GET', '/user/device/status')
+        return self._get("/user/device/status")
 
-    def list_device_files(self) -> List[Dict[str, Any]]:
-        """List files on connected device"""
-        return self._request('GET', '/user/device/file/list')
+    def list_device_files(self) -> Dict[str, Any]:
+        return self._get("/user/device/file/list")
 
-    # Notes Management
+    # --- Folders ------------------------------------------------------
+
+    def list_folders(self) -> Dict[str, Any]:
+        return self._post_form("/folder/list")
+
+    def create_folder(self, name: str) -> Dict[str, Any]:
+        return self._post_form("/folder/create", {"name": name})
+
+    # --- Notes (meeting recordings) ------------------------------------
+    # IMPORTANT: do not pass folderId=-1 expecting "all" -- omit it.
 
     def list_notes(
         self,
-        folder_id: str = "-1",
+        folder_id: Optional[str] = None,
         page_index: int = 0,
         page_size: int = 20,
         sort_type: str = "desc",
-        sort_field: str = "createtime"
+        sort_field: str = "createtime",
     ) -> Dict[str, Any]:
-        """
-        List recording notes
-
-        Args:
-            folder_id: Folder ID to filter (-1 for all)
-            page_index: Page number (0-based)
-            page_size: Items per page
-            sort_type: Sort direction ('asc' or 'desc')
-            sort_field: Field to sort by
-
-        Returns:
-            Dictionary with notes list and pagination info
-        """
         params = {
-            'folderId': folder_id,
-            'pageIndex': page_index,
-            'pageSize': page_size,
-            'sortType': sort_type,
-            'sortField': sort_field
+            "pageIndex": page_index,
+            "pageSize": page_size,
+            "sortType": sort_type,
+            "sortField": sort_field,
         }
-        return self._request('GET', '/note/recording/list', params=params)
+        if folder_id is not None:
+            params["folderId"] = folder_id
+        return self._get("/note/recording/list", params=params)["data"]
 
-    def list_whispers(
-        self,
-        page_size: int = 20,
-        sort_field: str = "create_time"
-    ) -> Dict[str, Any]:
-        """
-        List whisper notes (quick voice notes)
+    def list_all_notes(self, page_size: int = 50) -> List[Dict[str, Any]]:
+        """Paginate through every note. Use this rather than a hardcoded
+        page cap -- the note count grows over time."""
+        all_notes: List[Dict[str, Any]] = []
+        page = 0
+        while True:
+            result = self.list_notes(page_index=page, page_size=page_size)
+            all_notes.extend(result.get("content", []))
+            if result.get("last", True):
+                break
+            page += 1
+        return all_notes
 
-        Args:
-            page_size: Items per page
-            sort_field: Field to sort by
-        """
-        params = {
-            'pageSize': page_size,
-            'sortField': sort_field
-        }
-        return self._request('GET', '/note/whisper/list', params=params)
+    def get_note_detail(self, note_id: str) -> Dict[str, Any]:
+        """Metadata for one meeting recording (title, duration, folder, etc).
+        Does NOT include the summary text or transcript -- see
+        list_notes()'s `conciseSummary` field for the AI summary, and
+        get_transcript() for the full transcript."""
+        return self._get("/note/recording/detail", params={"noteId": note_id})["data"]
+
+    def get_transcript(self, note_id: str) -> List[Dict[str, Any]]:
+        """Full per-sentence transcript with speaker labels and timestamps
+        (beginTime/endTime in ms). Returns a list of segment dicts."""
+        resp = self._get("/note/recording/transcriptions", params={"noteId": note_id})
+        # Server wraps repeated <data> elements; requests/json client sees
+        # this as {"data": [...]} once decoded from the XML-ish envelope --
+        # if it comes back as a single dict, normalize to a list.
+        data = resp.get("data", [])
+        if isinstance(data, dict):
+            data = [data]
+        return data
 
     def delete_note(self, note_id: str) -> Dict[str, Any]:
-        """
-        Delete a note
-
-        Args:
-            note_id: Note identifier
-        """
-        return self._request('POST', '/note/delete', json={'noteId': note_id})
+        return self._post_form("/note/delete", {"noteId": note_id})
 
     def rate_note(self, note_id: str, rating: int) -> Dict[str, Any]:
-        """
-        Rate transcription quality
+        return self._post_form("/note/rate", {"noteId": note_id, "rating": rating})
 
-        Args:
-            note_id: Note identifier
-            rating: Rating from 1-5
-        """
-        return self._request('POST', '/note/rate', json={
-            'noteId': note_id,
-            'rating': rating
-        })
+    # --- Whisper notes (quick voice notes) -----------------------------
 
-    # Folder Management
+    def list_whispers(self, page_size: int = 20, sort_field: str = "create_time") -> Dict[str, Any]:
+        return self._get("/note/whisper/list", params={
+            "pageSize": page_size,
+            "sortField": sort_field,
+        })["data"]
 
-    def list_folders(self) -> List[Dict[str, Any]]:
-        """List user folders"""
-        response = self._request('POST', '/folder/list')
-        return response.get('folders', [])
-
-    def create_folder(self, name: str) -> Dict[str, Any]:
-        """
-        Create new folder
-
-        Args:
-            name: Folder name
-        """
-        return self._request('POST', '/folder/create', json={'name': name})
-
-    def rename_folder(self, folder_id: str, name: str) -> Dict[str, Any]:
-        """
-        Rename folder
-
-        Args:
-            folder_id: Folder identifier
-            name: New folder name
-        """
-        return self._request('POST', '/folder/rename', json={
-            'folderId': folder_id,
-            'name': name
-        })
-
-    def delete_folder(self, folder_id: str) -> Dict[str, Any]:
-        """
-        Delete folder
-
-        Args:
-            folder_id: Folder identifier
-        """
-        return self._request('POST', '/folder/remove', json={'folderId': folder_id})
-
-    def assign_note_to_folder(self, note_id: str, folder_id: str) -> Dict[str, Any]:
-        """
-        Move note to folder
-
-        Args:
-            note_id: Note identifier
-            folder_id: Target folder identifier
-        """
-        return self._request('POST', '/folder/assign', json={
-            'noteId': note_id,
-            'folderId': folder_id
-        })
-
-    # To-Do Management
+    # --- To-Do ----------------------------------------------------------
 
     def list_todos(
         self,
@@ -299,313 +209,48 @@ class HiNotesClient:
         page_size: int = 10,
         tz_offset: int = 0,
         due_date_start: Optional[datetime] = None,
-        due_date_end: Optional[datetime] = None
+        due_date_end: Optional[datetime] = None,
     ) -> Dict[str, Any]:
-        """
-        List to-do items
-
-        Args:
-            state: Filter by state ('open' or 'closed')
-            page_size: Items per page
-            tz_offset: Timezone offset in minutes
-            due_date_start: Start date filter
-            due_date_end: End date filter
-        """
-        params = {
-            'pageSize': page_size,
-            'state': state,
-            'tzOffset': tz_offset
-        }
-
+        params = {"pageSize": page_size, "state": state, "tzOffset": tz_offset}
         if due_date_start:
-            params['dueDateStart'] = due_date_start.strftime('%Y-%m-%d %H:%M:%S')
+            params["dueDateStart"] = due_date_start.strftime("%Y-%m-%d %H:%M:%S")
         if due_date_end:
-            params['dueDateEnd'] = due_date_end.strftime('%Y-%m-%d %H:%M:%S')
+            params["dueDateEnd"] = due_date_end.strftime("%Y-%m-%d %H:%M:%S")
+        return self._get("/todo/list", params=params)
 
-        return self._request('GET', '/todo/list', params=params)
+    # --- Calendar ---------------------------------------------------------
 
-    def update_todo_description(self, todo_id: str, description: str) -> Dict[str, Any]:
-        """Update to-do description"""
-        return self._request('POST', '/todo/update/description', json={
-            'todoId': todo_id,
-            'description': description
+    def list_calendar_events(self, start_time: datetime, end_time: datetime, tz_offset: int = 0) -> Dict[str, Any]:
+        return self._get("/calendar/event/list", params={
+            "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "end_time": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "tz_offset": tz_offset,
         })
 
-    def update_todo_due_date(self, todo_id: str, due_date: datetime) -> Dict[str, Any]:
-        """Update to-do due date"""
-        return self._request('POST', '/todo/update/dueDate', json={
-            'todoId': todo_id,
-            'dueDate': due_date.strftime('%Y-%m-%d %H:%M:%S')
-        })
-
-    def delete_todo(self, todo_id: str) -> Dict[str, Any]:
-        """Delete to-do item"""
-        return self._request('POST', '/todo/delete', json={'todoId': todo_id})
-
-    # Calendar Management
-
-    def list_calendar_events(
-        self,
-        start_time: datetime,
-        end_time: datetime,
-        tz_offset: int = 0
-    ) -> Dict[str, Any]:
-        """
-        List calendar events
-
-        Args:
-            start_time: Start of date range
-            end_time: End of date range
-            tz_offset: Timezone offset in minutes
-        """
-        params = {
-            'start_time': start_time.strftime('%Y-%m-%d %H:%M:%S'),
-            'end_time': end_time.strftime('%Y-%m-%d %H:%M:%S'),
-            'tz_offset': tz_offset
-        }
-        return self._request('GET', '/calendar/event/list', params=params)
-
-    def add_calendar_event(
-        self,
-        title: str,
-        start_time: datetime,
-        end_time: datetime
-    ) -> Dict[str, Any]:
-        """Add calendar event"""
-        return self._request('POST', '/calendar/event/add', json={
-            'title': title,
-            'startTime': start_time.strftime('%Y-%m-%d %H:%M:%S'),
-            'endTime': end_time.strftime('%Y-%m-%d %H:%M:%S')
-        })
-
-    def notify_recording_status(
-        self,
-        event_id: str,
-        is_recording: bool
-    ) -> Dict[str, Any]:
-        """
-        Notify HiNotes calendar of device recording state
-
-        This updates the calendar event to indicate that a recording is in progress
-        or has completed. The server typically updates the event notes with
-        "Recording in progress..." while active, and may add a transcription link
-        when the recording is finished.
-
-        Args:
-            event_id: Google Calendar event ID
-            is_recording: True if recording is active, False if stopped
-
-        Returns:
-            Response from server confirming the notification
-        """
-        return self._request('POST', '/calendar/event/device_state/notice', json={
-            'eventId': event_id,
-            'isRecording': is_recording
-        })
-
-    # Settings
-
-    def get_settings(self) -> Dict[str, Any]:
-        """Get user settings"""
-        return self._request('POST', '/user/setting/get')
-
-    def save_settings(self, settings: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Save user settings
-
-        Args:
-            settings: Settings dictionary
-        """
-        return self._request('POST', '/user/setting/save', json=settings)
-
-    # Sync
+    # --- Sync -------------------------------------------------------------
 
     def sync_changes(self) -> Dict[str, Any]:
-        """Synchronize changes with server"""
-        return self._request('POST', '/changes')
+        return self._post_form("/changes")
 
     def get_entry_info(self) -> Dict[str, Any]:
-        """Get application entry data"""
-        return self._request('POST', '/entry/info')
-
-    # Subscription Management
-
-    def get_subscription_status(self) -> Dict[str, Any]:
-        """
-        Get current subscription status from RevenueCat
-
-        Returns:
-            Dictionary containing subscription details including:
-            - product_id: Subscription product identifier
-            - status: active, expired, canceled, or trial
-            - expires_at: Expiration date (ISO 8601 format)
-        """
-        return self._request('GET', '/subscribers')
-
-    def get_receipts(self) -> List[Dict[str, Any]]:
-        """
-        Get purchase receipts
-
-        Returns:
-            List of receipt objects containing:
-            - id: Receipt identifier
-            - product_id: Product purchased
-            - purchase_date: Date of purchase
-            - store: Store where purchased (apple, google, stripe)
-            - amount: Purchase amount
-            - currency: Currency code
-            - is_trial: Whether this was a trial purchase
-        """
-        response = self._request('GET', '/receipts')
-        return response.get('receipts', [])
-
-    def get_billing_portal_url(self) -> str:
-        """
-        Get RevenueCat billing portal URL for subscription management
-
-        Returns:
-            URL to RevenueCat billing portal where users can manage subscriptions
-        """
-        response = self._request('GET', '/payment/rc/portal')
-        return response.get('url', '')
-
-    def check_trial_eligibility(self) -> Dict[str, Any]:
-        """
-        Check if user is eligible for trial subscription
-
-        Returns:
-            Dictionary containing:
-            - eligible: Boolean indicating trial eligibility
-            - reason: Explanation if not eligible
-            - trial_duration_days: Length of trial period if eligible
-        """
-        return self._request('GET', '/user/trial/check')
-
-    def claim_trial(self) -> Dict[str, Any]:
-        """
-        Claim trial subscription
-
-        Returns:
-            Dictionary containing:
-            - success: Whether trial was successfully claimed
-            - subscription: Subscription details if successful
-            - expires_at: Trial expiration date
-            - message: Result message
-        """
-        return self._request('POST', '/user/trial/claim')
-
-    def check_subscription_active(self) -> bool:
-        """
-        Check if user has an active subscription (includes grace period)
-
-        Returns:
-            Boolean indicating if subscription is active
-        """
-        try:
-            status = self.get_subscription_status()
-            subscription = status.get('subscriber', {}).get('entitlements', {}).get('premium', {})
-
-            if not subscription:
-                return False
-
-            expires_at = subscription.get('expires_date')
-            if not expires_at:
-                return True  # No expiration means active
-
-            # Parse expiration date
-            expires = dateparser.parse(expires_at)
-            now = datetime.utcnow()
-
-            # Include 7-day grace period
-            grace_end = expires + timedelta(days=7)
-            return now < grace_end
-        except Exception:
-            return False
-
-    def is_in_grace_period(self) -> bool:
-        """
-        Check if subscription is in grace period (expired but still accessible)
-
-        Returns:
-            Boolean indicating if in grace period
-        """
-        try:
-            status = self.get_subscription_status()
-            subscription = status.get('subscriber', {}).get('entitlements', {}).get('premium', {})
-
-            if not subscription:
-                return False
-
-            expires_at = subscription.get('expires_date')
-            if not expires_at:
-                return False  # No expiration means not in grace period
-
-            expires = dateparser.parse(expires_at)
-            now = datetime.utcnow()
-            grace_end = expires + timedelta(days=7)
-
-            return expires < now < grace_end
-        except Exception:
-            return False
-
-    def get_days_until_expiration(self) -> Optional[int]:
-        """
-        Get number of days until subscription expires (including grace period)
-
-        Returns:
-            Number of days remaining, or None if no expiration
-        """
-        try:
-            status = self.get_subscription_status()
-            subscription = status.get('subscriber', {}).get('entitlements', {}).get('premium', {})
-
-            if not subscription:
-                return None
-
-            expires_at = subscription.get('expires_date')
-            if not expires_at:
-                return None  # No expiration
-
-            expires = dateparser.parse(expires_at)
-            grace_end = expires + timedelta(days=7)
-            now = datetime.utcnow()
-
-            if grace_end < now:
-                return 0  # Already expired
-
-            return (grace_end - now).days
-        except Exception:
-            return None
+        return self._post_form("/entry/info")
 
 
-# Example usage
 if __name__ == "__main__":
-    # Initialize client
-    client = HiNotesClient()
-
-    # Authenticate (replace with your credentials)
-    # WARNING: This is for demonstration only. Never hardcode credentials.
-    # client.authenticate_with_credentials("your-email@example.com", "your-password")
-
-    # Get user info
-    # user_info = client.get_user_info()
-    # print("User Info:", json.dumps(user_info, indent=2))
-
-    # List notes
-    # notes = client.list_notes(page_size=10)
-    # print("Notes:", json.dumps(notes, indent=2))
-
-    # List devices
-    # devices = client.list_devices()
-    # print("Devices:", json.dumps(devices, indent=2))
-
-    # List todos for today
-    # from datetime import datetime
-    # today_start = datetime.now().replace(hour=0, minute=0, second=0)
-    # today_end = datetime.now().replace(hour=23, minute=59, second=59)
-    # todos = client.list_todos(due_date_start=today_start, due_date_end=today_end)
-    # print("Today's Todos:", json.dumps(todos, indent=2))
-
-    print("HiNotes API Client initialized. See code comments for usage examples.")
-    print("WARNING: This is unofficial and may violate Terms of Service.")
-    print("Contact HiDock for official API access before production use.")
+    import os
+    token = os.environ.get("HINOTES_TOKEN")
+    if not token:
+        print("Set HINOTES_TOKEN env var (grab via browser DevTools: "
+              "localStorage.getItem('accessToken')) to run this demo.")
+    else:
+        client = HiNotesClient(auth_token=token)
+        print("Token valid:", client.is_token_valid())
+        user = client.get_user_info()
+        print("User:", user["data"]["name"], "-", user["data"]["totalNoteCount"], "notes")
+        notes = client.list_all_notes()
+        print(f"Fetched {len(notes)} notes total.")
+        if notes:
+            first = notes[0]
+            print("Most recent:", first["title"])
+            transcript = client.get_transcript(first["id"])
+            print(f"Transcript has {len(transcript)} segments.")
