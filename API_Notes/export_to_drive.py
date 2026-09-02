@@ -105,12 +105,17 @@ def ensure_folder(manifest: dict, path_key: str, name: str, parent_id: str) -> s
 
 
 def upload_text(content: str, filename: str, parent_id: str) -> dict:
-    """Write content to a temp file and upload it via the Drive CLI."""
+    """Write content to a temp file and upload it as a native Google Doc
+    (--convert-to-doc), so markdown syntax (headers/bold/lists) renders as
+    real rich-text formatting and opening it in Docs edits in place instead
+    of spawning a duplicate converted copy."""
+    doc_name = filename[:-3] if filename.endswith(".md") else filename
     with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as tmp:
         tmp.write(content)
         tmp_path = tmp.name
     try:
-        resp = gapi("drive", "upload", tmp_path, "--name", filename, "--parent", parent_id)
+        resp = gapi("drive", "upload", tmp_path, "--name", doc_name, "--parent", parent_id,
+                    "--convert-to-doc", "--mime-type", "text/markdown")
         return resp
     finally:
         os.unlink(tmp_path)
