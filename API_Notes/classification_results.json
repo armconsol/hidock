@@ -1,0 +1,14 @@
+[
+  {
+    "note_id": "6207067162469867520",
+    "title": "2026-09-21 Installation and Configuration of Telephony Integrated Gateway and Resilient System",
+    "status": "error",
+    "error": "Folder assignment failed: {'error': 0, 'message': 'success', 'data': None}"
+  },
+  {
+    "note_id": "6207044010935197696",
+    "title": "2026-09-21 Evaluation of Frappe as a Zoho Replacement",
+    "status": "error",
+    "error": "Folder assignment failed: {'error': 0, 'message': 'success', 'data': None}"
+  }
+]

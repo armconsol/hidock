@@ -1,0 +1,95 @@
+{
+  "Cut-Planning": [],
+  "StandUp": [
+    {
+      "id": "6178309845695991808",
+      "title": "2026-09-01 Product Engineering Update and Development Progress"
+    },
+    {
+      "id": "6177884702955933696",
+      "title": "2026-09-01 Team Introduction and Project Updates"
+    }
+  ],
+  "Postmortums": [
+    {
+      "id": "6176750530556207104",
+      "title": "2026-08-31 Installation and Configuration Issues Review"
+    }
+  ],
+  "Onboarding": [
+    {
+      "id": "6180949741086576640",
+      "title": "2026-09-03 Enhancing Collaboration and Support Processes between Teams"
+    },
+    {
+      "id": "6179598904900849664",
+      "title": "2026-09-02 Resilient Project Sync and Coordination"
+    },
+    {
+      "id": "6177841922380537856",
+      "title": "2026-09-01 West Point PSAP Network Architecture and Configuration Discussion"
+    },
+    {
+      "id": "6176877619930337280",
+      "title": "2026-08-31 Resilient System Architecture and Provisioning Overview"
+    },
+    {
+      "id": "6176534165622759424",
+      "title": "2026-08-31 Project Deployment Strategies and System Enhancements"
+    },
+    {
+      "id": "6176476508119502848",
+      "title": "2026-08-31 Team Updates and AI Documentation Strategies"
+    }
+  ],
+  "Projects": [
+    {
+      "id": "6189895037229342720",
+      "title": "2026-09-09 New 911 System Implementation Progress and Challenges"
+    },
+    {
+      "id": "6189730231432126464",
+      "title": "2026-09-09 Project Task and System Updates"
+    },
+    {
+      "id": "6182229126968119296",
+      "title": "2026-09-04 Project Updates and Infrastructure Challenges"
+    },
+    {
+      "id": "6180996516082225152",
+      "title": "2026-09-03 Integration Testing Preparation for TEXA 9-1-1"
+    },
+    {
+      "id": "6180828289997873152",
+      "title": "2026-09-03 Butler County Project Planning and Coordination"
+    },
+    {
+      "id": "6179610728140513280",
+      "title": "2026-09-02 Integration and Setup Discussion for Phones and Stream Decks"
+    },
+    {
+      "id": "6176789093977038848",
+      "title": "2026-08-31 Call Handling Feature Enhancements and Team Introductions"
+    },
+    {
+      "id": "6176618681972432896",
+      "title": "2026-08-31 Reinstallation of CAD System for EZ911 Customer Prentiss County, MS"
+    }
+  ],
+  "AI-Tooling": [
+    {
+      "id": "6179519706727325696",
+      "title": "2026-09-02 AI-Powered Support Tool Development Update"
+    },
+    {
+      "id": "6179504213924651008",
+      "title": "2026-09-02 AI Tools and Self-hosted LLMs Discussion"
+    }
+  ],
+  "Support": [
+    {
+      "id": "6181126005135118336",
+      "title": "2026-09-03 PCAP Procedures and Tools Overview"
+    }
+  ]
+}

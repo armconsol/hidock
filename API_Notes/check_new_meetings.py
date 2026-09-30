@@ -88,7 +88,7 @@ def main():
             })
             continue
 
-        meta = client._post_form("/v2/note/meta", {"noteId": note_id}).get("data", {})
+        meta = client._post_form("/v2/note/meta", {"noteId": note_id}).get("data") or {}
         markdown = info.get("markdown") or info.get("conciseSummary") or ""
         report["uncategorized_notes"].append({
             "id": note_id,

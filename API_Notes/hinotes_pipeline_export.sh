@@ -60,20 +60,22 @@ if [ "$OBS_STATUS" -eq 0 ]; then
 fi
 
 # --- Commit+push the Obsidian vault (new Meetings/Summeries|Transcripts files) ---
-cd "$VAULT_DIR" || exit 1
-if [ -n "$(git status --porcelain)" ]; then
-    git add -A
-    TS=$(date '+%Y-%m-%d %H:%M:%S')
-    if git commit -m "HiNotes pipeline: export new meetings (${TS})" >/dev/null 2>&1; then
-        PUSH_OUT=$(git push origin main 2>&1)
-        if [ $? -ne 0 ]; then
-            git_sync_alert "$LABEL — ERROR" "obsidian vault commit ok but push failed:\n\n$PUSH_OUT"
-        else
-            echo "Committed and pushed new Obsidian export files."
-        fi
-    else
-        git_sync_alert "$LABEL — ERROR" "obsidian vault git commit failed"
-    fi
+# This repo has MULTIPLE CONCURRENT WRITERS (Obsidian desktop app via
+# obsidian-git, the "Sync Obsidian vault" cron job every 15min, the Trilium
+# 2-way sync job, and this script every 30min). Use the shared lock+retry
+# helper (git_sync_safe.sh) instead of a bare commit+push -- a bare
+# pull-then-push is NOT safe under concurrent writers even if the pull
+# happens first, because another writer can push in the gap between this
+# script's pull and its own push (confirmed happening in practice 2026-09-05).
+source "$HOME/.hermes/scripts/lib/git_sync_safe.sh"
+SYNC_OUT=$(git_sync_safe "$VAULT_DIR" "$LABEL" "HiNotes pipeline: export new meetings")
+SYNC_STATUS=$?
+if [ $SYNC_STATUS -eq 2 ]; then
+    git_sync_alert "$LABEL — MERGE CONFLICT" "git_sync_safe hit a merge conflict in $VAULT_DIR:\n\n$SYNC_OUT"
+elif [ $SYNC_STATUS -ne 0 ]; then
+    git_sync_alert "$LABEL — ERROR" "git_sync_safe failed in $VAULT_DIR:\n\n$SYNC_OUT"
+else
+    echo "Obsidian vault synced (pulled/committed/pushed as needed)."
 fi
 
 # --- Commit+push the hinotes repo's manifest state (idempotency tracking) ---

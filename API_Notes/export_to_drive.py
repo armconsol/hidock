@@ -68,18 +68,75 @@ def ms_to_hms(ms) -> str:
 def load_manifest() -> dict:
     if os.path.exists(MANIFEST_PATH):
         with open(MANIFEST_PATH) as f:
-            return json.load(f)
-    return {
-        "folder_ids": {},          # "Summeries/MSI" -> drive folder id
-        "exported_summary_ids": [],
-        "exported_transcript_ids": [],
-        "exported_audio_ids": [],
-    }
+            m = json.load(f)
+    else:
+        m = {}
+    m.setdefault("folder_ids", {})   # "Summeries/MSI" -> drive folder id
+    m.setdefault("exported_summary_ids", [])
+    m.setdefault("exported_transcript_ids", [])
+    m.setdefault("exported_audio_ids", [])
+    # Notes uploaded while HiNotes was still transcribing (raw device title,
+    # no AI summary). Kept re-exportable instead of permanently "done" --
+    # see note_is_provisional().
+    m.setdefault("provisional_note_ids", [])
+    # note_id -> {"summary": {"id","name"}, "transcript": {...}, "audio": {...}}
+    # Needed so a provisional re-export can TRASH the old placeholder-named
+    # Doc instead of leaving an orphaned duplicate beside the corrected one.
+    m.setdefault("artifact_files", {})
+    return m
+
+
+# A HiDock device upload appears in HiNotes BEFORE transcription/summarization
+# completes; during that window title is the raw filename and the summary
+# fields are null.
+RAW_DEVICE_TITLE = re.compile(r"^\d{8}-\d{6}-Rec\d+\.hda$", re.IGNORECASE)
+
+
+def note_is_provisional(title: str, info: dict) -> bool:
+    """True when the note hasn't finished processing on HiNotes' side.
+
+    WHY: the manifest recorded an id as exported on first sight, so a note
+    picked up mid-transcription was frozen forever as a raw-filename Doc with
+    "*(no summary available)*" as the body (found 2026-09-29, 7 notes). Such
+    uploads must stay eligible for re-export.
+    """
+    if title and RAW_DEVICE_TITLE.match(title.strip()):
+        return True
+    if not (info.get("markdown") or info.get("conciseSummary")):
+        return True
+    return False
 
 
 def save_manifest(manifest: dict) -> None:
     with open(MANIFEST_PATH, "w") as f:
         json.dump(manifest, f, indent=2)
+
+
+def trash_stale_artifact(manifest: dict, note_id: str, kind: str, new_name: str) -> None:
+    """Trash a previously-uploaded artifact whose filename no longer matches.
+
+    Re-exporting a note that was first uploaded as a still-processing
+    placeholder writes a NEW Doc under the corrected title; without this the
+    old "20260928-...-Rec93.hda" Doc lingers in Drive forever. Trash (not
+    permanent delete) so it's recoverable.
+    """
+    rec = manifest.get("artifact_files", {}).get(note_id, {}).get(kind)
+    if not rec or not rec.get("id"):
+        return
+    if rec.get("name") == new_name:
+        return  # same filename, upload overwrote//replaced in place
+    try:
+        gapi("drive", "delete", rec["id"])
+        print(f"  trashed stale {kind} Doc: {rec.get('name')} ({rec['id']})")
+    except Exception as e:
+        print(f"  WARNING could not trash stale {kind} ({rec['id']}): {e}")
+
+
+def record_artifact(manifest: dict, note_id: str, kind: str, resp: dict, name: str) -> None:
+    fid = (resp or {}).get("id") or (resp or {}).get("fileId")
+    manifest.setdefault("artifact_files", {}).setdefault(note_id, {})[kind] = {
+        "id": fid, "name": name,
+    }
 
 
 def gapi(*args) -> dict:
@@ -235,11 +292,16 @@ def main():
     all_notes = client.list_all_notes(page_size=50)
     print(f"Total notes in account: {len(all_notes)}")
 
+    provisional = set(manifest["provisional_note_ids"])
     new_notes = [n for n in all_notes
                  if n["id"] not in exported_summary
                  or n["id"] not in exported_transcript
-                 or (not args.skip_audio and n["id"] not in exported_audio)]
-    print(f"Notes needing at least one new artifact: {len(new_notes)}")
+                 or (not args.skip_audio and n["id"] not in exported_audio)
+                 # Re-export notes whose text was uploaded as a
+                 # still-processing placeholder.
+                 or n["id"] in provisional]
+    print(f"Notes needing at least one new artifact: {len(new_notes)} "
+          f"({len(provisional)} provisional/awaiting re-export)")
 
     if args.limit:
         new_notes = new_notes[: args.limit]
@@ -263,8 +325,9 @@ def main():
         print(f"[{i+1}/{len(new_notes)}] {folder_name}/{title}")
         safe_title = sanitize_filename(title)
 
-        need_summary = note_id not in exported_summary
-        need_transcript = note_id not in exported_transcript
+        was_provisional = note_id in provisional
+        need_summary = note_id not in exported_summary or was_provisional
+        need_transcript = note_id not in exported_transcript or was_provisional
         need_audio = (not args.skip_audio) and note_id not in exported_audio
 
         if not (need_summary or need_transcript or need_audio):
@@ -279,6 +342,19 @@ def main():
                 errors.append({"note_id": note_id, "title": title, "stage": "info", "error": str(e)})
                 need_summary = False
 
+        # The freshly-fetched note/info title is authoritative: the list
+        # endpoint can still hold a stale raw device filename.
+        if info is not None:
+            info_title = info.get("title") or title
+            if info_title != title:
+                title = info_title
+                safe_title = sanitize_filename(title)
+
+        still_provisional = note_is_provisional(title, info) if info is not None else was_provisional
+        if still_provisional:
+            print("  NOTE still processing on HiNotes — uploading placeholder, "
+                  "will re-export once summarized")
+
         if need_summary and info is not None:
             md = build_summary_md(note_id, info, folder_name)
             if args.dry_run:
@@ -286,7 +362,10 @@ def main():
             else:
                 try:
                     fid = get_subfolder(summ_root_id, "Summeries", folder_name)
-                    upload_text(md, f"{safe_title}.md", fid)
+                    if was_provisional:
+                        trash_stale_artifact(manifest, note_id, "summary", f"{safe_title}.md")
+                    resp = upload_text(md, f"{safe_title}.md", fid)
+                    record_artifact(manifest, note_id, "summary", resp, f"{safe_title}.md")
                     exported_summary.add(note_id)
                     manifest["exported_summary_ids"] = list(exported_summary)
                     save_manifest(manifest)
@@ -306,7 +385,10 @@ def main():
             else:
                 try:
                     fid = get_subfolder(trans_root_id, "Transcripts", folder_name)
-                    upload_text(md, f"{safe_title}.md", fid)
+                    if was_provisional:
+                        trash_stale_artifact(manifest, note_id, "transcript", f"{safe_title}.md")
+                    resp = upload_text(md, f"{safe_title}.md", fid)
+                    record_artifact(manifest, note_id, "transcript", resp, f"{safe_title}.md")
                     exported_transcript.add(note_id)
                     manifest["exported_transcript_ids"] = list(exported_transcript)
                     save_manifest(manifest)
@@ -323,7 +405,10 @@ def main():
                     tmp_audio = tempfile.mktemp(suffix=".mp3")
                     client.download_audio(note_id, tmp_audio)
                     fid = get_subfolder(rec_root_id, "Recordings", folder_name)
-                    upload_audio(tmp_audio, f"{safe_title}.mp3", fid)
+                    if was_provisional:
+                        trash_stale_artifact(manifest, note_id, "audio", f"{safe_title}.mp3")
+                    resp = upload_audio(tmp_audio, f"{safe_title}.mp3", fid)
+                    record_artifact(manifest, note_id, "audio", resp, f"{safe_title}.mp3")
                     exported_audio.add(note_id)
                     manifest["exported_audio_ids"] = list(exported_audio)
                     save_manifest(manifest)
@@ -333,6 +418,16 @@ def main():
                 finally:
                     if tmp_audio and os.path.exists(tmp_audio):
                         os.unlink(tmp_audio)
+
+        # Persist provisional state per note so an interrupted run doesn't
+        # lose track of which uploads are still placeholders.
+        if not args.dry_run:
+            if still_provisional:
+                provisional.add(note_id)
+            else:
+                provisional.discard(note_id)
+            manifest["provisional_note_ids"] = sorted(provisional)
+            save_manifest(manifest)
 
     print(f"\nDone. Summaries now: {len(exported_summary)}, "
           f"Transcripts: {len(exported_transcript)}, Audio: {len(exported_audio)}")

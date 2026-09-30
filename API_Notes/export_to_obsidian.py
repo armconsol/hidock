@@ -19,6 +19,7 @@ import sys
 import os
 import json
 import re
+import glob
 import argparse
 import time
 
@@ -50,13 +51,44 @@ def ms_to_hms(ms) -> str:
 def load_manifest() -> dict:
     if os.path.exists(MANIFEST_PATH):
         with open(MANIFEST_PATH) as f:
-            return json.load(f)
-    return {"exported_note_ids": []}
+            m = json.load(f)
+    else:
+        m = {"exported_note_ids": []}
+    m.setdefault("exported_note_ids", [])
+    # Notes exported while HiNotes was still transcribing (see
+    # note_is_provisional) are recorded here instead of being treated as
+    # permanently done, so a later run re-exports them once the real title
+    # and AI summary exist.
+    m.setdefault("provisional_note_ids", [])
+    return m
 
 
 def save_manifest(manifest: dict) -> None:
     with open(MANIFEST_PATH, "w") as f:
         json.dump(manifest, f, indent=2)
+
+
+# A HiDock device upload lands in HiNotes BEFORE transcription/summarization
+# finishes. In that window the note's title is still the raw device filename
+# (e.g. "20260928-132429-Rec93.hda") and markdown/conciseSummary are null.
+RAW_DEVICE_TITLE = re.compile(r"^\d{8}-\d{6}-Rec\d+\.hda$", re.IGNORECASE)
+
+
+def note_is_provisional(title: str, info: dict) -> bool:
+    """True when this note hasn't finished processing on HiNotes' side yet.
+
+    WHY THIS EXISTS: the manifest used to record a note id as permanently
+    exported the first time it was seen. Notes picked up mid-transcription
+    were therefore frozen in the vault forever as a raw-filename title with
+    "*(no summary available)*" as the body, and no rerun would ever fix them
+    (found 2026-09-29: 7 notes affected, oldest from 09-09). Anything
+    provisional must stay re-exportable.
+    """
+    if title and RAW_DEVICE_TITLE.match(title.strip()):
+        return True
+    if not (info.get("markdown") or info.get("conciseSummary")):
+        return True
+    return False
 
 
 def build_summary_md(note_id: str, info: dict, folder_name: str) -> str:
@@ -143,7 +175,11 @@ def main():
 
     manifest = load_manifest()
     already_exported = set(manifest["exported_note_ids"])
-    print(f"Already exported: {len(already_exported)} notes")
+    provisional = set(manifest["provisional_note_ids"])
+    # Provisional notes must be retried even though they're in
+    # already_exported -- they were written as placeholders.
+    print(f"Already exported: {len(already_exported)} notes "
+          f"({len(provisional)} provisional/awaiting re-export)")
 
     # Build folder membership map (never hardcode folder count -- always
     # discover current folders live)
@@ -168,8 +204,11 @@ def main():
     all_notes = client.list_all_notes(page_size=50)
     print(f"Total notes in account: {len(all_notes)}")
 
-    new_notes = [n for n in all_notes if n["id"] not in already_exported]
-    print(f"New notes to export: {len(new_notes)}")
+    new_notes = [n for n in all_notes
+                 if n["id"] not in already_exported or n["id"] in provisional]
+    n_retry = sum(1 for n in new_notes if n["id"] in provisional)
+    print(f"New notes to export: {len(new_notes) - n_retry} "
+          f"(+ {n_retry} provisional re-exports)")
 
     if args.limit:
         new_notes = new_notes[: args.limit]
@@ -201,6 +240,19 @@ def main():
         summ_dir = os.path.join(SUMM_ROOT, folder_name)
         trans_dir = os.path.join(TRANS_ROOT, folder_name)
 
+        # Prefer the freshly-fetched title from note/info: the list endpoint
+        # can still carry the stale raw device filename after processing has
+        # completed.
+        info_title = info.get("title") or title
+        if info_title != title:
+            title = info_title
+            safe_title = sanitize_filename(title)
+
+        is_provisional = note_is_provisional(title, info)
+        if is_provisional:
+            print("  NOTE still processing on HiNotes (no summary/raw title) — "
+                  "writing placeholder and marking for re-export")
+
         summary_md = build_summary_md(note_id, info, folder_name)
         transcript_md = build_transcript_md(
             note_id, title, folder_name, note.get("createTime"), transcript
@@ -208,6 +260,26 @@ def main():
 
         summ_path = os.path.join(summ_dir, f"{safe_title}.md")
         trans_path = os.path.join(trans_dir, f"{safe_title}.md")
+
+        # If this note was previously written under a DIFFERENT (placeholder)
+        # name or folder, remove those stale files so the real export doesn't
+        # leave an orphaned "*(no summary available)*" duplicate behind.
+        stale_removed = []
+        if not is_provisional and note_id in provisional and not args.dry_run:
+            for root, keep in ((SUMM_ROOT, summ_path), (TRANS_ROOT, trans_path)):
+                for old in glob.glob(os.path.join(root, "*", "*.md")):
+                    if os.path.abspath(old) == os.path.abspath(keep):
+                        continue
+                    try:
+                        with open(old) as f:
+                            head = f.read(600)
+                    except OSError:
+                        continue
+                    if f'hinotes_note_id: "{note_id}"' in head:
+                        os.remove(old)
+                        stale_removed.append(old)
+            for p in stale_removed:
+                print(f"  removed stale placeholder: {p}")
 
         if args.dry_run:
             print(f"  [DRY RUN] would write:\n    {summ_path}\n    {trans_path}")
@@ -220,11 +292,16 @@ def main():
                 f.write(transcript_md)
 
         exported_this_run.append(note_id)
+        if is_provisional:
+            provisional.add(note_id)
+        else:
+            provisional.discard(note_id)
 
         # Update manifest incrementally so a crash mid-run doesn't lose
         # progress or cause re-export of already-written notes.
         if not args.dry_run:
             manifest["exported_note_ids"] = list(already_exported | set(exported_this_run))
+            manifest["provisional_note_ids"] = sorted(provisional)
             save_manifest(manifest)
 
     print(f"\nDone. Exported {len(exported_this_run)} notes this run.")
