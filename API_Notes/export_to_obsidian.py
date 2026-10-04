@@ -60,6 +60,11 @@ def load_manifest() -> dict:
     # permanently done, so a later run re-exports them once the real title
     # and AI summary exist.
     m.setdefault("provisional_note_ids", [])
+    # note_id -> folder name at last export. A note whose folder CHANGED since
+    # then is re-exported, which is how a manual move OUT of "Noise" gets
+    # picked up (user's rule 2026-10-04: Noise is triaged by hand; if it's
+    # real they move it to a proper folder and the pipeline should slurp it in).
+    m.setdefault("note_folders", {})
     return m
 
 
@@ -73,8 +78,15 @@ def save_manifest(manifest: dict) -> None:
 # (e.g. "20260928-132429-Rec93.hda") and markdown/conciseSummary are null.
 RAW_DEVICE_TITLE = re.compile(r"^\d{8}-\d{6}-Rec\d+\.hda$", re.IGNORECASE)
 
+# Folder whose contents are triaged by hand and must be exported EXACTLY ONCE.
+# Per the user 2026-10-04: "If something gets moved into Noise I'll process
+# that... There is no need for you to process anything in Noise more than the
+# 1st initial time." A real note gets manually moved to another folder, which
+# the note_folders change-detection below then picks up.
+NOISE_FOLDER = "Noise"
 
-def note_is_provisional(title: str, info: dict) -> bool:
+
+def note_is_provisional(title: str, info: dict, folder_name: str = "") -> bool:
     """True when this note hasn't finished processing on HiNotes' side yet.
 
     WHY THIS EXISTS: the manifest used to record a note id as permanently
@@ -83,7 +95,20 @@ def note_is_provisional(title: str, info: dict) -> bool:
     "*(no summary available)*" as the body, and no rerun would ever fix them
     (found 2026-09-29: 7 notes affected, oldest from 09-09). Anything
     provisional must stay re-exportable.
+
+    EXCEPTION (2026-10-04): notes in NOISE_FOLDER are never provisional. Short
+    stray clips (20-139s) reach state=transcribed with no summary and will
+    NEVER get one, so retrying them re-uploaded placeholders every 30 minutes
+    forever. HiNotes' own `state` is the authoritative signal that it is done:
+    once it is past transcription, absence of a summary is terminal, not a
+    pending job.
     """
+    if folder_name == NOISE_FOLDER:
+        return False
+    if (info.get("state") or "").strip().lower() in ("transcribed", "saved") \
+            and not (info.get("markdown") or info.get("conciseSummary")):
+        # HiNotes finished; no summary is ever coming for this one.
+        return False
     if title and RAW_DEVICE_TITLE.match(title.strip()):
         return True
     if not (info.get("markdown") or info.get("conciseSummary")):
@@ -204,11 +229,28 @@ def main():
     all_notes = client.list_all_notes(page_size=50)
     print(f"Total notes in account: {len(all_notes)}")
 
+    note_folders = manifest["note_folders"]
+
+    def _folder_changed(nid):
+        """True when a note has MOVED since its last export.
+
+        This is what makes the user's Noise workflow work: Noise content is
+        exported once and never retried, but if they manually move a note OUT
+        of Noise into a real folder, the folder mismatch re-exports it into
+        the right place on the next tick -- no manual trigger needed.
+        """
+        prev = note_folders.get(nid)
+        return prev is not None and prev != note_to_folder.get(nid, "Uncategorized")
+
     new_notes = [n for n in all_notes
-                 if n["id"] not in already_exported or n["id"] in provisional]
+                 if n["id"] not in already_exported
+                 or n["id"] in provisional
+                 or _folder_changed(n["id"])]
     n_retry = sum(1 for n in new_notes if n["id"] in provisional)
-    print(f"New notes to export: {len(new_notes) - n_retry} "
-          f"(+ {n_retry} provisional re-exports)")
+    n_moved = sum(1 for n in new_notes
+                  if n["id"] in already_exported and _folder_changed(n["id"]))
+    print(f"New notes to export: {len(new_notes) - n_retry - n_moved} "
+          f"(+ {n_retry} provisional re-exports, + {n_moved} moved between folders)")
 
     if args.limit:
         new_notes = new_notes[: args.limit]
@@ -248,10 +290,14 @@ def main():
             title = info_title
             safe_title = sanitize_filename(title)
 
-        is_provisional = note_is_provisional(title, info)
+        is_provisional = note_is_provisional(title, info, folder_name)
         if is_provisional:
             print("  NOTE still processing on HiNotes (no summary/raw title) — "
                   "writing placeholder and marking for re-export")
+        elif folder_name == NOISE_FOLDER:
+            print(f"  Noise: exporting once, will not retry (state="
+                  f"{info.get('state')}, summary="
+                  f"{bool(info.get('markdown') or info.get('conciseSummary'))})")
 
         summary_md = build_summary_md(note_id, info, folder_name)
         transcript_md = build_transcript_md(
@@ -264,8 +310,11 @@ def main():
         # If this note was previously written under a DIFFERENT (placeholder)
         # name or folder, remove those stale files so the real export doesn't
         # leave an orphaned "*(no summary available)*" duplicate behind.
+        # Also runs on a folder MOVE: the old folder's copy must go, or a note
+        # moved out of Noise would exist in both places.
         stale_removed = []
-        if not is_provisional and note_id in provisional and not args.dry_run:
+        moved = note_folders.get(note_id) not in (None, folder_name)
+        if not is_provisional and (note_id in provisional or moved) and not args.dry_run:
             for root, keep in ((SUMM_ROOT, summ_path), (TRANS_ROOT, trans_path)):
                 for old in glob.glob(os.path.join(root, "*", "*.md")):
                     if os.path.abspath(old) == os.path.abspath(keep):
@@ -302,6 +351,10 @@ def main():
         if not args.dry_run:
             manifest["exported_note_ids"] = list(already_exported | set(exported_this_run))
             manifest["provisional_note_ids"] = sorted(provisional)
+            # Remember where this note lived, so a later manual move (e.g. out
+            # of Noise) is detectable as a folder change on the next run.
+            note_folders[note_id] = folder_name
+            manifest["note_folders"] = note_folders
             save_manifest(manifest)
 
     print(f"\nDone. Exported {len(exported_this_run)} notes this run.")

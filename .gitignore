@@ -58,8 +58,16 @@ Thumbs.db
 *.key
 *.pem
 .env
+# ...and any timestamped backup of it. `.env` alone did NOT cover
+# `.env.bak.<ts>`, which a token rotation creates and which contains the OLD
+# live token -- it was stageable until this line was added (2026-10-04).
+.env.*
+*.env.bak*
 config.local.json
 credentials.json
+
+# Manifest backups: large, regenerated, and pure local churn.
+*_manifest.json.bak*
 
 # Testing
 .pytest_cache/

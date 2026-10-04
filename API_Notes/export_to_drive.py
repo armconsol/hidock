@@ -92,7 +92,12 @@ def load_manifest() -> dict:
 RAW_DEVICE_TITLE = re.compile(r"^\d{8}-\d{6}-Rec\d+\.hda$", re.IGNORECASE)
 
 
-def note_is_provisional(title: str, info: dict) -> bool:
+# Hand-triaged folder: export EXACTLY ONCE, never retry. See the matching
+# constant and rationale in export_to_obsidian.py (user rule 2026-10-04).
+NOISE_FOLDER = "Noise"
+
+
+def note_is_provisional(title: str, info: dict, folder_name: str = "") -> bool:
     """True when the note hasn't finished processing on HiNotes' side.
 
     WHY: the manifest recorded an id as exported on first sight, so a note
@@ -100,6 +105,15 @@ def note_is_provisional(title: str, info: dict) -> bool:
     "*(no summary available)*" as the body (found 2026-09-29, 7 notes). Such
     uploads must stay eligible for re-export.
     """
+    # Noise is triaged by hand and never retried; and once HiNotes reports a
+    # terminal state, a missing summary is permanent, not pending. Without
+    # these two guards short stray clips re-uploaded placeholders to Drive
+    # every 30 minutes forever.
+    if folder_name == NOISE_FOLDER:
+        return False
+    if (info.get("state") or "").strip().lower() in ("transcribed", "saved") \
+            and not (info.get("markdown") or info.get("conciseSummary")):
+        return False
     if title and RAW_DEVICE_TITLE.match(title.strip()):
         return True
     if not (info.get("markdown") or info.get("conciseSummary")):
@@ -350,7 +364,8 @@ def main():
                 title = info_title
                 safe_title = sanitize_filename(title)
 
-        still_provisional = note_is_provisional(title, info) if info is not None else was_provisional
+        still_provisional = (note_is_provisional(title, info, folder_name)
+                             if info is not None else was_provisional)
         if still_provisional:
             print("  NOTE still processing on HiNotes — uploading placeholder, "
                   "will re-export once summarized")
