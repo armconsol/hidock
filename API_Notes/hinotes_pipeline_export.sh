@@ -21,11 +21,9 @@ VAULT_DIR="/home/sarman/repos/obsidian"
 LABEL="HiNotes pipeline"
 source "$HOME/.hermes/scripts/lib/git_sync_alert.sh"
 
-if [ -z "${HINOTES_TOKEN:-}" ]; then
-    # Fall back to .env if not already exported by the caller
-    if [ -f "$HINOTES_DIR/.env" ]; then
-        export HINOTES_TOKEN=$(grep -E '^HINOTES_TOKEN=' "$HINOTES_DIR/.env" | tail -1 | cut -d'=' -f2-)
-    fi
+# Always extract clean token from .env (caller may have set a stale/polluted value)
+if [ -f "$HINOTES_DIR/.env" ]; then
+    export HINOTES_TOKEN=$(grep -E '^HINOTES_TOKEN=' "$HINOTES_DIR/.env" | tail -1 | cut -d'=' -f2-)
 fi
 if [ -z "${HINOTES_TOKEN:-}" ]; then
     git_sync_alert "$LABEL — ERROR" "HINOTES_TOKEN not set and not found in $HINOTES_DIR/.env"

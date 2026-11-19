@@ -56,6 +56,9 @@ def main():
         page = 0
         while True:
             result = client.list_notes(folder_id=f["id"], page_index=page, page_size=50)
+            if result is None:
+                print(f"WARNING: list_notes returned None for folder {f['id']} ({f['name']}), skipping.", file=sys.stderr)
+                break
             for n in result.get("content", []):
                 note_to_folder[n["id"]] = f["id"]
             if result.get("last", True):
